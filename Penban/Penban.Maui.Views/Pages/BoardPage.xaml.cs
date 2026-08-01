@@ -16,6 +16,11 @@ public partial class BoardPage : ContentPage
     private bool isLoaded;
     private bool suppressCardRebuild;
 
+    /// <summary>Carries the owning <see cref="ColumnViewModel"/> on each <see cref="KanbanColumn"/>
+    /// so header-template buttons (whose BindingContext is the Syncfusion column) can reach it.</summary>
+    private static readonly BindableProperty ColumnViewModelProperty =
+        BindableProperty.CreateAttached("ColumnViewModel", typeof(ColumnViewModel), typeof(BoardPage), null);
+
     public BoardPage(BoardViewModel viewModel)
     {
         InitializeComponent();
@@ -128,14 +133,16 @@ public partial class BoardPage : ContentPage
         BoardKanban.Columns.Clear();
         foreach (var column in viewModel.Columns)
         {
-            BoardKanban.Columns.Add(new KanbanColumn
+            var kanbanColumn = new KanbanColumn
             {
                 Title = column.Title,
                 Categories = new List<object> { column.Id.ToString() },
                 PlaceholderStyle = placeholderStyle,
                 // Replaces the control's stark white default column panel.
                 Background = columnBrush,
-            });
+            };
+            kanbanColumn.SetValue(ColumnViewModelProperty, column);
+            BoardKanban.Columns.Add(kanbanColumn);
         }
     }
 
@@ -240,6 +247,26 @@ public partial class BoardPage : ContentPage
         }
 
         await Navigation.PushModalAsync(new CardInkEditorPage(card.Card));
+    }
+
+    private async void OnAddCardClicked(object? sender, EventArgs e)
+    {
+        // The header template's BindingContext is the Syncfusion KanbanColumn; the owning
+        // ColumnViewModel rides along via the attached property set in RebuildKanbanColumns.
+        if ((sender as BindableObject)?.BindingContext is not KanbanColumn kanbanColumn
+            || kanbanColumn.GetValue(ColumnViewModelProperty) is not ColumnViewModel columnViewModel)
+        {
+            return;
+        }
+
+        await columnViewModel.AddCardCommand.ExecuteAsync(null);
+
+        // Pen-first flow: a fresh card is an empty canvas, so open the ink editor right away.
+        var newCard = columnViewModel.Cards.LastOrDefault();
+        if (newCard is not null)
+        {
+            await Navigation.PushModalAsync(new CardInkEditorPage(newCard));
+        }
     }
 
     private static bool TryGetDraggedCardId(object? data, out Guid cardId)
