@@ -13,12 +13,13 @@
                          AutoGenerateColumns="False"
                          ColumnMappingPath="Category"
                          BackgroundColor="Transparent">
-            <kanban:SfKanban.HeaderStyle>
-                <kanban:KanbanHeaderStyle HeaderBackground="Transparent" />
-            </kanban:SfKanban.HeaderStyle>
+            <!-- No SfKanban.HeaderStyle here: KanbanHeaderStyle is internal in
+                 Syncfusion.Maui.Kanban 34.x and crashes the XAML parser at runtime. -->
             <kanban:SfKanban.HeaderTemplate>
                 <DataTemplate>
-                    <HorizontalStackLayout Padding="14,12,12,10" Spacing="8">
+                    <HorizontalStackLayout Padding="14,12,12,10"
+                                           Background="{AppThemeBinding Light={StaticResource SurfaceSecondaryLight}, Dark={StaticResource SurfaceSecondaryDark}}"
+                                           Spacing="8">
                         <Label Style="{StaticResource SubtitleLabel}"
                                Text="{Binding Title}"
                                VerticalOptions="Center" />
