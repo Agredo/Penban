@@ -4,7 +4,16 @@
      design language. -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                    xmlns:styles="clr-namespace:Penban.Maui.Views.Resources.Styles"
                     x:Class="Penban.Maui.Views.Resources.Styles.Theme">
+
+    <!-- Class-based dictionaries resolve their StaticResource lookups during InitializeComponent,
+         before App.xaml has merged anything — so the color tokens must live in this dictionary's
+         own merged scope to be visible. -->
+    <ResourceDictionary.MergedDictionaries>
+        <styles:Colors />
+        <styles:ColorsDark />
+    </ResourceDictionary.MergedDictionaries>
 
     <!-- Typography scale -->
     <x:Double x:Key="FontSizeCaption">12</x:Double>

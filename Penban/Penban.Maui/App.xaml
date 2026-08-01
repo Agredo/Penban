@@ -7,10 +7,12 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
-                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
-                <!-- Design tokens + shared component styles contributed by Penban.Maui.Views. -->
+                <!-- Design tokens from Penban.Maui.Views must merge before the template
+                     Styles.xaml, which references them (Shell colors). -->
                 <styles:Colors />
                 <styles:ColorsDark />
+                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
+                <!-- Shared component styles built on the tokens. -->
                 <styles:Theme />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
