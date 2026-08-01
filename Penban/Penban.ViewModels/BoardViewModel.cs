@@ -34,12 +34,49 @@ public partial class BoardViewModel : ObservableObject
     [ObservableProperty]
     private string title;
 
+    /// <summary>Total number of cards across all columns; loaded by <see cref="LoadSummaryAsync"/>.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CardCountText))]
+    private int cardCount;
+
+    /// <summary>Localized "N cards" caption for the board overview.</summary>
+    public string CardCountText => string.Format(Strings.CardsCountFormat, CardCount);
+
+    /// <summary>Ink strokes of the first non-empty card, shown as the board's thumbnail in the overview.</summary>
+    public ObservableCollection<InkStroke> PreviewStrokes { get; } = new();
+
     public ObservableCollection<ColumnViewModel> Columns { get; } = new();
+
+    /// <summary>
+    /// Loads the lightweight summary shown on the board overview card (card count + ink thumbnail)
+    /// without populating the column card collections used by the board page.
+    /// </summary>
+    public async Task LoadSummaryAsync()
+    {
+        var count = 0;
+        List<InkStroke>? preview = null;
+        foreach (var column in Columns)
+        {
+            var cards = await cardService.GetCardsAsync(column.Id);
+            count += cards.Count;
+            preview ??= cards.OrderBy(c => c.SortOrder).Select(c => c.Strokes).FirstOrDefault(s => s.Count > 0);
+        }
+
+        CardCount = count;
+        PreviewStrokes.Clear();
+        if (preview is not null)
+        {
+            foreach (var stroke in preview)
+            {
+                PreviewStrokes.Add(stroke);
+            }
+        }
+    }
 
     [RelayCommand]
     private async Task AddColumnAsync()
     {
-        var name = await dialogService.DisplayPromptAsync(Strings.AddColumn, string.Empty, Strings.AddColumn, Strings.Delete);
+        var name = await dialogService.DisplayPromptAsync(Strings.AddColumn, string.Empty, Strings.AddColumn, Strings.Cancel);
         if (string.IsNullOrWhiteSpace(name))
         {
             return;

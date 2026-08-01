@@ -6,9 +6,7 @@
              x:Name="CardViewRoot">
     <Border x:Name="CardBorder"
             Padding="8"
-            StrokeShape="RoundRectangle 8"
-            Stroke="{AppThemeBinding Light={StaticResource CardBorderLight}, Dark={StaticResource CardBorderDark}}"
-            Background="{AppThemeBinding Light={StaticResource CardBackgroundLight}, Dark={StaticResource CardBackgroundDark}}">
+            Style="{StaticResource CardBorder}">
         <Grid RowDefinitions="Auto,*" RowSpacing="4">
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                 <Border x:Name="DragHandleHost"
@@ -17,21 +15,20 @@
                         MinimumWidthRequest="36"
                         MinimumHeightRequest="32"
                         StrokeShape="RoundRectangle 6"
-                        Background="{AppThemeBinding Light={StaticResource ColumnBackgroundLight}, Dark={StaticResource ColumnBackgroundDark}}">
+                        Background="{AppThemeBinding Light={StaticResource SurfaceSecondaryLight}, Dark={StaticResource SurfaceSecondaryDark}}">
                     <Border.GestureRecognizers>
                       <DragGestureRecognizer IsEnabled="{Binding Source={x:Reference CardViewRoot}, Path=EnableNativeDrag}"
                                              DragStarting="OnDragHandleDragStarting" />
                     </Border.GestureRecognizers>
-                    <Label Text="⋮⋮"
-                           HorizontalOptions="Center"
-                           VerticalOptions="Center"
-                           FontSize="18"
-                           TextColor="{AppThemeBinding Light={StaticResource ColumnBorderLight}, Dark={StaticResource ColumnBorderDark}}" />
+                    <Label Text="&#xe9f9;"
+                           Style="{StaticResource IconLabel}"
+                           FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextTertiaryLight}, Dark={StaticResource TextTertiaryDark}}" />
                 </Border>
                 <Button Grid.Column="2"
-                        Text="✕"
+                        Text="&#xf34d;"
+                        Style="{StaticResource DangerGhostIconButton}"
                         HorizontalOptions="End"
-                        Padding="4"
                         Command="{Binding DeleteCommand}" />
             </Grid>
             <ink:InkCanvasHostView x:Name="InkHost" Grid.Row="1" HeightRequest="140" />

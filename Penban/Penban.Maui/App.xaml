@@ -8,9 +8,10 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
                 <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
-                <!-- Card/column palette (light + dark) contributed by Penban.Maui.Views. -->
+                <!-- Design tokens + shared component styles contributed by Penban.Maui.Views. -->
                 <styles:Colors />
                 <styles:ColorsDark />
+                <styles:Theme />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

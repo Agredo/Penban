@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Penban.Maui.Views.Pages.PromptDialogPage"
              x:Name="ThisPage"
-             BackgroundColor="#80000000">
+             BackgroundColor="{AppThemeBinding Light={StaticResource ScrimLight}, Dark={StaticResource ScrimDark}}">
     <!--
     Custom in-app replacement for Page.DisplayPromptAsync.
     On this environment's WinUI3/WindowsAppSDK preview build, an Entry hosted inside the
@@ -13,20 +13,21 @@
     surface for unpackaged apps. Hosting the Entry directly in a normal modal page (same
     XamlRoot/content tree as the rest of the app) avoids that code path entirely.
     -->
-    <Border Padding="20"
+    <Border Padding="24"
             Margin="40"
-            StrokeShape="RoundRectangle 8"
+            StrokeShape="RoundRectangle 16"
             VerticalOptions="Center"
             HorizontalOptions="Center"
-            WidthRequest="320"
-            BackgroundColor="White">
-        <VerticalStackLayout Spacing="12">
-            <Label x:Name="TitleLabel" FontSize="18" FontAttributes="Bold" />
-            <Label x:Name="MessageLabel" IsVisible="False" />
+            WidthRequest="360"
+            Background="{AppThemeBinding Light={StaticResource SurfaceLight}, Dark={StaticResource SurfaceDark}}"
+            Stroke="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}">
+        <VerticalStackLayout Spacing="14">
+            <Label x:Name="TitleLabel" Style="{StaticResource TitleLabel}" />
+            <Label x:Name="MessageLabel" Style="{StaticResource BodyLabel}" IsVisible="False" />
             <Entry x:Name="InputEntry" />
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                <Button Grid.Column="0" x:Name="CancelButton" Clicked="OnCancelClicked" />
-                <Button Grid.Column="1" x:Name="AcceptButton" Clicked="OnAcceptClicked" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,6,0,0">
+                <Button Grid.Column="0" x:Name="CancelButton" Style="{StaticResource GhostButton}" Clicked="OnCancelClicked" />
+                <Button Grid.Column="1" x:Name="AcceptButton" Style="{StaticResource PrimaryButton}" Clicked="OnAcceptClicked" />
             </Grid>
         </VerticalStackLayout>
     </Border>

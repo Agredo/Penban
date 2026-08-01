@@ -2,30 +2,93 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             xmlns:controls="clr-namespace:Penban.Maui.Views.Controls"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:Class="Penban.Maui.Views.Pages.BoardsPage"
              x:Name="ThisPage"
-             Title="{markup:Translate Boards}">
-    <Grid RowDefinitions="*,Auto" Padding="12" RowSpacing="12">
-        <CollectionView Grid.Row="0" ItemsSource="{Binding Boards}">
+             Title="{markup:Translate BoardsTitle}"
+             Style="{StaticResource AppPage}">
+    <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
+
+        <!-- Header: page title + primary add action -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <Label Grid.Column="0"
+                   Text="{markup:Translate BoardsTitle}"
+                   Style="{StaticResource LargeTitleLabel}"
+                   VerticalOptions="Center" />
+            <Button Grid.Column="1"
+                    Text="&#xf10a;"
+                    Style="{StaticResource AccentIconButton}"
+                    Command="{Binding AddBoardCommand}"
+                    SemanticProperties.Description="{markup:Translate AddBoard}"
+                    VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Empty state (only visible when no boards exist) -->
+        <VerticalStackLayout Grid.Row="1"
+                             Spacing="14"
+                             VerticalOptions="Center"
+                             IsVisible="{Binding HasBoards, Converter={toolkit:InvertedBoolConverter}}">
+            <Label Text="&#xf1e3;"
+                   Style="{StaticResource IconLabel}"
+                   FontSize="56"
+                   TextColor="{AppThemeBinding Light={StaticResource TextTertiaryLight}, Dark={StaticResource TextTertiaryDark}}"
+                   HorizontalTextAlignment="Center" />
+            <Label Text="{markup:Translate NoBoardsYet}"
+                   Style="{StaticResource CaptionLabel}"
+                   FontSize="{StaticResource FontSizeBody}"
+                   HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
+
+        <!-- Board cards -->
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Boards}">
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Grid ColumnDefinitions="*,Auto" Padding="8">
-                        <Grid.GestureRecognizers>
+                    <Border Style="{StaticResource CardBorder}" Padding="14" Margin="0,6">
+                        <Border.GestureRecognizers>
                             <TapGestureRecognizer
                                 Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.OpenBoardCommand}"
                                 CommandParameter="{Binding Id}" />
-                        </Grid.GestureRecognizers>
-                        <Label Grid.Column="0" Text="{Binding Title}" VerticalOptions="Center" FontSize="18" />
-                        <Button Grid.Column="1"
-                                Text="✕"
-                                Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DeleteBoardCommand}"
-                                CommandParameter="{Binding Id}" />
-                    </Grid>
+                        </Border.GestureRecognizers>
+                        <Grid RowDefinitions="Auto,Auto" RowSpacing="12">
+                            <Border Grid.Row="0" Style="{StaticResource ThumbnailBorder}" HeightRequest="110">
+                                <controls:InkPreviewView HorizontalOptions="Fill"
+                                                         VerticalOptions="Fill"
+                                                         BackgroundColor="Transparent"
+                                                         StrokesSource="{Binding PreviewStrokes}" />
+                            </Border>
+                            <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+                                <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                                    <Label Text="{Binding Title}" Style="{StaticResource SubtitleLabel}" />
+                                    <Label Text="{Binding CardCountText}" Style="{StaticResource CaptionLabel}" />
+                                </VerticalStackLayout>
+                                <Button Grid.Column="1"
+                                        Text="&#xf34d;"
+                                        Style="{StaticResource DangerGhostIconButton}"
+                                        Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DeleteBoardCommand}"
+                                        CommandParameter="{Binding Id}"
+                                        SemanticProperties.Description="{markup:Translate Delete}"
+                                        VerticalOptions="Center" />
+                            </Grid>
+                        </Grid>
+                    </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
+            <CollectionView.Footer>
+                <Border Style="{StaticResource GhostCreateBorder}" Padding="18" Margin="0,6">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding AddBoardCommand}" />
+                    </Border.GestureRecognizers>
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Label Grid.Column="0" Text="&#xf10a;" Style="{StaticResource IconLabel}" VerticalOptions="Center" />
+                        <Label Grid.Column="1"
+                               Text="{markup:Translate AddBoard}"
+                               Style="{StaticResource BodyLabel}"
+                               TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}"
+                               VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+            </CollectionView.Footer>
         </CollectionView>
-        <Button Grid.Row="1"
-                Text="{markup:Translate AddBoard}"
-                Command="{Binding AddBoardCommand}" />
     </Grid>
 </ContentPage>

@@ -3,11 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Penban.Maui.Views.Controls.KanbanColumnView">
     <Border x:Name="ColumnRoot"
-            Padding="8"
+            Padding="10"
             WidthRequest="260"
-            StrokeShape="RoundRectangle 10"
-            Stroke="{AppThemeBinding Light={StaticResource ColumnBorderLight}, Dark={StaticResource ColumnBorderDark}}"
-            Background="{AppThemeBinding Light={StaticResource ColumnBackgroundLight}, Dark={StaticResource ColumnBackgroundDark}}">
+            StrokeShape="RoundRectangle 12"
+            Stroke="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}"
+            Background="{AppThemeBinding Light={StaticResource SurfaceSecondaryLight}, Dark={StaticResource SurfaceSecondaryDark}}">
         <Border.GestureRecognizers>
             <DropGestureRecognizer AllowDrop="True"
                                    DragOver="OnCardsHostDragOver"
@@ -17,8 +17,8 @@
             <Grid x:Name="HeaderHost" Grid.Row="0" ColumnDefinitions="*,Auto">
                 <Entry Grid.Column="0" Text="{Binding Title}" FontAttributes="Bold" />
                 <Button Grid.Column="1"
-                        Text="✕"
-                        Padding="4"
+                        Text="&#xf36a;"
+                        Style="{StaticResource GhostIconButton}"
                         Clicked="OnDeleteColumnClicked" />
             </Grid>
             <ScrollView x:Name="CardsScroll" Grid.Row="1">
@@ -35,7 +35,11 @@
                     </VerticalStackLayout.GestureRecognizers>
                 </VerticalStackLayout>
             </ScrollView>
-            <Button Grid.Row="2" Text="+" Command="{Binding AddCardCommand}" />
+            <Button Grid.Row="2"
+                    Text="&#xf10a;"
+                    Style="{StaticResource GhostIconButton}"
+                    HorizontalOptions="Center"
+                    Command="{Binding AddCardCommand}" />
         </Grid>
     </Border>
 </ContentView>
