@@ -97,9 +97,10 @@
 
     <!-- Recessed area (ink thumbnails, drop zones). -->
     <Style x:Key="ThumbnailBorder" TargetType="Border">
-        <Setter Property="Background"
-                Value="{AppThemeBinding Light={StaticResource SurfaceSecondaryLight}, Dark={StaticResource SurfaceSecondaryDark}}" />
-        <Setter Property="Stroke" Value="Transparent" />
+        <!-- Paper-bright in both themes so dark ink stays readable. -->
+        <Setter Property="Background" Value="{StaticResource PaperColor}" />
+        <Setter Property="Stroke"
+                Value="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
         <Setter Property="StrokeShape" Value="RoundRectangle 8" />
     </Style>
 

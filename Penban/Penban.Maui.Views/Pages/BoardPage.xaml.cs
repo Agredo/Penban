@@ -23,6 +23,17 @@ public partial class BoardPage : ContentPage
         BoardKanban.ItemsSource = kanbanCards;
         BoardKanban.DragEnd += OnKanbanDragEnd;
         viewModel.Columns.CollectionChanged += OnColumnsChanged;
+        Application.Current!.RequestedThemeChanged += OnRequestedThemeChanged;
+    }
+
+    private void OnRequestedThemeChanged(object? sender, AppThemeChangedEventArgs e)
+    {
+        // Column backgrounds are plain brushes (AppThemeBinding isn't constructible from
+        // code), so re-apply them when the OS theme flips.
+        if (isLoaded)
+        {
+            RebuildKanbanColumns();
+        }
     }
 
     protected override async void OnAppearing()
@@ -101,6 +112,19 @@ public partial class BoardPage : ContentPage
             return;
         }
 
+        var resources = Application.Current!.Resources;
+        var isDark = Application.Current.RequestedTheme == AppTheme.Dark;
+        var columnBrush = new SolidColorBrush((Color)resources[isDark ? "SurfaceSecondaryDark" : "SurfaceSecondaryLight"]);
+
+        var accent = (Color)resources[isDark ? "AccentDark" : "AccentLight"];
+        var placeholderStyle = new KanbanPlaceholderStyle
+        {
+            Background = new SolidColorBrush(accent.WithAlpha(0.14f)),
+            Stroke = new SolidColorBrush(accent.WithAlpha(0.6f)),
+            StrokeThickness = 1,
+            StrokeDashArray = new DoubleCollection { 3, 2 },
+        };
+
         BoardKanban.Columns.Clear();
         foreach (var column in viewModel.Columns)
         {
@@ -108,6 +132,9 @@ public partial class BoardPage : ContentPage
             {
                 Title = column.Title,
                 Categories = new List<object> { column.Id.ToString() },
+                PlaceholderStyle = placeholderStyle,
+                // Replaces the control's stark white default column panel.
+                Background = columnBrush,
             });
         }
     }
