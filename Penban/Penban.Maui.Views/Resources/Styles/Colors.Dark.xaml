@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                     x:Class="Penban.Maui.Views.Resources.Styles.ColorsDark">
+
+    <Color x:Key="CardBackgroundDark">#2B2B2B</Color>
+    <Color x:Key="CardBorderDark">#3F3F3F</Color>
+    <Color x:Key="ColumnBackgroundDark">#1E1E1E</Color>
+    <Color x:Key="ColumnBorderDark">#3F3F3F</Color>
+
+</ResourceDictionary>

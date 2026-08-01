@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(PenbanNetVersion)-windows10.0.19041.0;$(PenbanNetVersion)-ios;$(PenbanNetVersion)-maccatalyst;$(PenbanNetVersion)-android;$(PenbanNetVersion)</TargetFrameworks>
+    <UseMaui>true</UseMaui>
+    <SingleProject>false</SingleProject>
+    <!-- .NET 11 dropped Mono runtime support for mobile platforms; use CoreCLR instead. -->
+    <UseMonoRuntime>false</UseMonoRuntime>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Penban.Models\Penban.Models.csproj" />
+    <ProjectReference Include="..\Penban.Services.Abstractions\Penban.Services.Abstractions.csproj" />
+    <!-- Needed for PromptDialogPage: a custom modal replacement for the native
+         DisplayPromptAsync dialog, which crashes natively on this environment. -->
+    <ProjectReference Include="..\Penban.Maui.Views\Penban.Maui.Views.csproj" />
+  </ItemGroup>
+
+</Project>

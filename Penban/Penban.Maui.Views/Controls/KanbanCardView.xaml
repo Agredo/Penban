@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:ink="clr-namespace:Penban.Maui.Views.Ink"
+             x:Class="Penban.Maui.Views.Controls.KanbanCardView"
+             x:Name="CardViewRoot">
+    <Border x:Name="CardBorder"
+            Padding="8"
+            StrokeShape="RoundRectangle 8"
+            Stroke="{AppThemeBinding Light={StaticResource CardBorderLight}, Dark={StaticResource CardBorderDark}}"
+            Background="{AppThemeBinding Light={StaticResource CardBackgroundLight}, Dark={StaticResource CardBackgroundDark}}">
+        <Grid RowDefinitions="Auto,*" RowSpacing="4">
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <Border x:Name="DragHandleHost"
+                        Grid.Column="0"
+                        Padding="8,4"
+                        MinimumWidthRequest="36"
+                        MinimumHeightRequest="32"
+                        StrokeShape="RoundRectangle 6"
+                        Background="{AppThemeBinding Light={StaticResource ColumnBackgroundLight}, Dark={StaticResource ColumnBackgroundDark}}">
+                    <Border.GestureRecognizers>
+                      <DragGestureRecognizer IsEnabled="{Binding Source={x:Reference CardViewRoot}, Path=EnableNativeDrag}"
+                                             DragStarting="OnDragHandleDragStarting" />
+                    </Border.GestureRecognizers>
+                    <Label Text="⋮⋮"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           FontSize="18"
+                           TextColor="{AppThemeBinding Light={StaticResource ColumnBorderLight}, Dark={StaticResource ColumnBorderDark}}" />
+                </Border>
+                <Button Grid.Column="2"
+                        Text="✕"
+                        HorizontalOptions="End"
+                        Padding="4"
+                        Command="{Binding DeleteCommand}" />
+            </Grid>
+            <ink:InkCanvasHostView x:Name="InkHost" Grid.Row="1" HeightRequest="140" />
+        </Grid>
+    </Border>
+</ContentView>

@@ -1,0 +1,76 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(PenbanNetVersion)-windows10.0.19041.0;$(PenbanNetVersion)-ios;$(PenbanNetVersion)-maccatalyst;$(PenbanNetVersion)-android</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Penban.Maui</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <UseMonoRuntime>false</UseMonoRuntime>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <ApplicationTitle>Penban</ApplicationTitle>
+    <ApplicationId>com.penban.app</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+
+    <!-- Disable the WindowsAppSDK Foundation module-init deployment check: on this dev machine it
+         fails with REGDB_E_CLASSNOTREG (DeploymentInitializeOptions WinRT activation) even though
+         the runtime is installed. The app doesn't rely on runtime self-repair, so skip it. -->
+    <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
+
+    <!-- Unpackaged (non-MSIX) launch on this machine can't resolve WinUI's WinRT classes via the
+         registry (REGDB_E_CLASSNOTREG for Microsoft.UI.Xaml.Application). Self-contained deployment
+         enables "Undocked RegFree WinRT", which activates WinUI types via an app-local manifest
+         instead of registry lookups. -->
+    <WindowsAppSDKSelfContained Condition="$(TargetFramework.Contains('-windows'))">true</WindowsAppSDKSelfContained>
+
+    <!-- Force unpackaged (non-MSIX) Windows launch/build so Visual Studio never requires an
+         'MsixPackage' launch profile. -->
+    <WindowsPackageType Condition="$(TargetFramework.Contains('-windows'))">None</WindowsPackageType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- App Icon -->
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+
+    <!-- Splash Screen -->
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+
+    <!-- Images -->
+    <MauiImage Include="Resources\Images\*" />
+
+    <!-- Custom Fonts -->
+    <MauiFont Include="Resources\Fonts\*" />
+
+    <!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
+    <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- On Windows, WindowsAppSDK.WinUI globs **/*.xaml as Page items (compiled by the WinUI/UWP
+       markup compiler) in addition to MAUI's own MauiXaml classification, which fails because the
+       WinUI compiler doesn't understand MAUI's XAML dialect. Remove the duplicate classification. -->
+  <ItemGroup Condition="$(TargetFramework.Contains('-windows'))">
+    <Page Remove="**\*.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" />
+    <PackageReference Include="CommunityToolkit.Maui" />
+    <PackageReference Include="SkiaSharp.Views.Maui.Controls" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Penban.Maui.Views\Penban.Maui.Views.csproj" />
+    <ProjectReference Include="..\Penban.Maui.Services\Penban.Maui.Services.csproj" />
+    <ProjectReference Include="..\Penban.Services\Penban.Services.csproj" />
+    <ProjectReference Include="..\Penban.Data\Penban.Data.csproj" />
+  </ItemGroup>
+
+</Project>

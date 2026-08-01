@@ -1,0 +1,30 @@
+# Build results
+bin/
+obj/
+out/
+publish/
+
+# Visual Studio / Rider
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+
+# .NET
+*.nupkg
+project.lock.json
+msbuild.log
+*.received.txt
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# App data / local databases
+*.db
+*.db-shm
+*.db-wal
+*.log

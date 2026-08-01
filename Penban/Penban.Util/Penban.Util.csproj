@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(PenbanNetVersion)</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Strings.resx (neutral/English) generates a strongly-typed Strings class at build
+         time via the SDK's built-in resource generator, without needing Visual Studio.
+         Strings.de.resx needs no such metadata: it becomes a satellite resource assembly
+         that ResourceManager picks up automatically based on the current culture. -->
+    <EmbeddedResource Update="Strings.resx">
+      <Generator>MSBuild:Compile</Generator>
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>Penban.Util</StronglyTypedNamespace>
+      <StronglyTypedClassName>Strings</StronglyTypedClassName>
+      <StronglyTypedFileName>$(IntermediateOutputPath)Strings.Designer.cs</StronglyTypedFileName>
+      <StronglyTypedManifestPrefix>Penban.Util</StronglyTypedManifestPrefix>
+      <PublicClass>true</PublicClass>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

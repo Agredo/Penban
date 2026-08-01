@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Penban.Maui.Views.Controls.KanbanColumnView">
+    <Border x:Name="ColumnRoot"
+            Padding="8"
+            WidthRequest="260"
+            StrokeShape="RoundRectangle 10"
+            Stroke="{AppThemeBinding Light={StaticResource ColumnBorderLight}, Dark={StaticResource ColumnBorderDark}}"
+            Background="{AppThemeBinding Light={StaticResource ColumnBackgroundLight}, Dark={StaticResource ColumnBackgroundDark}}">
+        <Border.GestureRecognizers>
+            <DropGestureRecognizer AllowDrop="True"
+                                   DragOver="OnCardsHostDragOver"
+                                   Drop="OnCardsHostDrop" />
+        </Border.GestureRecognizers>
+        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6">
+            <Grid x:Name="HeaderHost" Grid.Row="0" ColumnDefinitions="*,Auto">
+                <Entry Grid.Column="0" Text="{Binding Title}" FontAttributes="Bold" />
+                <Button Grid.Column="1"
+                        Text="✕"
+                        Padding="4"
+                        Clicked="OnDeleteColumnClicked" />
+            </Grid>
+            <ScrollView x:Name="CardsScroll" Grid.Row="1">
+                <ScrollView.GestureRecognizers>
+                    <DropGestureRecognizer AllowDrop="True"
+                                           DragOver="OnCardsHostDragOver"
+                                           Drop="OnCardsHostDrop" />
+                </ScrollView.GestureRecognizers>
+                <VerticalStackLayout x:Name="CardsHost" Spacing="6">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <DropGestureRecognizer AllowDrop="True"
+                                               DragOver="OnCardsHostDragOver"
+                                               Drop="OnCardsHostDrop" />
+                    </VerticalStackLayout.GestureRecognizers>
+                </VerticalStackLayout>
+            </ScrollView>
+            <Button Grid.Row="2" Text="+" Command="{Binding AddCardCommand}" />
+        </Grid>
+    </Border>
+</ContentView>

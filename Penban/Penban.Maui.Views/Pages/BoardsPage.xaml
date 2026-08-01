@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             x:Class="Penban.Maui.Views.Pages.BoardsPage"
+             x:Name="ThisPage"
+             Title="{markup:Translate Boards}">
+    <Grid RowDefinitions="*,Auto" Padding="12" RowSpacing="12">
+        <CollectionView Grid.Row="0" ItemsSource="{Binding Boards}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid ColumnDefinitions="*,Auto" Padding="8">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.OpenBoardCommand}"
+                                CommandParameter="{Binding Id}" />
+                        </Grid.GestureRecognizers>
+                        <Label Grid.Column="0" Text="{Binding Title}" VerticalOptions="Center" FontSize="18" />
+                        <Button Grid.Column="1"
+                                Text="✕"
+                                Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DeleteBoardCommand}"
+                                CommandParameter="{Binding Id}" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        <Button Grid.Row="1"
+                Text="{markup:Translate AddBoard}"
+                Command="{Binding AddBoardCommand}" />
+    </Grid>
+</ContentPage>

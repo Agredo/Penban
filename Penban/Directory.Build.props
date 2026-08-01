@@ -1,0 +1,27 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- Central .NET version for all library projects. The Penban.Maui head project
+         derives its platform-specific TFMs from this same property. -->
+    <PenbanNetVersion>net10.0</PenbanNetVersion>
+
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <Company>Penban</Company>
+    <Product>Penban</Product>
+    <Copyright>Copyright (c) Penban</Copyright>
+
+    <!-- Warnings-as-errors for library projects. The head project (Penban.Maui)
+         opts back out below, since it contains generated/platform code and the
+         experimental Avalonia desktop path. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- The head project disables warnings-as-errors for itself. -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Penban.Maui'">
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

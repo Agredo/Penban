@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(PenbanNetVersion)</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LiteDB" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Penban.Models\Penban.Models.csproj" />
+    <ProjectReference Include="..\Penban.Services.Abstractions\Penban.Services.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

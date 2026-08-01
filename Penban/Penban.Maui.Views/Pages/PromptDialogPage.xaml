@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Penban.Maui.Views.Pages.PromptDialogPage"
+             x:Name="ThisPage"
+             BackgroundColor="#80000000">
+    <!--
+    Custom in-app replacement for Page.DisplayPromptAsync.
+    On this environment's WinUI3/WindowsAppSDK preview build, an Entry hosted inside the
+    native ContentDialog used by DisplayPromptAsync reliably crashes the process natively
+    (0xc000027b in Microsoft.UI.Xaml.dll) when it receives keyboard focus - most likely a
+    text-input/IME (TSF) activation failure specific to ContentDialog's separate popup
+    surface for unpackaged apps. Hosting the Entry directly in a normal modal page (same
+    XamlRoot/content tree as the rest of the app) avoids that code path entirely.
+    -->
+    <Border Padding="20"
+            Margin="40"
+            StrokeShape="RoundRectangle 8"
+            VerticalOptions="Center"
+            HorizontalOptions="Center"
+            WidthRequest="320"
+            BackgroundColor="White">
+        <VerticalStackLayout Spacing="12">
+            <Label x:Name="TitleLabel" FontSize="18" FontAttributes="Bold" />
+            <Label x:Name="MessageLabel" IsVisible="False" />
+            <Entry x:Name="InputEntry" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <Button Grid.Column="0" x:Name="CancelButton" Clicked="OnCancelClicked" />
+                <Button Grid.Column="1" x:Name="AcceptButton" Clicked="OnAcceptClicked" />
+            </Grid>
+        </VerticalStackLayout>
+    </Border>
+</ContentPage>

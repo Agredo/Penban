@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(PenbanNetVersion)-windows10.0.19041.0;$(PenbanNetVersion)-ios;$(PenbanNetVersion)-maccatalyst;$(PenbanNetVersion)-android;$(PenbanNetVersion)</TargetFrameworks>
+    <UseMaui>true</UseMaui>
+    <SingleProject>false</SingleProject>
+    <!-- .NET 11 dropped Mono runtime support for mobile platforms; use CoreCLR instead. -->
+    <UseMonoRuntime>false</UseMonoRuntime>
+    <!-- CommunityToolkit.Maui's [BindableProperty] source generator is currently
+         marked [Experimental] and must be opted into per project. -->
+    <NoWarn>$(NoWarn);MCTEXP001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" />
+    <PackageReference Include="CommunityToolkit.Maui" />
+    <PackageReference Include="SkiaSharp.Views.Maui.Controls" />
+    <PackageReference Include="Syncfusion.Maui.Kanban" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Penban.ViewModels\Penban.ViewModels.csproj" />
+  </ItemGroup>
+
+  <!-- On the Windows TFM, the WinUI SDK auto-globs every *.xaml file as a "Page" item
+       (compiled by the WinUI markup compiler), which conflicts with MAUI's own "MauiXaml"
+       classification of the same files (compiled by Microsoft.Maui.Controls.Build.Tasks).
+       Without this removal the WinUI compiler fails with "Unknown type ... in XML namespace
+       http://schemas.microsoft.com/dotnet/2021/maui" because it doesn't know the MAUI xmlns. -->
+  <ItemGroup Condition="$(TargetFramework.Contains('-windows'))">
+    <Page Remove="**\*.xaml" />
+  </ItemGroup>
+
+</Project>
