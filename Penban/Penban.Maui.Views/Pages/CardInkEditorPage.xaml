@@ -1,20 +1,25 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
              xmlns:ink="clr-namespace:Penban.Maui.Views.Ink"
              x:Class="Penban.Maui.Views.Pages.CardInkEditorPage"
-             Title="Card">
-    <Grid RowDefinitions="*,Auto" Padding="12" RowSpacing="12">
+             Title="Card"
+             Style="{StaticResource AppPage}">
+    <Grid RowDefinitions="*,Auto" Padding="16" RowSpacing="14">
         <Border Grid.Row="0"
-                Padding="8"
-                StrokeShape="RoundRectangle 8"
-                Stroke="{AppThemeBinding Light={StaticResource CardBorderLight}, Dark={StaticResource CardBorderDark}}"
-                Background="{AppThemeBinding Light={StaticResource CardBackgroundLight}, Dark={StaticResource CardBackgroundDark}}">
-            <ink:InkCanvasHostView x:Name="InkHost" />
+                Padding="10"
+                Style="{StaticResource CardBorder}">
+            <!-- Paper-bright ink surface: strokes are stored dark-on-light. -->
+            <Border Style="{StaticResource ThumbnailBorder}">
+                <ink:InkCanvasHostView x:Name="InkHost" BackgroundColor="Transparent" />
+            </Border>
         </Border>
 
         <Button Grid.Row="1"
-                Text="Fertig"
+                Text="{markup:Translate Done}"
+                Style="{StaticResource PrimaryButton}"
+                HorizontalOptions="Center"
                 Clicked="OnDoneClicked" />
     </Grid>
 </ContentPage>

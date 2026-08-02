@@ -26,6 +26,9 @@ public partial class BoardsViewModel : ObservableObject
 
     public ObservableCollection<BoardViewModel> Boards { get; } = new();
 
+    /// <summary>Whether any boards exist; drives the empty state on the overview page.</summary>
+    public bool HasBoards => Boards.Count > 0;
+
     [RelayCommand]
     private async Task LoadBoardsAsync()
     {
@@ -33,14 +36,18 @@ public partial class BoardsViewModel : ObservableObject
         Boards.Clear();
         foreach (var board in boards)
         {
-            Boards.Add(new BoardViewModel(board, boardService, cardService, dialogService));
+            var viewModel = new BoardViewModel(board, boardService, cardService, dialogService);
+            Boards.Add(viewModel);
+            await viewModel.LoadSummaryAsync();
         }
+
+        OnPropertyChanged(nameof(HasBoards));
     }
 
     [RelayCommand]
     private async Task AddBoardAsync()
     {
-        var name = await dialogService.DisplayPromptAsync(Strings.AddBoard, string.Empty, Strings.AddBoard, Strings.Delete);
+        var name = await dialogService.DisplayPromptAsync(Strings.AddBoard, string.Empty, Strings.AddBoard, Strings.Cancel);
         if (string.IsNullOrWhiteSpace(name))
         {
             return;
@@ -48,12 +55,13 @@ public partial class BoardsViewModel : ObservableObject
 
         var board = await boardService.CreateBoardAsync(name);
         Boards.Add(new BoardViewModel(board, boardService, cardService, dialogService));
+        OnPropertyChanged(nameof(HasBoards));
     }
 
     [RelayCommand]
     private async Task DeleteBoardAsync(Guid boardId)
     {
-        var confirmed = await dialogService.DisplayConfirmationAsync(Strings.Delete, Strings.Delete, Strings.Delete, Strings.Rename);
+        var confirmed = await dialogService.DisplayConfirmationAsync(Strings.Delete, Strings.DeleteBoardConfirmation, Strings.Delete, Strings.Cancel);
         if (!confirmed)
         {
             return;
@@ -64,6 +72,7 @@ public partial class BoardsViewModel : ObservableObject
         if (board is not null)
         {
             Boards.Remove(board);
+            OnPropertyChanged(nameof(HasBoards));
         }
     }
 

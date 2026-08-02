@@ -1,11 +1,30 @@
 <?xml version="1.0" encoding="utf-8" ?>
+<!-- Design tokens: dark theme. Mirrors every key of Colors.xaml with a Dark suffix. -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                      xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                      x:Class="Penban.Maui.Views.Resources.Styles.ColorsDark">
 
-    <Color x:Key="CardBackgroundDark">#2B2B2B</Color>
-    <Color x:Key="CardBorderDark">#3F3F3F</Color>
-    <Color x:Key="ColumnBackgroundDark">#1E1E1E</Color>
-    <Color x:Key="ColumnBorderDark">#3F3F3F</Color>
+    <!-- Brand / accent (indigo, brightened for dark surfaces) -->
+    <Color x:Key="AccentDark">#6366F1</Color>
+    <Color x:Key="AccentPressedDark">#4F46E5</Color>
+    <Color x:Key="OnAccentDark">#FFFFFF</Color>
+
+    <!-- Surfaces -->
+    <Color x:Key="BackgroundDark">#0F1115</Color>
+    <Color x:Key="SurfaceDark">#171A21</Color>
+    <Color x:Key="SurfaceSecondaryDark">#1E2230</Color>
+
+    <!-- Strokes -->
+    <Color x:Key="BorderDark">#262B36</Color>
+    <Color x:Key="BorderStrongDark">#3A4152</Color>
+
+    <!-- Text -->
+    <Color x:Key="TextPrimaryDark">#EDEDF0</Color>
+    <Color x:Key="TextSecondaryDark">#8A90A2</Color>
+    <Color x:Key="TextTertiaryDark">#5C6373</Color>
+
+    <!-- Feedback -->
+    <Color x:Key="DangerDark">#F87171</Color>
+    <Color x:Key="ScrimDark">#99000000</Color>
 
 </ResourceDictionary>

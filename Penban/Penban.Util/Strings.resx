@@ -85,4 +85,19 @@
   <data name="Rename" xml:space="preserve">
     <value>Rename</value>
   </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="NoBoardsYet" xml:space="preserve">
+    <value>No boards yet. Create your first board to get started.</value>
+  </data>
+  <data name="CardsCountFormat" xml:space="preserve">
+    <value>{0} cards</value>
+  </data>
+  <data name="DeleteBoardConfirmation" xml:space="preserve">
+    <value>Delete this board? This cannot be undone.</value>
+  </data>
 </root>
