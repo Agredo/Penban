@@ -10,13 +10,19 @@
              Style="{StaticResource AppPage}">
     <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
 
-        <!-- Header: page title + primary add action -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-            <Label Grid.Column="0"
+        <!-- Header: logo + page title + primary add action -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <Image Grid.Column="0"
+                   Source="penban_logo.png"
+                   WidthRequest="36"
+                   HeightRequest="36"
+                   VerticalOptions="Center"
+                   SemanticProperties.Description="Penban" />
+            <Label Grid.Column="1"
                    Text="{markup:Translate BoardsTitle}"
                    Style="{StaticResource LargeTitleLabel}"
                    VerticalOptions="Center" />
-            <Button Grid.Column="1"
+            <Button Grid.Column="2"
                     Text="&#xf10a;"
                     Style="{StaticResource AccentIconButton}"
                     Command="{Binding AddBoardCommand}"
