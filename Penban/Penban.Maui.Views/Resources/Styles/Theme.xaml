@@ -197,10 +197,12 @@
         <Setter Property="CornerRadius" Value="{StaticResource RadiusSmall}" />
         <Setter Property="BorderWidth" Value="0" />
         <Setter Property="Padding" Value="6" />
-        <Setter Property="MinimumHeightRequest" Value="0" />
-        <Setter Property="MinimumWidthRequest" Value="0" />
-        <Setter Property="HeightRequest" Value="32" />
-        <Setter Property="WidthRequest" Value="32" />
+        <!-- 44x44 matches Apple's HIG minimum touch target so this is reliably tappable
+             with a finger or Apple Pencil on iPad, not just a mouse pointer. -->
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+        <Setter Property="HeightRequest" Value="44" />
+        <Setter Property="WidthRequest" Value="44" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
@@ -235,10 +237,12 @@
         <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
         <Setter Property="BorderWidth" Value="0" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="MinimumHeightRequest" Value="0" />
-        <Setter Property="MinimumWidthRequest" Value="0" />
-        <Setter Property="HeightRequest" Value="38" />
-        <Setter Property="WidthRequest" Value="38" />
+        <!-- 44x44 matches Apple's HIG minimum touch target so this is reliably tappable
+             with a finger or Apple Pencil on iPad, not just a mouse pointer. -->
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+        <Setter Property="HeightRequest" Value="44" />
+        <Setter Property="WidthRequest" Value="44" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
@@ -283,6 +287,14 @@
                 </VisualStateGroup>
             </VisualStateGroupList>
         </Setter>
+    </Style>
+
+    <!-- Destructive text button (e.g. "Delete" on the card editor). -->
+    <Style x:Key="DangerGhostButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+        <Setter Property="TextColor"
+                Value="{AppThemeBinding Light={StaticResource DangerLight}, Dark={StaticResource DangerDark}}" />
+        <Setter Property="BorderColor"
+                Value="{AppThemeBinding Light={StaticResource DangerLight}, Dark={StaticResource DangerDark}}" />
     </Style>
 
 </ResourceDictionary>

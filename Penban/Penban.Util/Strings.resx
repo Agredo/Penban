@@ -100,4 +100,22 @@
   <data name="DeleteBoardConfirmation" xml:space="preserve">
     <value>Delete this board? This cannot be undone.</value>
   </data>
+  <data name="DeleteColumnConfirmation" xml:space="preserve">
+    <value>Delete this column and all its cards? This cannot be undone.</value>
+  </data>
+  <data name="DeleteCardConfirmation" xml:space="preserve">
+    <value>Delete this card? This cannot be undone.</value>
+  </data>
+  <data name="RenameColumn" xml:space="preserve">
+    <value>Rename column</value>
+  </data>
+  <data name="Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="Eraser" xml:space="preserve">
+    <value>Eraser</value>
+  </data>
+  <data name="Pen" xml:space="preserve">
+    <value>Pen</value>
+  </data>
 </root>

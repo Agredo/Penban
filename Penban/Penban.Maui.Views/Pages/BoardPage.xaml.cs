@@ -269,6 +269,30 @@ public partial class BoardPage : ContentPage
         }
     }
 
+    private async void OnRenameColumnTapped(object? sender, EventArgs e)
+    {
+        if (viewModel is null
+            || (sender as BindableObject)?.BindingContext is not KanbanColumn kanbanColumn
+            || kanbanColumn.GetValue(ColumnViewModelProperty) is not ColumnViewModel columnViewModel)
+        {
+            return;
+        }
+
+        await viewModel.RenameColumnCommand.ExecuteAsync(columnViewModel.Id);
+    }
+
+    private async void OnDeleteColumnClicked(object? sender, EventArgs e)
+    {
+        if (viewModel is null
+            || (sender as BindableObject)?.BindingContext is not KanbanColumn kanbanColumn
+            || kanbanColumn.GetValue(ColumnViewModelProperty) is not ColumnViewModel columnViewModel)
+        {
+            return;
+        }
+
+        await viewModel.DeleteColumnCommand.ExecuteAsync(columnViewModel.Id);
+    }
+
     private static bool TryGetDraggedCardId(object? data, out Guid cardId)
     {
         switch (data)

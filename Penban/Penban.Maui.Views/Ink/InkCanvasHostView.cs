@@ -75,6 +75,14 @@ public class InkCanvasHostView : ContentView
 
     public void Clear() => activeRenderer.Clear();
 
+    public void Undo() => activeRenderer.Undo();
+
+    public bool IsEraserMode
+    {
+        get => activeRenderer.IsEraserMode;
+        set => activeRenderer.IsEraserMode = value;
+    }
+
     private static InkRenderer ReadStoredRenderer(IPreferences? preferences)
     {
         var stored = preferences?.Get(RendererPreferenceKey, InkRenderer.Skia.ToString());

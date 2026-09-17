@@ -28,6 +28,31 @@ public partial class CardInkEditorPage : ContentPage
         _ = cardViewModel.SaveCommand.ExecuteAsync(null);
     }
 
+    private void OnPenClicked(object? sender, EventArgs e)
+    {
+        InkHost.IsEraserMode = false;
+        PenButton.Style = (Style)Application.Current!.Resources["PrimaryButton"];
+        EraserButton.Style = (Style)Application.Current!.Resources["GhostButton"];
+    }
+
+    private void OnEraserClicked(object? sender, EventArgs e)
+    {
+        InkHost.IsEraserMode = true;
+        PenButton.Style = (Style)Application.Current!.Resources["GhostButton"];
+        EraserButton.Style = (Style)Application.Current!.Resources["PrimaryButton"];
+    }
+
+    private void OnUndoClicked(object? sender, EventArgs e) => InkHost.Undo();
+
+    private async void OnDeleteClicked(object? sender, EventArgs e)
+    {
+        await cardViewModel.DeleteCommand.ExecuteAsync(null);
+        if (cardViewModel.IsDeleted)
+        {
+            await Navigation.PopModalAsync();
+        }
+    }
+
     private async void OnDoneClicked(object? sender, EventArgs e)
     {
         await cardViewModel.SaveCommand.ExecuteAsync(null);

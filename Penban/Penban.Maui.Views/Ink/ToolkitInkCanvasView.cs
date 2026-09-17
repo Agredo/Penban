@@ -12,6 +12,12 @@ namespace Penban.Maui.Views.Ink;
 /// as <c>1.0</c> for strokes drawn with this renderer. Use <see cref="SkiaInkCanvasView"/>
 /// if true stylus-pressure fidelity is required.
 /// </para>
+/// <para>
+/// Limitation: <see cref="IsEraserMode"/> is exposed for interface parity with
+/// <see cref="SkiaInkCanvasView"/>, but <see cref="DrawingView"/> does not expose a raw touch
+/// hook this renderer can use to hit-test strokes while drawing, so setting it here has no
+/// effect. <see cref="Undo"/> works normally on both renderers.
+/// </para>
 /// </summary>
 public class ToolkitInkCanvasView : ContentView, IInkCanvasView
 {
@@ -32,6 +38,8 @@ public class ToolkitInkCanvasView : ContentView, IInkCanvasView
 
     public event EventHandler? StrokeCompleted;
 
+    public bool IsEraserMode { get; set; }
+
     public string StrokeColor
     {
         get => ToHex(drawingView.LineColor);
@@ -48,6 +56,20 @@ public class ToolkitInkCanvasView : ContentView, IInkCanvasView
     {
         drawingView.Lines.Clear();
         Strokes.Clear();
+    }
+
+    public void Undo()
+    {
+        if (drawingView.Lines.Count > 0)
+        {
+            drawingView.Lines.RemoveAt(drawingView.Lines.Count - 1);
+        }
+
+        if (Strokes.Count > 0)
+        {
+            Strokes.RemoveAt(Strokes.Count - 1);
+            StrokeCompleted?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     public void LoadStrokes(IEnumerable<InkStroke> strokes)
