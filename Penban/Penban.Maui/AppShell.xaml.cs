@@ -18,7 +18,5 @@ public partial class AppShell : Shell
             Route = "boards",
             ContentTemplate = new DataTemplate(() => services.GetRequiredService<BoardsPage>()),
         });
-
-        Routing.RegisterRoute("board", typeof(BoardHostPage));
     }
 }

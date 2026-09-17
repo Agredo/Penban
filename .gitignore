@@ -4,6 +4,13 @@ obj/
 out/
 publish/
 
+# MSIX / Windows packaging output
+AppPackages/
+BundleArtifacts/
+*.msix
+*.msixbundle
+*.appx
+
 # Visual Studio / Rider
 .vs/
 .vscode/

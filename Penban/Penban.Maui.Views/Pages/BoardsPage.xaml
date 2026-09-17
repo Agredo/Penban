@@ -7,6 +7,7 @@
              x:Class="Penban.Maui.Views.Pages.BoardsPage"
              x:Name="ThisPage"
              Title="{markup:Translate BoardsTitle}"
+             Shell.NavBarIsVisible="False"
              Style="{StaticResource AppPage}">
     <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
 
@@ -46,9 +47,7 @@
                 <DataTemplate>
                     <Border Style="{StaticResource CardBorder}" Padding="14" Margin="0,6">
                         <Border.GestureRecognizers>
-                            <TapGestureRecognizer
-                                Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.OpenBoardCommand}"
-                                CommandParameter="{Binding Id}" />
+                            <TapGestureRecognizer Tapped="OnBoardTapped" />
                         </Border.GestureRecognizers>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="20">
 
@@ -133,21 +132,6 @@
                     </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
-            <CollectionView.Footer>
-                <Border Style="{StaticResource GhostCreateBorder}" Padding="18" Margin="0,6">
-                    <Border.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding AddBoardCommand}" />
-                    </Border.GestureRecognizers>
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                        <Label Grid.Column="0" Text="&#xf10a;" Style="{StaticResource IconLabel}" VerticalOptions="Center" />
-                        <Label Grid.Column="1"
-                               Text="{markup:Translate AddBoard}"
-                               Style="{StaticResource BodyLabel}"
-                               TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}"
-                               VerticalOptions="Center" />
-                    </Grid>
-                </Border>
-            </CollectionView.Footer>
         </CollectionView>
     </Grid>
 </ContentPage>

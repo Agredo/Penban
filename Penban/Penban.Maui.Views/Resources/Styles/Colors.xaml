@@ -18,7 +18,6 @@
 
     <!-- Strokes -->
     <Color x:Key="BorderLight">#E4E4E8</Color>
-    <Color x:Key="BorderStrongLight">#CFCFD6</Color>
 
     <!-- Text -->
     <Color x:Key="TextPrimaryLight">#17171A</Color>

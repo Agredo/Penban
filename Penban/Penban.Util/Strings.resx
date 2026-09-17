@@ -67,6 +67,9 @@
   <data name="AddColumn" xml:space="preserve">
     <value>Add column</value>
   </data>
+  <data name="Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
   <data name="AddCard" xml:space="preserve">
     <value>Add card</value>
   </data>

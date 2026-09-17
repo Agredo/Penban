@@ -11,6 +11,7 @@ namespace Penban.Maui.Views.Markup;
 /// <see cref="LocalizationBroadcaster.Changed"/> fires.
 /// </summary>
 [ContentProperty(nameof(Key))]
+[AcceptEmptyServiceProvider]
 public class TranslateExtension : IMarkupExtension<BindingBase>
 {
     private static readonly ResourceManager ResourceManager =

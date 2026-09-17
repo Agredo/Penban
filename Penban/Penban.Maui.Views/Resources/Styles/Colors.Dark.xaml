@@ -16,7 +16,6 @@
 
     <!-- Strokes -->
     <Color x:Key="BorderDark">#262B36</Color>
-    <Color x:Key="BorderStrongDark">#3A4152</Color>
 
     <!-- Text -->
     <Color x:Key="TextPrimaryDark">#EDEDF0</Color>

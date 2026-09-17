@@ -61,7 +61,6 @@ public static class MauiProgram
 
         services.AddSingleton<IPreferences, MauiPreferences>();
         services.AddSingleton<ISecureStorage, MauiSecureStorage>();
-        services.AddSingleton<Penban.Services.Abstractions.INavigation, MauiNavigation>();
         services.AddSingleton<IDialogService, MauiDialogService>();
     }
 
@@ -69,6 +68,5 @@ public static class MauiProgram
     {
         services.AddTransient<BoardsViewModel>();
         services.AddTransient<BoardsPage>();
-        services.AddTransient<BoardHostPage>();
     }
 }

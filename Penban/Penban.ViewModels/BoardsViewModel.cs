@@ -14,15 +14,12 @@ public partial class BoardsViewModel : ObservableObject
     private readonly IBoardService boardService;
     private readonly ICardService cardService;
     private readonly IDialogService dialogService;
-    private readonly INavigation navigation;
-    private bool isNavigating;
 
-    public BoardsViewModel(IBoardService boardService, ICardService cardService, IDialogService dialogService, INavigation navigation)
+    public BoardsViewModel(IBoardService boardService, ICardService cardService, IDialogService dialogService)
     {
         this.boardService = boardService;
         this.cardService = cardService;
         this.dialogService = dialogService;
-        this.navigation = navigation;
     }
 
     public ObservableCollection<BoardViewModel> Boards { get; } = new();
@@ -55,7 +52,7 @@ public partial class BoardsViewModel : ObservableObject
     [RelayCommand]
     private async Task AddBoardAsync()
     {
-        var name = await dialogService.DisplayPromptAsync(Strings.AddBoard, string.Empty, Strings.AddBoard, Strings.Cancel);
+        var name = await dialogService.DisplayPromptAsync(Strings.AddBoard, string.Empty, Strings.Add, Strings.Cancel);
         if (string.IsNullOrWhiteSpace(name))
         {
             return;
@@ -104,33 +101,10 @@ public partial class BoardsViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private async Task OpenBoardAsync(Guid boardId)
-    {
-        // TapGestureRecognizer doesn't respect CanExecute like Button does, so a duplicate
-        // tap event can invoke this command again before the first navigation finishes,
-        // which throws "Pending Navigations still processing" and crashes the app. Guard manually.
-        if (isNavigating)
-        {
-            return;
-        }
-
-        isNavigating = true;
-        try
-        {
-            await navigation.GoToAsync($"board?id={boardId}");
-        }
-        catch (InvalidOperationException)
-        {
-            // Shell can still be settling a just-completed navigation internally for a brief
-            // moment after GoToAsync's task completes; a navigation request landing in that
-            // window throws "Pending Navigations still processing". Any unhandled exception
-            // here crashes the whole app (WinRT turns it into a native fault on the dispatcher),
-            // so we swallow this specific, harmless race instead of letting it propagate.
-        }
-        finally
-        {
-            isNavigating = false;
-        }
-    }
+    /// <summary>
+    /// The view model of an already listed board, ready to be shown. Opening a board only needs a
+    /// page on the ordinary navigation stack, which is a view-layer concern, so the tap is handled
+    /// by <c>BoardsPage</c> and this lookup stays free of any navigation API.
+    /// </summary>
+    public BoardViewModel? FindBoard(Guid boardId) => Boards.FirstOrDefault(b => b.Id == boardId);
 }

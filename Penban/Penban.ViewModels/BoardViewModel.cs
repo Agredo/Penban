@@ -130,7 +130,7 @@ public partial class BoardViewModel : ObservableObject
     [RelayCommand]
     private async Task AddColumnAsync()
     {
-        var name = await dialogService.DisplayPromptAsync(Strings.AddColumn, string.Empty, Strings.AddColumn, Strings.Cancel);
+        var name = await dialogService.DisplayPromptAsync(Strings.AddColumn, string.Empty, Strings.Add, Strings.Cancel);
         if (string.IsNullOrWhiteSpace(name))
         {
             return;

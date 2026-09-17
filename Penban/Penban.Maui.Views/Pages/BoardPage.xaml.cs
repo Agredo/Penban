@@ -239,8 +239,12 @@ public partial class BoardPage : ContentPage
         }
     }
 
-    private async void OnCardTapped(object? sender, TappedEventArgs e)
+    private async void OnBackClicked(object? sender, EventArgs e)
     {
+        await Navigation.PopAsync();
+    }
+
+    private async void OnCardTapped(object? sender, TappedEventArgs e)    {
         if ((sender as BindableObject)?.BindingContext is not BoardKanbanCard card)
         {
             return;
