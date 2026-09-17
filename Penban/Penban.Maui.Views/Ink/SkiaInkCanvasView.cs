@@ -32,10 +32,26 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     public float StrokeThickness { get; set; } = 4f;
 
+    public bool IsEraserMode { get; set; }
+
+    private const float EraseRadius = 16f;
+
     public void Clear()
     {
         Strokes.Clear();
         canvasView.InvalidateSurface();
+    }
+
+    public void Undo()
+    {
+        if (Strokes.Count == 0)
+        {
+            return;
+        }
+
+        Strokes.RemoveAt(Strokes.Count - 1);
+        canvasView.InvalidateSurface();
+        StrokeCompleted?.Invoke(this, EventArgs.Empty);
     }
 
     public void LoadStrokes(IEnumerable<InkStroke> strokes)
@@ -51,6 +67,12 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     private void OnTouch(object? sender, SKTouchEventArgs e)
     {
+        if (IsEraserMode)
+        {
+            HandleEraseTouch(e);
+            return;
+        }
+
         switch (e.ActionType)
         {
             case SKTouchAction.Pressed:
@@ -82,6 +104,46 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                 e.Handled = true;
                 break;
         }
+    }
+
+    /// <summary>Removes whole strokes that pass under the touch point - simpler and more
+    /// forgiving than pixel-level erasing, and easy to reason about for handwritten notes.</summary>
+    private void HandleEraseTouch(SKTouchEventArgs e)
+    {
+        if (e.ActionType is not (SKTouchAction.Pressed or SKTouchAction.Moved) || !e.InContact)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        var touched = e.Location;
+        var erased = false;
+        for (var i = Strokes.Count - 1; i >= 0; i--)
+        {
+            var stroke = Strokes[i];
+            if (stroke.Points.Any(p => Distance(p.X, p.Y, touched.X, touched.Y) <= EraseRadius))
+            {
+                Strokes.RemoveAt(i);
+                erased = true;
+            }
+        }
+
+        canvasView.InvalidateSurface();
+        e.Handled = true;
+
+        if (erased)
+        {
+            // Reuse StrokeCompleted so callers persist the change the same way they persist
+            // a freshly drawn stroke - erasing is just another edit to the stroke set.
+            StrokeCompleted?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private static float Distance(float x1, float y1, float x2, float y2)
+    {
+        var dx = x1 - x2;
+        var dy = y1 - y2;
+        return MathF.Sqrt((dx * dx) + (dy * dy));
     }
 
     private static void AddPoint(InkStroke stroke, SKTouchEventArgs e)

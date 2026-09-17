@@ -11,12 +11,14 @@ namespace Penban.ViewModels;
 public partial class ColumnViewModel : ObservableObject
 {
     private readonly ICardService cardService;
+    private readonly IDialogService dialogService;
     private readonly BoardColumn column;
 
-    public ColumnViewModel(BoardColumn column, ICardService cardService)
+    public ColumnViewModel(BoardColumn column, ICardService cardService, IDialogService dialogService)
     {
         this.column = column;
         this.cardService = cardService;
+        this.dialogService = dialogService;
         title = column.Title;
         sortOrder = column.SortOrder;
     }
@@ -42,7 +44,7 @@ public partial class ColumnViewModel : ObservableObject
         Cards.Clear();
         foreach (var card in cards.OrderBy(c => c.SortOrder))
         {
-            Cards.Add(new CardViewModel(card, cardService));
+            Cards.Add(new CardViewModel(card, cardService, dialogService));
         }
     }
 
@@ -50,7 +52,7 @@ public partial class ColumnViewModel : ObservableObject
     private async Task AddCardAsync()
     {
         var card = await cardService.CreateCardAsync(Id);
-        Cards.Add(new CardViewModel(card, cardService));
+        Cards.Add(new CardViewModel(card, cardService, dialogService));
     }
 
     /// <summary>Called after a touch drag reorders the cards; writes the new SortOrder values.</summary>

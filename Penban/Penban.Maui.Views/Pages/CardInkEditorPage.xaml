@@ -6,8 +6,24 @@
              x:Class="Penban.Maui.Views.Pages.CardInkEditorPage"
              Title="Card"
              Style="{StaticResource AppPage}">
-    <Grid RowDefinitions="*,Auto" Padding="16" RowSpacing="14">
-        <Border Grid.Row="0"
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16" RowSpacing="14">
+
+        <!-- Drawing tools: switch between pen/eraser and undo the last edit. -->
+        <HorizontalStackLayout Grid.Row="0" Spacing="8">
+            <Button x:Name="PenButton"
+                    Text="{markup:Translate Pen}"
+                    Style="{StaticResource PrimaryButton}"
+                    Clicked="OnPenClicked" />
+            <Button x:Name="EraserButton"
+                    Text="{markup:Translate Eraser}"
+                    Style="{StaticResource GhostButton}"
+                    Clicked="OnEraserClicked" />
+            <Button Text="{markup:Translate Undo}"
+                    Style="{StaticResource GhostButton}"
+                    Clicked="OnUndoClicked" />
+        </HorizontalStackLayout>
+
+        <Border Grid.Row="1"
                 Padding="10"
                 Style="{StaticResource CardBorder}">
             <!-- Paper-bright ink surface: strokes are stored dark-on-light. -->
@@ -16,10 +32,15 @@
             </Border>
         </Border>
 
-        <Button Grid.Row="1"
-                Text="{markup:Translate Done}"
-                Style="{StaticResource PrimaryButton}"
-                HorizontalOptions="Center"
-                Clicked="OnDoneClicked" />
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <Button Grid.Column="0"
+                    Text="{markup:Translate Delete}"
+                    Style="{StaticResource DangerGhostButton}"
+                    Clicked="OnDeleteClicked" />
+            <Button Grid.Column="2"
+                    Text="{markup:Translate Done}"
+                    Style="{StaticResource PrimaryButton}"
+                    Clicked="OnDoneClicked" />
+        </Grid>
     </Grid>
 </ContentPage>

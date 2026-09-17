@@ -18,4 +18,13 @@ public interface IInkCanvasView
     void Clear();
 
     void LoadStrokes(IEnumerable<InkStroke> strokes);
+
+    /// <summary>Removes the most recently completed stroke, if any.</summary>
+    void Undo();
+
+    /// <summary>
+    /// When true, touch input removes whole strokes under the touch point instead of drawing
+    /// new ones - a simple, forgiving "eraser" that matches how a real pen/eraser feels on paper.
+    /// </summary>
+    bool IsEraserMode { get; set; }
 }

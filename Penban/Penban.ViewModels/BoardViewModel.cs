@@ -25,7 +25,7 @@ public partial class BoardViewModel : ObservableObject
 
         foreach (var column in board.Columns.OrderBy(c => c.SortOrder))
         {
-            Columns.Add(new ColumnViewModel(column, cardService));
+            Columns.Add(new ColumnViewModel(column, cardService, dialogService));
         }
     }
 
@@ -83,18 +83,43 @@ public partial class BoardViewModel : ObservableObject
         }
 
         var column = await boardService.AddColumnAsync(Id, name);
-        Columns.Add(new ColumnViewModel(column, cardService));
+        Columns.Add(new ColumnViewModel(column, cardService, dialogService));
     }
 
     [RelayCommand]
     private async Task DeleteColumnAsync(Guid columnId)
     {
+        var confirmed = await dialogService.DisplayConfirmationAsync(Strings.Delete, Strings.DeleteColumnConfirmation, Strings.Delete, Strings.Cancel);
+        if (!confirmed)
+        {
+            return;
+        }
+
         await boardService.DeleteColumnAsync(Id, columnId);
         var column = Columns.FirstOrDefault(c => c.Id == columnId);
         if (column is not null)
         {
             Columns.Remove(column);
         }
+    }
+
+    [RelayCommand]
+    private async Task RenameColumnAsync(Guid columnId)
+    {
+        var column = Columns.FirstOrDefault(c => c.Id == columnId);
+        if (column is null)
+        {
+            return;
+        }
+
+        var name = await dialogService.DisplayPromptAsync(Strings.RenameColumn, string.Empty, Strings.Rename, Strings.Cancel, initialValue: column.Title);
+        if (string.IsNullOrWhiteSpace(name) || name == column.Title)
+        {
+            return;
+        }
+
+        column.Title = name;
+        await boardService.RenameColumnAsync(Id, columnId, name);
     }
 
     /// <summary>Called after a touch drag reorders the columns; writes the new SortOrder values.</summary>
