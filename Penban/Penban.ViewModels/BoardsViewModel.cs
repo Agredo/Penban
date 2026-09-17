@@ -2,6 +2,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Penban.Models;
 using Penban.Services.Abstractions;
 using Penban.Util;
 
@@ -36,12 +37,19 @@ public partial class BoardsViewModel : ObservableObject
         Boards.Clear();
         foreach (var board in boards)
         {
-            var viewModel = new BoardViewModel(board, boardService, cardService, dialogService);
-            Boards.Add(viewModel);
-            await viewModel.LoadSummaryAsync();
+            await AddBoardViewModelAsync(board);
         }
 
+        // Raised once at the end: the empty state must not flash while the rows are still loading.
         OnPropertyChanged(nameof(HasBoards));
+    }
+
+    private async Task AddBoardViewModelAsync(Board board)
+    {
+        var viewModel = new BoardViewModel(board, boardService, cardService, dialogService);
+        Boards.Add(viewModel);
+
+        await viewModel.LoadSummaryAsync();
     }
 
     [RelayCommand]
@@ -54,8 +62,28 @@ public partial class BoardsViewModel : ObservableObject
         }
 
         var board = await boardService.CreateBoardAsync(name);
-        Boards.Add(new BoardViewModel(board, boardService, cardService, dialogService));
+        await AddBoardViewModelAsync(board);
         OnPropertyChanged(nameof(HasBoards));
+    }
+
+    [RelayCommand]
+    private async Task RenameBoardAsync(Guid boardId)
+    {
+        var board = Boards.FirstOrDefault(b => b.Id == boardId);
+        if (board is null)
+        {
+            return;
+        }
+
+        var name = await dialogService.DisplayPromptAsync(Strings.RenameBoard, string.Empty, Strings.Rename, Strings.Cancel, initialValue: board.Title);
+        name = name?.Trim();
+        if (string.IsNullOrWhiteSpace(name) || name == board.Title)
+        {
+            return;
+        }
+
+        await boardService.RenameBoardAsync(boardId, name);
+        board.Title = name;
     }
 
     [RelayCommand]

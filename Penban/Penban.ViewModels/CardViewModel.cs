@@ -31,6 +31,29 @@ public partial class CardViewModel : ObservableObject
 
     public Guid ColumnId => card.ColumnId;
 
+    /// <summary>
+    /// Paper colour of this card's note. Without a choice of the user the colour is derived from the
+    /// id, so a fresh note still looks hand-picked instead of uniform; picking one in the editor
+    /// stores it with the card.
+    /// </summary>
+    public int NoteColorIndex
+    {
+        get => card.NoteColorIndex ?? NoteStyle.PaperIndexFor(card.Id);
+        set
+        {
+            if (card.NoteColorIndex == value)
+            {
+                return;
+            }
+
+            card.NoteColorIndex = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Tilt of this card's note in degrees.</summary>
+    public double NoteTilt => NoteStyle.TiltFor(card.Id);
+
     [ObservableProperty]
     private int sortOrder;
 

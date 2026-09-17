@@ -29,8 +29,4 @@
     <Color x:Key="DangerLight">#DC2626</Color>
     <Color x:Key="ScrimLight">#66000000</Color>
 
-    <!-- Paper stays light in both themes: ink strokes are stored dark-on-light,
-         so every ink surface (thumbnails, editor canvas) must remain paper-bright. -->
-    <Color x:Key="PaperColor">#FCFCFD</Color>
-
 </ResourceDictionary>

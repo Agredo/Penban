@@ -70,6 +70,15 @@
   <data name="AddCard" xml:space="preserve">
     <value>Karte hinzufügen</value>
   </data>
+  <data name="DefaultColumnTodo" xml:space="preserve">
+    <value>Offen</value>
+  </data>
+  <data name="DefaultColumnInProgress" xml:space="preserve">
+    <value>In Arbeit</value>
+  </data>
+  <data name="DefaultColumnDone" xml:space="preserve">
+    <value>Fertig</value>
+  </data>
   <data name="Settings" xml:space="preserve">
     <value>Einstellungen</value>
   </data>
@@ -117,5 +126,32 @@
   </data>
   <data name="Pen" xml:space="preserve">
     <value>Stift</value>
+  </data>
+  <data name="RenameBoard" xml:space="preserve">
+    <value>Board umbenennen</value>
+  </data>
+  <data name="NoCardsYet" xml:space="preserve">
+    <value>Noch keine Karten</value>
+  </data>
+  <data name="OneCard" xml:space="preserve">
+    <value>1 Karte</value>
+  </data>
+  <data name="BoardSummaryFormat" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="TimeJustNow" xml:space="preserve">
+    <value>gerade eben</value>
+  </data>
+  <data name="TimeMinutesAgoFormat" xml:space="preserve">
+    <value>vor {0} Min.</value>
+  </data>
+  <data name="TimeHoursAgoFormat" xml:space="preserve">
+    <value>vor {0} Std.</value>
+  </data>
+  <data name="TimeYesterday" xml:space="preserve">
+    <value>gestern</value>
+  </data>
+  <data name="TimeDaysAgoFormat" xml:space="preserve">
+    <value>vor {0} Tagen</value>
   </data>
 </root>

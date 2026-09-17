@@ -1,6 +1,7 @@
 // Framework-agnostic: no Microsoft.Maui.* usings allowed in this file.
 using Penban.Models;
 using Penban.Services.Abstractions;
+using Penban.Util;
 
 namespace Penban.Services;
 
@@ -16,9 +17,34 @@ public class BoardService : IBoardService
 
     public Task<List<Board>> GetBoardsAsync() => repository.GetAllAsync();
 
+    /// <summary>
+    /// Column titles a new board starts with. A board is only usable once it has lanes to
+    /// write on, and demanding a first column before anything can be drawn pushes the
+    /// "add folder before adding a note" chore onto the user. Evaluated per call so the
+    /// titles follow the active culture.
+    /// </summary>
+    private static string[] DefaultColumnTitles =>
+    [
+        Strings.DefaultColumnTodo,
+        Strings.DefaultColumnInProgress,
+        Strings.DefaultColumnDone,
+    ];
+
     public async Task<Board> CreateBoardAsync(string title)
     {
         var board = new Board { Title = title };
+
+        var defaultTitles = DefaultColumnTitles;
+        for (var i = 0; i < defaultTitles.Length; i++)
+        {
+            board.Columns.Add(new BoardColumn
+            {
+                BoardId = board.Id,
+                Title = defaultTitles[i],
+                SortOrder = i,
+            });
+        }
+
         await repository.SaveAsync(board);
         return board;
     }
