@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
              xmlns:ink="clr-namespace:Penban.Maui.Views.Ink"
+             xmlns:controls="clr-namespace:Penban.Maui.Views.Controls"
              x:Class="Penban.Maui.Views.Pages.CardInkEditorPage"
              Title="Card"
              Style="{StaticResource AppPage}">
@@ -23,20 +24,33 @@
                     Clicked="OnUndoClicked" />
         </HorizontalStackLayout>
 
-        <Border Grid.Row="1"
-                Padding="10"
-                Style="{StaticResource CardBorder}">
-            <!-- Paper-bright ink surface: strokes are stored dark-on-light. -->
-            <Border Style="{StaticResource ThumbnailBorder}">
-                <ink:InkCanvasHostView x:Name="InkHost" BackgroundColor="Transparent" />
+        <!-- The writing surface is the very note that sits on the board, in its own paper colour
+             (set from the view model in the constructor). Strokes are stored dark-on-light.
+             NoteArea is only a measuring cell: it reports the free space so the note can be kept
+             square without the note ever feeding its own size back into the layout. -->
+        <Grid Grid.Row="1" x:Name="NoteArea">
+            <Border x:Name="NoteFrame"
+                    Padding="10"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    Style="{StaticResource CardBorder}">
+                <controls:StickyNoteBorder x:Name="NoteSurface" Padding="0">
+                    <ink:InkCanvasHostView x:Name="InkHost" BackgroundColor="Transparent" />
+                </controls:StickyNoteBorder>
             </Border>
-        </Border>
+        </Grid>
 
         <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
             <Button Grid.Column="0"
                     Text="{markup:Translate Delete}"
                     Style="{StaticResource DangerGhostButton}"
                     Clicked="OnDeleteClicked" />
+            <!-- Paper colours, filled in from the palette so a swatch is the note itself. -->
+            <HorizontalStackLayout x:Name="ColorPicker"
+                                   Grid.Column="1"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   Spacing="10" />
             <Button Grid.Column="2"
                     Text="{markup:Translate Done}"
                     Style="{StaticResource PrimaryButton}"

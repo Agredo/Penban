@@ -19,6 +19,7 @@ public partial class BoardViewModel : ObservableObject
     {
         Id = board.Id;
         title = board.Title;
+        LastEditedUtc = board.UpdatedAtUtc;
         this.boardService = boardService;
         this.cardService = cardService;
         this.dialogService = dialogService;
@@ -31,52 +32,105 @@ public partial class BoardViewModel : ObservableObject
 
     public Guid Id { get; }
 
+    /// <summary>Paper colour of this board's note; stable for the lifetime of the board.</summary>
+    public int NoteColorIndex => NoteStyle.PaperIndexFor(Id);
+
+    /// <summary>Tilt of this board's note in degrees.</summary>
+    public double NoteTilt => NoteStyle.TiltFor(Id);
+
     [ObservableProperty]
     private string title;
 
+    /// <summary>Number of notes the overview fans out; more than a handful stops reading as a stack.</summary>
+    private const int PreviewNoteLimit = 3;
+
     /// <summary>Total number of cards across all columns; loaded by <see cref="LoadSummaryAsync"/>.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CardCountText))]
     private int cardCount;
 
-    /// <summary>Localized "N cards" caption for the board overview.</summary>
-    public string CardCountText => string.Format(Strings.CardsCountFormat, CardCount);
+    /// <summary>Most recent write to this board or any of its cards.</summary>
+    public DateTimeOffset LastEditedUtc { get; private set; }
 
-    /// <summary>Ink strokes of the first non-empty card, shown as the board's thumbnail in the overview.</summary>
-    public ObservableCollection<InkStroke> PreviewStrokes { get; } = new();
+    /// <summary>
+    /// Caption under the board title: when it was last touched and how much sits on it. A board
+    /// nobody has written on yet only says that it is empty - a timestamp would be noise there.
+    /// </summary>
+    public string SummaryText => CardCount == 0
+        ? Strings.NoCardsYet
+        : string.Format(Strings.BoardSummaryFormat, RelativeTime.Describe(LastEditedUtc, DateTimeOffset.UtcNow), CardCountText);
+
+    private string CardCountText => CardCount == 1
+        ? Strings.OneCard
+        : string.Format(Strings.CardsCountFormat, CardCount);
+
+    /// <summary>Fills-in of one lane per column, drawn as the load bar of the overview.</summary>
+    public ObservableCollection<BoardColumnSummary> ColumnSummary { get; } = new();
+
+    /// <summary>Whether there are lanes to draw in the load bar.</summary>
+    public bool HasColumns => ColumnSummary.Count > 0;
+
+    /// <summary>Notes fanned out as this board's thumbnail; up to three cards, in board order.</summary>
+    public ObservableCollection<BoardNotePreview> PreviewNotes { get; } = new();
 
     public ObservableCollection<ColumnViewModel> Columns { get; } = new();
 
     /// <summary>
-    /// Loads the lightweight summary shown on the board overview card (card count + ink thumbnail)
-    /// without populating the column card collections used by the board page.
+    /// Loads the lightweight summary shown on the board overview (last edit, card count per lane,
+    /// ink of the first few notes) without populating the column card collections used by the board
+    /// page.
     /// </summary>
     public async Task LoadSummaryAsync()
     {
         var count = 0;
-        List<InkStroke>? preview = null;
+        var lastEdited = LastEditedUtc;
+        var previews = new List<Card>();
+
+        ColumnSummary.Clear();
         foreach (var column in Columns)
         {
             var cards = await cardService.GetCardsAsync(column.Id);
             count += cards.Count;
-            preview ??= cards.OrderBy(c => c.SortOrder).Select(c => c.Strokes).FirstOrDefault(s => s.Count > 0);
+            ColumnSummary.Add(new BoardColumnSummary(column.Title, cards.Count, NoteColorIndex));
+
+            foreach (var card in cards)
+            {
+                lastEdited = card.UpdatedAtUtc > lastEdited ? card.UpdatedAtUtc : lastEdited;
+
+                // Only notes that were actually written on say something about the board.
+                if (card.Strokes.Count > 0 && previews.Count < PreviewNoteLimit)
+                {
+                    previews.Add(card);
+                }
+            }
+        }
+
+        LastEditedUtc = lastEdited;
+
+        if (previews.Count == 0)
+        {
+            // A board nobody has written on still gets a note to look at: blank, but in the paper
+            // colour and tilt of the board itself, since both are derived from the id.
+            previews.Add(new Card { Id = Id });
+        }
+
+        PreviewNotes.Clear();
+        for (var index = 0; index < previews.Count; index++)
+        {
+            PreviewNotes.Add(new BoardNotePreview(previews[index], index, previews.Count));
         }
 
         CardCount = count;
-        PreviewStrokes.Clear();
-        if (preview is not null)
-        {
-            foreach (var stroke in preview)
-            {
-                PreviewStrokes.Add(stroke);
-            }
-        }
+
+        // Everything above derives from the stored data, not from CardCount, so it has to be
+        // announced separately.
+        OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(HasColumns));
     }
 
     [RelayCommand]
     private async Task AddColumnAsync()
     {
-        var name = await dialogService.DisplayPromptAsync(Strings.AddColumn, string.Empty, Strings.AddColumn, Strings.Cancel);
+        var name = await dialogService.DisplayPromptAsync(Strings.AddColumn, string.Empty, Strings.Add, Strings.Cancel);
         if (string.IsNullOrWhiteSpace(name))
         {
             return;

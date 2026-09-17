@@ -16,6 +16,15 @@ public sealed class InkPreviewView : GraphicsView, IDrawable
         default(IEnumerable<InkStroke>),
         propertyChanged: OnStrokesSourceChanged);
 
+    /// <summary>A preview stroke never renders thinner than this many device-independent units,
+    /// so a much-reduced note still shows its pen marks.</summary>
+    private const float MinimumStrokeSize = 1f;
+
+    /// <summary>…and never thicker than this share of the preview. Ink is fitted into the note by
+    /// its bounding box, so a drawing that covers little of the sheet is scaled up a lot; without
+    /// a ceiling its strokes would come out as thick marker lines on a note this small.</summary>
+    private const float MaximumStrokeShare = 0.02f;
+
     private INotifyCollectionChanged? observedCollection;
 
     public InkPreviewView()
@@ -52,6 +61,13 @@ public sealed class InkPreviewView : GraphicsView, IDrawable
         var offsetX = dirtyRect.Left + padding + ((targetWidth - (sourceWidth * scale)) / 2f);
         var offsetY = dirtyRect.Top + padding + ((targetHeight - (sourceHeight * scale)) / 2f);
 
+        // Thicknesses below are in ink units; the canvas is scaled, so they are divided by the
+        // scale to land on the wanted size on screen.
+        var minimumInkStroke = MinimumStrokeSize / scale;
+        var maximumInkStroke = Math.Max(
+            Math.Min(dirtyRect.Width, dirtyRect.Height) * MaximumStrokeShare / scale,
+            minimumInkStroke);
+
         canvas.SaveState();
         canvas.Translate(offsetX, offsetY);
         canvas.Scale(scale, scale);
@@ -59,8 +75,10 @@ public sealed class InkPreviewView : GraphicsView, IDrawable
 
         foreach (var stroke in strokes)
         {
+            var thickness = Math.Clamp(stroke.Thickness, minimumInkStroke, maximumInkStroke);
+
             canvas.StrokeColor = Color.FromArgb(stroke.Color);
-            canvas.StrokeSize = Math.Max(stroke.Thickness, 1f) / scale;
+            canvas.StrokeSize = thickness;
             canvas.StrokeLineCap = LineCap.Round;
             canvas.StrokeLineJoin = LineJoin.Round;
 
@@ -68,7 +86,7 @@ public sealed class InkPreviewView : GraphicsView, IDrawable
             {
                 var p = stroke.Points[0];
                 canvas.FillColor = Color.FromArgb(stroke.Color);
-                canvas.FillCircle(p.X, p.Y, Math.Max((stroke.Thickness * 0.5f) / scale, 1f / scale));
+                canvas.FillCircle(p.X, p.Y, thickness * 0.5f);
                 continue;
             }
 

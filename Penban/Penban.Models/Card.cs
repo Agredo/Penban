@@ -13,4 +13,11 @@ public class Card : SyncableEntity
 
     /// <summary>The entire visible content of the card: the handwritten ink strokes.</summary>
     public List<InkStroke> Strokes { get; set; } = new();
+
+    /// <summary>
+    /// Paper colour the user picked for this note, or <c>null</c> while the colour is still derived
+    /// from <see cref="SyncableEntity.Id"/> - which is how cards created before the colour picker
+    /// keep looking exactly as they did.
+    /// </summary>
+    public int? NoteColorIndex { get; set; }
 }

@@ -7,6 +7,7 @@ namespace Penban.Maui.Views.Controls;
 public static class IconFont
 {
     public const string Add = "\uf10a";
+    public const string Back = "\uf15c";
     public const string Dismiss = "\uf36a";
     public const string Delete = "\uf34d";
     public const string DragHandle = "\ue9f9";
