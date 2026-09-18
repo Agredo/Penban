@@ -1,4 +1,7 @@
 <svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <!-- Full-bleed opaque background: the App Store icon must not contain transparency.
+       Oversized on purpose so that edge pixels stay opaque at every rendered size. -->
+  <rect x="-8" y="-8" width="472" height="472" fill="#4F46E5"/>
   <!-- One big sticky note that fills the whole tile, slightly tilted, with ink strokes and a red pin -->
   <g transform="rotate(-3 228 228)">
     <rect x="40" y="40" width="376" height="376" rx="14" fill="#FCF29B"/>

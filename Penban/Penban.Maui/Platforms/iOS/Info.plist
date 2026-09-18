@@ -28,5 +28,10 @@
 	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
+	<!-- TestFlight/App Store: the app uses no non-exempt encryption (only standard
+	     HTTPS/TLS), so this skips the export-compliance question on every upload.
+	     Switch to <true/> if non-exempt cryptography is ever added. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
