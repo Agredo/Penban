@@ -13,7 +13,7 @@
     <ApplicationTitle>Penban</ApplicationTitle>
     <ApplicationId>com.agredoapplication.panban</ApplicationId>
     <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
-    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationVersion>2</ApplicationVersion>
 
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
@@ -35,6 +35,14 @@
     <!-- Force unpackaged (non-MSIX) Windows launch/build so Visual Studio never requires an
          'MsixPackage' launch profile. -->
     <WindowsPackageType Condition="$(TargetFramework.Contains('-windows'))">None</WindowsPackageType>
+  </PropertyGroup>
+
+  <!-- iOS Release builds crash on launch (fatal allocation failure in the native UIKit/Observation
+       startup path) when Mono AOT-compiled code is used. Running the assemblies with the Mono
+       interpreter instead of AOT avoids it. `RunAOTCompilation=false` alone has no effect - only
+       `UseInterpreter` actually skips AOT. Costs some startup performance but is stable. -->
+  <PropertyGroup Condition="$(TargetFramework.Contains('-ios')) And '$(Configuration)' == 'Release'">
+    <UseInterpreter>true</UseInterpreter>
   </PropertyGroup>
 
   <ItemGroup>
