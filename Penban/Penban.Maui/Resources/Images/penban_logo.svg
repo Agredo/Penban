@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Penban logo mark for in-app use (title bar icon, page headers). Resizetized to PNG
+     at build time like every MauiImage; referenced as penban_logo.png. -->
+<svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="tile" x1="48" y1="48" x2="408" y2="408" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#6366F1" />
+            <stop offset="1" stop-color="#4338CA" />
+        </linearGradient>
+    </defs>
+    <rect x="48" y="48" width="360" height="360" rx="88" fill="url(#tile)" />
+    <g transform="translate(34.2,34.2) scale(0.85)">
+        <g fill="#FFFFFF">
+            <rect x="84" y="178" width="68" height="72" rx="16" />
+            <rect x="84" y="262" width="68" height="88" rx="16" />
+            <rect x="304" y="162" width="68" height="64" rx="16" />
+            <rect x="304" y="238" width="68" height="56" rx="16" />
+            <rect x="194" y="94" width="68" height="190" rx="22" />
+            <path fill-rule="evenodd" d="M194,284 L262,284 L228,362 Z M228,324 m-9,0 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0 Z" />
+        </g>    </g>
+</svg>
