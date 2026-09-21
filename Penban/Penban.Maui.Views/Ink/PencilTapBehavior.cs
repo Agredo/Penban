@@ -14,8 +14,9 @@ namespace Penban.Maui.Views.Ink;
 /// it, and a user who set it to "show palette" should not get an eraser.
 /// </para>
 /// <para>
-/// iOS only: Android (S Pen button) and Windows (Surface Slim Pen) expose no equivalent event, and
-/// the simulator never raises a pencil tap, so this needs a real device to test.
+/// iOS only: Android (S Pen button) exposes no equivalent event, and the simulator never raises a
+/// pencil tap, so this needs a real device to test. The Windows counterpart, which erases while the
+/// eraser end of a Surface Pen is held down, is <see cref="PenTailEraserBehavior"/>.
 /// </para>
 /// </summary>
 public class PencilTapBehavior : PlatformBehavior<View, UIView>

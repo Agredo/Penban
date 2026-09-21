@@ -132,6 +132,28 @@ public class InkCanvasHostView : ContentView
     }
 
     /// <summary>
+    /// Erases while the eraser end of the pen stays down - see
+    /// <see cref="SkiaInkCanvasView.BeginPenTailErase"/>. Only the Skia renderer sees pen input
+    /// finely enough to tell the two ends of a pen apart; the toolkit renderer ignores this.
+    /// </summary>
+    public void BeginPenTailErase()
+    {
+        if (activeRenderer is SkiaInkCanvasView skia)
+        {
+            skia.BeginPenTailErase();
+        }
+    }
+
+    /// <summary>Ends the eraser-end contact - see <see cref="BeginPenTailErase"/>.</summary>
+    public void EndPenTailErase()
+    {
+        if (activeRenderer is SkiaInkCanvasView skia)
+        {
+            skia.EndPenTailErase();
+        }
+    }
+
+    /// <summary>
     /// Re-reads the drawing settings. Called whenever the store is attached or the renderer is
     /// swapped, so a card opened after a setting was changed behaves the same way.
     /// </summary>

@@ -63,14 +63,26 @@ public partial class BoardPage : ContentPage
             return;
         }
 
-        await LoadColumnsAndCardsAsync();
-        if (!isLoaded)
+        if (isLoaded)
         {
-            RebuildKanbanColumns();
-            isLoaded = true;
+            // Coming back from the ink editor. The card the editor worked on is the very instance
+            // this board already holds, and both its note colour and its ink preview follow it
+            // live, so reloading every column and rebuilding the whole board here only made
+            // returning from the editor slow - on a full board, several seconds of nothing
+            // happening. Only a deletion still has to be applied, because it happens on the card
+            // and so cannot reach the column it came from.
+            if (RemoveDeletedCards())
+            {
+                RebuildKanbanCards();
+            }
+
+            return;
         }
 
+        await LoadColumnsAndCardsAsync();
+        RebuildKanbanColumns();
         RebuildKanbanCards();
+        isLoaded = true;
     }
 
     private async void OnColumnsChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -116,11 +128,25 @@ public partial class BoardPage : ContentPage
             return;
         }
 
-        foreach (var column in viewModel.Columns)
+        var columns = viewModel.Columns.ToList();
+        foreach (var column in columns)
         {
             column.Cards.CollectionChanged -= OnCardsChanged;
             column.Cards.CollectionChanged += OnCardsChanged;
-            await column.LoadCardsCommand.ExecuteAsync(null);
+        }
+
+        // Filling a column is a Clear() plus one Add() per card, and each of those raises
+        // CollectionChanged - which used to rebuild the whole board. That made opening a board with
+        // a few dozen cards quadratic, and it is why a big board took seconds to appear. Load
+        // first, build the board once.
+        suppressCardRebuild = true;
+        try
+        {
+            await Task.WhenAll(columns.Select(column => column.LoadCardsCommand.ExecuteAsync(null)));
+        }
+        finally
+        {
+            suppressCardRebuild = false;
         }
     }
 
@@ -308,6 +334,56 @@ public partial class BoardPage : ContentPage
         await Navigation.PopAsync();
     }
 
+    /// <summary>
+    /// Removes the cards that were deleted in the ink editor from their columns. Deletion is the
+    /// one edit the editor cannot apply where it happens - the delete command knows the card but not
+    /// the column holding it. Returns whether anything went, so the caller can rebuild the board
+    /// once instead of once per removed card.
+    /// </summary>
+    private bool RemoveDeletedCards()
+    {
+        if (viewModel is null)
+        {
+            return false;
+        }
+
+        var removed = false;
+        suppressCardRebuild = true;
+        try
+        {
+            foreach (var column in viewModel.Columns)
+            {
+                for (var i = column.Cards.Count - 1; i >= 0; i--)
+                {
+                    if (column.Cards[i].IsDeleted)
+                    {
+                        column.Cards.RemoveAt(i);
+                        removed = true;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            suppressCardRebuild = false;
+        }
+
+        return removed;
+    }
+
+    /// <summary>
+    /// Opens the ink editor for a card and applies whatever it changed about the board itself.
+    /// </summary>
+    private async Task OpenCardEditorAsync(CardViewModel card)
+    {
+        await Navigation.PushModalAsync(new CardInkEditorPage(card, preferences));
+
+        if (RemoveDeletedCards())
+        {
+            RebuildKanbanCards();
+        }
+    }
+
     private async void OnCardTapped(object? sender, TappedEventArgs e)
     {
         if ((sender as BindableObject)?.BindingContext is not BoardKanbanCard card)
@@ -315,7 +391,7 @@ public partial class BoardPage : ContentPage
             return;
         }
 
-        await Navigation.PushModalAsync(new CardInkEditorPage(card.Card, preferences));
+        await OpenCardEditorAsync(card.Card);
     }
 
     private async void OnAddCardClicked(object? sender, EventArgs e)
@@ -334,7 +410,7 @@ public partial class BoardPage : ContentPage
         var newCard = columnViewModel.Cards.LastOrDefault();
         if (newCard is not null)
         {
-            await Navigation.PushModalAsync(new CardInkEditorPage(newCard, preferences));
+            await OpenCardEditorAsync(newCard);
         }
     }
 

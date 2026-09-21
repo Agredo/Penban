@@ -181,6 +181,9 @@
   <data name="PencilDoubleTapEnabled" xml:space="preserve">
     <value>Apple Pencil double-tap switches to the eraser</value>
   </data>
+  <data name="PenTailEraser" xml:space="preserve">
+    <value>Erase with the back of the pen</value>
+  </data>
   <data name="TiltDetectionEnabled" xml:space="preserve">
     <value>Detect pen tilt</value>
   </data>

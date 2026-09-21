@@ -46,6 +46,7 @@ public partial class SettingsViewModel : ObservableObject
         {
             AllowFingerDrawing = ReadBool(PreferenceKeys.AllowFingerDrawing, true);
             PencilDoubleTapEnabled = ReadBool(PreferenceKeys.PencilDoubleTapEnabled, true);
+            PenTailEraserEnabled = ReadBool(PreferenceKeys.PenTailEraserEnabled, true);
             PressureSensitiveWidth = ReadBool(PreferenceKeys.PressureSensitiveWidth, true);
             AutoSizeCards = ReadBool(PreferenceKeys.AutoSizeCards, false);
             TiltDetectionEnabled = ReadBool(PreferenceKeys.TiltDetectionEnabled, false);
@@ -69,6 +70,16 @@ public partial class SettingsViewModel : ObservableObject
     private bool pencilDoubleTapEnabled;
 
     partial void OnPencilDoubleTapEnabledChanged(bool value) => Persist(PreferenceKeys.PencilDoubleTapEnabled, value);
+
+    /// <summary>
+    /// Erasing with the eraser end of the pen. Only Windows can tell the two ends of a pen apart,
+    /// so the settings page hides the row everywhere else - the value is still stored, which keeps
+    /// it from being reset when the same store is used on a device that cannot use it.
+    /// </summary>
+    [ObservableProperty]
+    private bool penTailEraserEnabled;
+
+    partial void OnPenTailEraserEnabledChanged(bool value) => Persist(PreferenceKeys.PenTailEraserEnabled, value);
 
     [ObservableProperty]
     private bool pressureSensitiveWidth;

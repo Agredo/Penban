@@ -22,6 +22,12 @@ public static class PreferenceKeys
     /// <summary>Whether stylus pressure varies the line width along a stroke.</summary>
     public const string PressureSensitiveWidth = "Draw.PressureSensitiveWidth";
 
+    /// <summary>
+    /// Whether the eraser end of a pen erases while it is held against the surface. Only Windows
+    /// reports which end of the pen is down (a Surface Pen's tail); the setting is inert elsewhere.
+    /// </summary>
+    public const string PenTailEraserEnabled = "Draw.PenTailEraserEnabled";
+
     /// <summary>Whether cards grow to fit their ink instead of keeping a fixed note size.</summary>
     public const string AutoSizeCards = "Board.AutoSizeCards";
 

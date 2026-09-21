@@ -16,6 +16,13 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     private readonly SKCanvasView canvasView;
     private InkStroke? currentStroke;
 
+    /// <summary>
+    /// True while the eraser end of a pen is held against the surface. Unlike
+    /// <see cref="IsEraserMode"/> this is not a mode that stays on: it lasts exactly as long as the
+    /// tail is down, so lifting it goes straight back to writing.
+    /// </summary>
+    private bool isPenTailErasing;
+
     public SkiaInkCanvasView()
     {
         canvasView = new SKCanvasView { EnableTouchEvents = true };
@@ -87,7 +94,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             return;
         }
 
-        if (IsEraserMode)
+        if (IsEraserMode || isPenTailErasing)
         {
             HandleEraseTouch(e);
             return;
@@ -143,16 +150,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         }
 
         var touched = e.Location;
-        var erased = false;
-        for (var i = Strokes.Count - 1; i >= 0; i--)
-        {
-            var stroke = Strokes[i];
-            if (stroke.Points.Any(p => Distance(p.X, p.Y, touched.X, touched.Y) <= EraseRadius))
-            {
-                Strokes.RemoveAt(i);
-                erased = true;
-            }
-        }
+        var erased = EraseStrokesAt(touched.X, touched.Y);
 
         canvasView.InvalidateSurface();
         e.Handled = true;
@@ -163,6 +161,59 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             // a freshly drawn stroke - erasing is just another edit to the stroke set.
             StrokeCompleted?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    /// <summary>
+    /// Flags the eraser end of the pen as being down, until <see cref="EndPenTailErase"/>. The
+    /// erasing itself then needs nothing more: the flag routes every following touch to
+    /// <see cref="HandleEraseTouch"/>, which already receives its coordinates in canvas pixels.
+    /// </summary>
+    public void BeginPenTailErase()
+    {
+        isPenTailErasing = true;
+
+        if (currentStroke is null)
+        {
+            return;
+        }
+
+        // The platform reports the tail as an ordinary pen contact, so the press that brought it
+        // down has already started a stroke by the time this is called. That stroke is dropped
+        // again - the tail must not leave a mark - but its single point is where the tail touched
+        // down, and erasing there is what makes a plain tap with the tail work as well as a drag.
+        var hasTouched = currentStroke.Points.Count > 0;
+        var touched = hasTouched ? currentStroke.Points[0] : default;
+
+        Strokes.Remove(currentStroke);
+        currentStroke = null;
+
+        var erased = hasTouched && EraseStrokesAt(touched.X, touched.Y);
+        canvasView.InvalidateSurface();
+
+        if (erased)
+        {
+            StrokeCompleted?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>Ends the eraser-end contact; the next touch writes again.</summary>
+    public void EndPenTailErase() => isPenTailErasing = false;
+
+    /// <summary>Removes every stroke that passes within <see cref="EraseRadius"/> of the point.</summary>
+    private bool EraseStrokesAt(float x, float y)
+    {
+        var erased = false;
+        for (var i = Strokes.Count - 1; i >= 0; i--)
+        {
+            var stroke = Strokes[i];
+            if (stroke.Points.Any(p => Distance(p.X, p.Y, x, y) <= EraseRadius))
+            {
+                Strokes.RemoveAt(i);
+                erased = true;
+            }
+        }
+
+        return erased;
     }
 
     private static float Distance(float x1, float y1, float x2, float y2)

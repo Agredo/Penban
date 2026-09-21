@@ -65,9 +65,15 @@ public partial class CardInkEditorPage : ContentPage
         UpdateToolButtons();
 
 #if IOS
-        // Apple Pencil double-tap switches to the eraser. Only iOS exposes that gesture; Android
-        // (S Pen button) and Windows (Surface Slim Pen) have no equivalent event.
+        // Apple Pencil double-tap switches to the eraser. Only iOS exposes that gesture; Android's
+        // S Pen button has no equivalent.
         InkHost.Behaviors.Add(new PencilTapBehavior(preferences));
+#endif
+
+#if WINDOWS
+        // The eraser end of a Surface Pen erases while it is held against the surface, and writes
+        // again as soon as it is lifted.
+        InkHost.Behaviors.Add(new PenTailEraserBehavior(preferences));
 #endif
     }
 

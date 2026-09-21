@@ -181,6 +181,9 @@
   <data name="PencilDoubleTapEnabled" xml:space="preserve">
     <value>Apple-Pencil-Doppeltipp wechselt zum Radiergummi</value>
   </data>
+  <data name="PenTailEraser" xml:space="preserve">
+    <value>Radieren mit der Stift-Rückseite</value>
+  </data>
   <data name="TiltDetectionEnabled" xml:space="preserve">
     <value>Stiftneigung erkennen</value>
   </data>
