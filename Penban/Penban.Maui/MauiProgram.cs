@@ -68,5 +68,6 @@ public static class MauiProgram
     {
         services.AddTransient<BoardsViewModel>();
         services.AddTransient<BoardsPage>();
+        services.AddTransient<SettingsViewModel>();
     }
 }

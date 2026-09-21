@@ -157,4 +157,49 @@
   <data name="TimeDaysAgoFormat" xml:space="preserve">
     <value>vor {0} Tagen</value>
   </data>
+  <data name="SettingsDrawingSection" xml:space="preserve">
+    <value>Zeichnen</value>
+  </data>
+  <data name="SettingsBoardSection" xml:space="preserve">
+    <value>Board</value>
+  </data>
+  <data name="InkRendererSkia" xml:space="preserve">
+    <value>Skia (Stiftdruck)</value>
+  </data>
+  <data name="InkRendererToolkit" xml:space="preserve">
+    <value>DrawingView (einfach)</value>
+  </data>
+  <data name="AllowFingerDrawing" xml:space="preserve">
+    <value>Mit dem Finger zeichnen</value>
+  </data>
+  <data name="FingerDrawing" xml:space="preserve">
+    <value>Finger</value>
+  </data>
+  <data name="PressureSensitiveWidth" xml:space="preserve">
+    <value>Strichbreite folgt dem Stiftdruck</value>
+  </data>
+  <data name="PencilDoubleTapEnabled" xml:space="preserve">
+    <value>Apple-Pencil-Doppeltipp wechselt zum Radiergummi</value>
+  </data>
+  <data name="TiltDetectionEnabled" xml:space="preserve">
+    <value>Stiftneigung erkennen</value>
+  </data>
+  <data name="TiltRenderingEffect" xml:space="preserve">
+    <value>Kalligrafie-Effekt aus der Stiftneigung</value>
+  </data>
+  <data name="AutoSizeCards" xml:space="preserve">
+    <value>Notizen wachsen mit dem Inhalt</value>
+  </data>
+  <data name="PenColorBlack" xml:space="preserve">
+    <value>Schwarzer Stift</value>
+  </data>
+  <data name="PenColorBlue" xml:space="preserve">
+    <value>Blauer Stift</value>
+  </data>
+  <data name="PenColorRed" xml:space="preserve">
+    <value>Roter Stift</value>
+  </data>
+  <data name="PenColorGreen" xml:space="preserve">
+    <value>Grüner Stift</value>
+  </data>
 </root>

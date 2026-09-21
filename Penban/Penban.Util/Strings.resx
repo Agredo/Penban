@@ -157,4 +157,49 @@
   <data name="TimeDaysAgoFormat" xml:space="preserve">
     <value>{0} days ago</value>
   </data>
+  <data name="SettingsDrawingSection" xml:space="preserve">
+    <value>Drawing</value>
+  </data>
+  <data name="SettingsBoardSection" xml:space="preserve">
+    <value>Board</value>
+  </data>
+  <data name="InkRendererSkia" xml:space="preserve">
+    <value>Skia (stylus pressure)</value>
+  </data>
+  <data name="InkRendererToolkit" xml:space="preserve">
+    <value>DrawingView (simple)</value>
+  </data>
+  <data name="AllowFingerDrawing" xml:space="preserve">
+    <value>Draw with a finger</value>
+  </data>
+  <data name="FingerDrawing" xml:space="preserve">
+    <value>Finger</value>
+  </data>
+  <data name="PressureSensitiveWidth" xml:space="preserve">
+    <value>Line width follows pen pressure</value>
+  </data>
+  <data name="PencilDoubleTapEnabled" xml:space="preserve">
+    <value>Apple Pencil double-tap switches to the eraser</value>
+  </data>
+  <data name="TiltDetectionEnabled" xml:space="preserve">
+    <value>Detect pen tilt</value>
+  </data>
+  <data name="TiltRenderingEffect" xml:space="preserve">
+    <value>Calligraphy effect from pen tilt</value>
+  </data>
+  <data name="AutoSizeCards" xml:space="preserve">
+    <value>Notes grow with their content</value>
+  </data>
+  <data name="PenColorBlack" xml:space="preserve">
+    <value>Black pen</value>
+  </data>
+  <data name="PenColorBlue" xml:space="preserve">
+    <value>Blue pen</value>
+  </data>
+  <data name="PenColorRed" xml:space="preserve">
+    <value>Red pen</value>
+  </data>
+  <data name="PenColorGreen" xml:space="preserve">
+    <value>Green pen</value>
+  </data>
 </root>

@@ -7,28 +7,44 @@
              x:Class="Penban.Maui.Views.Pages.CardInkEditorPage"
              Title="Card"
              Style="{StaticResource AppPage}">
-    <Grid RowDefinitions="Auto,*,Auto" Padding="16" RowSpacing="14">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="16" RowSpacing="12">
 
-        <!-- Drawing tools: switch between pen/eraser and undo the last edit. -->
-        <HorizontalStackLayout Grid.Row="0" Spacing="8">
-            <Button x:Name="PenButton"
-                    Text="{markup:Translate Pen}"
-                    Style="{StaticResource PrimaryButton}"
-                    Clicked="OnPenClicked" />
-            <Button x:Name="EraserButton"
-                    Text="{markup:Translate Eraser}"
-                    Style="{StaticResource GhostButton}"
-                    Clicked="OnEraserClicked" />
-            <Button Text="{markup:Translate Undo}"
-                    Style="{StaticResource GhostButton}"
-                    Clicked="OnUndoClicked" />
-        </HorizontalStackLayout>
+        <!-- Drawing tools: switch between pen/eraser, undo the last edit and turn finger drawing
+             on or off. Horizontally scrollable because four buttons do not fit a phone in
+             portrait. -->
+        <ScrollView Grid.Row="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+            <HorizontalStackLayout Spacing="8">
+                <Button x:Name="PenButton"
+                        Text="{markup:Translate Pen}"
+                        Style="{StaticResource PrimaryButton}"
+                        Clicked="OnPenClicked" />
+                <Button x:Name="EraserButton"
+                        Text="{markup:Translate Eraser}"
+                        Style="{StaticResource GhostButton}"
+                        Clicked="OnEraserClicked" />
+                <Button Text="{markup:Translate Undo}"
+                        Style="{StaticResource GhostButton}"
+                        Clicked="OnUndoClicked" />
+                <!-- Same preference as the settings page: a resting hand is noticed mid-sentence,
+                     so the toggle belongs next to the pen. -->
+                <Button x:Name="FingerButton"
+                        Text="{markup:Translate FingerDrawing}"
+                        Style="{StaticResource PrimaryButton}"
+                        Clicked="OnFingerClicked" />
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- Pen colours, filled in from the palette in the code-behind so a swatch is the ink
+             itself. -->
+        <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+            <HorizontalStackLayout x:Name="PenColorPicker" Spacing="10" Padding="2" />
+        </ScrollView>
 
         <!-- The writing surface is the very note that sits on the board, in its own paper colour
              (set from the view model in the constructor). Strokes are stored dark-on-light.
              NoteArea is only a measuring cell: it reports the free space so the note can be kept
              square without the note ever feeding its own size back into the layout. -->
-        <Grid Grid.Row="1" x:Name="NoteArea">
+        <Grid Grid.Row="2" x:Name="NoteArea">
             <Border x:Name="NoteFrame"
                     Padding="10"
                     HorizontalOptions="Center"
@@ -40,7 +56,7 @@
             </Border>
         </Grid>
 
-        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
             <Button Grid.Column="0"
                     Text="{markup:Translate Delete}"
                     Style="{StaticResource DangerGhostButton}"

@@ -34,6 +34,18 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     public bool IsEraserMode { get; set; }
 
+    /// <summary>
+    /// When false, a finger only scrolls and pans; only a pen or the mouse draws. Useful when the
+    /// hand rests on the screen while writing.
+    /// </summary>
+    public bool AllowFingerDrawing { get; set; } = true;
+
+    /// <summary>
+    /// Whether the line width follows the pressure reported per point. Off means one width for the
+    /// whole stroke, which is also what a device that reports no pressure produces.
+    /// </summary>
+    public bool PressureSensitiveWidth { get; set; } = true;
+
     private const float EraseRadius = 16f;
 
     public void Clear()
@@ -67,6 +79,14 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     private void OnTouch(object? sender, SKTouchEventArgs e)
     {
+        // A finger is not a pen: with finger drawing off the touch is left unhandled so the
+        // surrounding scroll/pan can have it.
+        if (!AllowFingerDrawing && e.DeviceType == SKTouchDeviceType.Touch)
+        {
+            e.Handled = false;
+            return;
+        }
+
         if (IsEraserMode)
         {
             HandleEraseTouch(e);
@@ -110,6 +130,12 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// forgiving than pixel-level erasing, and easy to reason about for handwritten notes.</summary>
     private void HandleEraseTouch(SKTouchEventArgs e)
     {
+        if (!AllowFingerDrawing && e.DeviceType == SKTouchDeviceType.Touch)
+        {
+            e.Handled = false;
+            return;
+        }
+
         if (e.ActionType is not (SKTouchAction.Pressed or SKTouchAction.Moved) || !e.InContact)
         {
             e.Handled = true;
@@ -190,18 +216,37 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                 continue;
             }
 
-            using var pathBuilder = new SKPathBuilder();
-            pathBuilder.MoveTo(new SKPoint(first.X, first.Y));
-            for (int i = 1; i < stroke.Points.Count; i++)
+            if (!PressureSensitiveWidth)
             {
-                var point = stroke.Points[i];
-                pathBuilder.LineTo(new SKPoint(point.X, point.Y));
+                // Fallback: one width for the whole stroke, as before the setting existed.
+                using var pathBuilder = new SKPathBuilder();
+                pathBuilder.MoveTo(new SKPoint(first.X, first.Y));
+                for (int i = 1; i < stroke.Points.Count; i++)
+                {
+                    var point = stroke.Points[i];
+                    pathBuilder.LineTo(new SKPoint(point.X, point.Y));
+                }
+
+                using var path = pathBuilder.Detach();
+
+                paint.StrokeWidth = stroke.Thickness * (stroke.Points[^1].Pressure > 0 ? stroke.Points[^1].Pressure : 1f);
+                canvas.DrawPath(path, paint);
+                continue;
             }
 
-            using var path = pathBuilder.Detach();
+            // Pressure varies along the stroke, so the width has to as well - one path with a
+            // single StrokeWidth would flatten the whole line to whatever the pen pressed last.
+            // Each segment gets the mean of its two endpoints' pressure, which keeps neighbouring
+            // segments close enough in width that the joins are not visible.
+            for (int i = 1; i < stroke.Points.Count; i++)
+            {
+                var from = stroke.Points[i - 1];
+                var to = stroke.Points[i];
+                var pressure = (from.Pressure + to.Pressure) / 2f;
 
-            paint.StrokeWidth = stroke.Thickness * (stroke.Points[^1].Pressure > 0 ? stroke.Points[^1].Pressure : 1f);
-            canvas.DrawPath(path, paint);
+                paint.StrokeWidth = stroke.Thickness * (pressure > 0 ? pressure : 1f);
+                canvas.DrawLine(from.X, from.Y, to.X, to.Y, paint);
+            }
         }
     }
 }

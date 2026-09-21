@@ -1,7 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
+using Penban.Services.Abstractions;
 using Penban.ViewModels;
 using Syncfusion.Maui.Kanban;
+using IPreferences = Penban.Services.Abstractions.IPreferences;
 
 namespace Penban.Maui.Views.Pages;
 
@@ -11,6 +14,15 @@ namespace Penban.Maui.Views.Pages;
 /// </summary>
 public partial class BoardPage : ContentPage
 {
+    /// <summary>
+    /// Lower bound for the computed column width. The note plus its tilt buffer needs this much,
+    /// so a board with many columns scrolls horizontally instead of squeezing the notes.
+    /// </summary>
+    private const double MinColumnWidth = 180;
+
+    private readonly IPreferences preferences;
+    private readonly List<(ColumnViewModel Column, PropertyChangedEventHandler Handler)> titleSubscriptions = [];
+
     private ObservableCollection<BoardKanbanCard> kanbanCards = new();
     private BoardViewModel? viewModel;
     private bool isLoaded;
@@ -21,12 +33,14 @@ public partial class BoardPage : ContentPage
     private static readonly BindableProperty ColumnViewModelProperty =
         BindableProperty.CreateAttached("ColumnViewModel", typeof(ColumnViewModel), typeof(BoardPage), null);
 
-    public BoardPage(BoardViewModel viewModel)
+    public BoardPage(BoardViewModel viewModel, IPreferences preferences)
     {
         InitializeComponent();
+        this.preferences = preferences;
         BindingContext = this.viewModel = viewModel;
         BoardKanban.ItemsSource = kanbanCards;
         BoardKanban.DragEnd += OnKanbanDragEnd;
+        BoardKanban.SizeChanged += OnBoardKanbanSizeChanged;
         viewModel.Columns.CollectionChanged += OnColumnsChanged;
         Application.Current!.RequestedThemeChanged += OnRequestedThemeChanged;
     }
@@ -130,6 +144,7 @@ public partial class BoardPage : ContentPage
             StrokeDashArray = new DoubleCollection { 3, 2 },
         };
 
+        UnsubscribeColumnTitles();
         BoardKanban.Columns.Clear();
         foreach (var column in viewModel.Columns)
         {
@@ -142,8 +157,57 @@ public partial class BoardPage : ContentPage
                 Background = columnBrush,
             };
             kanbanColumn.SetValue(ColumnViewModelProperty, column);
+
+            // KanbanColumn.Title is a plain property with no binding behind it, so renaming a
+            // column in the view model would otherwise only reach the board the next time the
+            // whole column set is rebuilt.
+            PropertyChangedEventHandler onColumnChanged = (_, e) =>
+            {
+                if (e.PropertyName == nameof(ColumnViewModel.Title))
+                {
+                    kanbanColumn.Title = column.Title;
+                }
+            };
+
+            column.PropertyChanged += onColumnChanged;
+            titleSubscriptions.Add((column, onColumnChanged));
+
             BoardKanban.Columns.Add(kanbanColumn);
         }
+
+        UpdateColumnWidth();
+    }
+
+    private void OnBoardKanbanSizeChanged(object? sender, EventArgs e) => UpdateColumnWidth();
+
+    /// <summary>
+    /// Spreads the columns over the available width instead of leaving a gap at the right edge,
+    /// while never going below <see cref="MinColumnWidth"/>.
+    /// </summary>
+    private void UpdateColumnWidth()
+    {
+        if (viewModel is null || viewModel.Columns.Count == 0 || BoardKanban.Width <= 0)
+        {
+            return;
+        }
+
+        var computed = BoardKanban.Width / viewModel.Columns.Count;
+        BoardKanban.ColumnWidth = Math.Max(MinColumnWidth, computed);
+    }
+
+    /// <summary>
+    /// Drops the title subscriptions from the previous column set. <see cref="RebuildKanbanColumns"/>
+    /// runs on every theme change and column change, and the event source outlives the columns, so
+    /// without this each rebuild would leave another handler behind.
+    /// </summary>
+    private void UnsubscribeColumnTitles()
+    {
+        foreach (var (column, handler) in titleSubscriptions)
+        {
+            column.PropertyChanged -= handler;
+        }
+
+        titleSubscriptions.Clear();
     }
 
     private void RebuildKanbanCards()
@@ -244,13 +308,14 @@ public partial class BoardPage : ContentPage
         await Navigation.PopAsync();
     }
 
-    private async void OnCardTapped(object? sender, TappedEventArgs e)    {
+    private async void OnCardTapped(object? sender, TappedEventArgs e)
+    {
         if ((sender as BindableObject)?.BindingContext is not BoardKanbanCard card)
         {
             return;
         }
 
-        await Navigation.PushModalAsync(new CardInkEditorPage(card.Card));
+        await Navigation.PushModalAsync(new CardInkEditorPage(card.Card, preferences));
     }
 
     private async void OnAddCardClicked(object? sender, EventArgs e)
@@ -269,7 +334,7 @@ public partial class BoardPage : ContentPage
         var newCard = columnViewModel.Cards.LastOrDefault();
         if (newCard is not null)
         {
-            await Navigation.PushModalAsync(new CardInkEditorPage(newCard));
+            await Navigation.PushModalAsync(new CardInkEditorPage(newCard, preferences));
         }
     }
 

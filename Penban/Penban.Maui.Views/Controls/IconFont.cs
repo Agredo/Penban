@@ -15,4 +15,5 @@ public static class IconFont
     public const string Checkmark = "\uf295";
     public const string Edit = "\uf3de";
     public const string Notebook = "\uf570";
+    public const string Settings = "\uf588";
 }

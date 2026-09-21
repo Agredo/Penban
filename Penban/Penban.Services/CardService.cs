@@ -1,6 +1,7 @@
 // Framework-agnostic: no Microsoft.Maui.* usings allowed in this file.
 using Penban.Models;
 using Penban.Services.Abstractions;
+using Penban.Util;
 
 namespace Penban.Services;
 
@@ -8,10 +9,12 @@ namespace Penban.Services;
 public class CardService : ICardService
 {
     private readonly ICardRepository repository;
+    private readonly IPreferences preferences;
 
-    public CardService(ICardRepository repository)
+    public CardService(ICardRepository repository, IPreferences preferences)
     {
         this.repository = repository;
+        this.preferences = preferences;
     }
 
     public Task<List<Card>> GetCardsAsync(Guid columnId) => repository.GetByColumnAsync(columnId);
@@ -23,6 +26,11 @@ public class CardService : ICardService
         {
             ColumnId = columnId,
             SortOrder = existing.Count,
+
+            // A new note starts in the colour the last one was given, so a run of notes does not
+            // have to be recoloured one by one. Without a stored choice it stays null and
+            // CardViewModel falls back to the colour derived from the card's id.
+            NoteColorIndex = ReadLastNoteColor(),
         };
 
         await repository.SaveAsync(card);
@@ -81,4 +89,15 @@ public class CardService : ICardService
             }
         }
     }
+
+    /// <summary>
+    /// The paper colour the user last picked in the ink editor, or null if they never picked one
+    /// or the stored value no longer matches the palette.
+    /// </summary>
+    private int? ReadLastNoteColor() =>
+        int.TryParse(preferences.Get(PreferenceKeys.NoteLastColorIndex, string.Empty), out var index)
+        && index >= 0
+        && index < NoteStyle.PaperCount
+            ? index
+            : null;
 }

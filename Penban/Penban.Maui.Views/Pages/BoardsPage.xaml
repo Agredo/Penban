@@ -11,13 +11,19 @@
              Style="{StaticResource AppPage}">
     <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
 
-        <!-- Header: page title + primary add action -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+        <!-- Header: page title + settings + primary add action -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
             <Label Grid.Column="0"
                    Text="{markup:Translate BoardsTitle}"
                    Style="{StaticResource LargeTitleLabel}"
                    VerticalOptions="Center" />
             <Button Grid.Column="1"
+                    Text="&#xf588;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnSettingsClicked"
+                    SemanticProperties.Description="{markup:Translate Settings}"
+                    VerticalOptions="Center" />
+            <Button Grid.Column="2"
                     Text="&#xf10a;"
                     Style="{StaticResource AccentIconButton}"
                     Command="{Binding AddBoardCommand}"

@@ -18,6 +18,12 @@ namespace Penban.Maui.Views.Ink;
 /// hook this renderer can use to hit-test strokes while drawing, so setting it here has no
 /// effect. <see cref="Undo"/> works normally on both renderers.
 /// </para>
+/// <para>
+/// Limitation: <see cref="AllowFingerDrawing"/> is likewise exposed for parity only.
+/// <see cref="DrawingView"/> reports completed lines without the input device that produced
+/// them, so a finger cannot be told apart from a pen and always draws. Use
+/// <see cref="SkiaInkCanvasView"/> if that matters.
+/// </para>
 /// </summary>
 public class ToolkitInkCanvasView : ContentView, IInkCanvasView
 {
@@ -39,6 +45,9 @@ public class ToolkitInkCanvasView : ContentView, IInkCanvasView
     public event EventHandler? StrokeCompleted;
 
     public bool IsEraserMode { get; set; }
+
+    /// <summary>See the class remarks: <see cref="DrawingView"/> cannot tell input devices apart.</summary>
+    public bool AllowFingerDrawing { get; set; } = true;
 
     public string StrokeColor
     {

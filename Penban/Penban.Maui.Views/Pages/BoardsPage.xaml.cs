@@ -1,15 +1,21 @@
+using Penban.Services.Abstractions;
 using Penban.ViewModels;
+using IPreferences = Penban.Services.Abstractions.IPreferences;
 
 namespace Penban.Maui.Views.Pages;
 
 /// <summary>Board overview page: lists existing boards, allows creating/deleting/opening them.</summary>
 public partial class BoardsPage : ContentPage
 {
+    private readonly IPreferences preferences;
+    private readonly SettingsViewModel settingsViewModel;
     private bool isOpeningBoard;
 
-    public BoardsPage(BoardsViewModel viewModel)
+    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, IPreferences preferences)
     {
         InitializeComponent();
+        this.settingsViewModel = settingsViewModel;
+        this.preferences = preferences;
         BindingContext = viewModel;
     }
 
@@ -39,11 +45,16 @@ public partial class BoardsPage : ContentPage
         isOpeningBoard = true;
         try
         {
-            await Navigation.PushAsync(new BoardPage(viewModel.FindBoard(board.Id) ?? board));
+            await Navigation.PushAsync(new BoardPage(viewModel.FindBoard(board.Id) ?? board, preferences));
         }
         finally
         {
             isOpeningBoard = false;
         }
+    }
+
+    private async void OnSettingsClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new SettingsPage(settingsViewModel));
     }
 }
