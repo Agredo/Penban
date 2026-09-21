@@ -28,6 +28,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJ="$REPO_ROOT/Penban/Penban.Maui/Penban.Maui.csproj"
+# global.json liegt in Penban/ – die SDK-Auflösung richtet sich nach dem
+# Arbeitsverzeichnis, deshalb muss ab hier geprüft/gebaut werden.
+PROJ_DIR="$(dirname "$PROJ")"
 IOS_TFM="${IOS_TFM:-net10.0-ios}"
 RID="ios-arm64"
 SCRATCH_DIR="$(mktemp -d "${TMPDIR:-/tmp}/penban-ios.XXXXXX")"
@@ -68,18 +71,21 @@ sdk_has_maui() { # <sdk-version> <sdk-pfad>
   local root band
   root="${2#[}"; root="${root%]}"; root="$(dirname "$root")"
   band="$(band_of "$1")"
-  [ -f "$root/metadata/workloads/$band/InstalledWorkloads/maui" ]
+  # Es genügt ein iOS-Workload (maui-ios); das vollständige 'maui' wird nur gebraucht,
+  # wenn auch Android/MacCatalyst gebaut werden.
+  [ -f "$root/metadata/workloads/$band/InstalledWorkloads/maui" ] \
+    || [ -f "$root/metadata/workloads/$band/InstalledWorkloads/maui-ios" ]
 }
 
 select_build_dir() {
   local resolved="" version sdk_path requested major_minor best=""
 
-  # Im Repo-Verzeichnis prüfen: löst dotnet dort ein SDK mit MAUI-Workload auf?
-  if resolved="$(cd "$REPO_ROOT" && dotnet --version 2>/dev/null)"; then
+  # Im Projektverzeichnis prüfen: löst dotnet dort ein SDK mit MAUI-Workload auf?
+  if resolved="$(cd "$PROJ_DIR" && dotnet --version 2>/dev/null)"; then
     while read -r version sdk_path; do
       [ "$version" = "$resolved" ] || continue
       if sdk_has_maui "$version" "$sdk_path"; then
-        BUILD_DIR="$REPO_ROOT"
+        BUILD_DIR="$PROJ_DIR"
         SDK_PINNED="$resolved"
         return
       fi
@@ -107,7 +113,7 @@ select_build_dir() {
   [ -n "$best" ] || die "Kein installiertes .NET SDK mit MAUI-Workload gefunden (erwartet: $major_minor)."
 
   if [ -n "$resolved" ]; then
-    warn "Im Repo löst dotnet auf SDK $resolved auf, dafür ist kein MAUI-Workload installiert – es wird mit SDK $best gebaut."
+    warn "Im Projekt löst dotnet auf SDK $resolved auf, dafür ist kein MAUI-Workload installiert – es wird mit SDK $best gebaut."
   else
     warn "global.json verlangt SDK $requested – das ist lokal nicht installiert – es wird mit SDK $best gebaut."
   fi
