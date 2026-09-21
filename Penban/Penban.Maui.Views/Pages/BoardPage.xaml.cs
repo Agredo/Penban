@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using Penban.Maui.Views.Services;
+using Penban.Models;
 using Penban.Services.Abstractions;
 using Penban.Util;
 using Penban.ViewModels;
@@ -22,6 +23,22 @@ public partial class BoardPage : ContentPage
     /// </summary>
     private const double MinColumnWidth = 180;
 
+    /// <summary>Side length of a note that is not sized to its content.</summary>
+    private const double DefaultNoteSize = 150;
+
+    /// <summary>
+    /// Smallest note the content-driven sizing may produce. Below this a note would no longer be
+    /// big enough to write on comfortably.
+    /// </summary>
+    private const double MinNoteSize = 100;
+
+    /// <summary>
+    /// Transparent margin the cell keeps around the note, so its rotation and its shadow stay
+    /// inside the cell at every note size. Half of the difference between the 170pt cell and the
+    /// 150pt note the board used before the size could vary.
+    /// </summary>
+    private const double NoteCellPadding = 10;
+
     private readonly IPreferences preferences;
     private readonly TransferCoordinator transferCoordinator;
     private readonly List<(ColumnViewModel Column, PropertyChangedEventHandler Handler)> titleSubscriptions = [];
@@ -30,6 +47,13 @@ public partial class BoardPage : ContentPage
     private BoardViewModel? viewModel;
     private bool isLoaded;
     private bool suppressCardRebuild;
+
+    /// <summary>
+    /// Whether the notes are sized to their content. Read from the settings when the board appears
+    /// so a change there is picked up without restarting the app; the field is what the card
+    /// rebuild compares against.
+    /// </summary>
+    private bool autoSizeCards;
 
     /// <summary>Carries the owning <see cref="ColumnViewModel"/> on each <see cref="KanbanColumn"/>
     /// so header-template buttons (whose BindingContext is the Syncfusion column) can reach it.</summary>
@@ -95,7 +119,13 @@ public partial class BoardPage : ContentPage
             // returning from the editor slow - on a full board, several seconds of nothing
             // happening. Only a deletion still has to be applied, because it happens on the card
             // and so cannot reach the column it came from.
-            if (RemoveDeletedCards())
+            //
+            // Content-driven note sizes are the other exception: the ink was drawn in the editor,
+            // so the note that has to change size is the one that was just worked on. The setting
+            // is re-read first so that it also takes effect without restarting the app.
+            autoSizeCards = ReadAutoSizeCards();
+
+            if (RemoveDeletedCards() | RefreshCardSizes())
             {
                 RebuildKanbanCards();
             }
@@ -103,6 +133,7 @@ public partial class BoardPage : ContentPage
             return;
         }
 
+        autoSizeCards = ReadAutoSizeCards();
         await LoadColumnsAndCardsAsync();
         RebuildKanbanColumns();
         RebuildKanbanCards();
@@ -278,12 +309,68 @@ public partial class BoardPage : ContentPage
                     Card = card,
                     Category = column.Id.ToString(),
                     Title = card.Id.ToString()[..8],
+                    NoteSize = NoteSizeFor(card),
                 });
             }
         }
 
         kanbanCards = nextCards;
         BoardKanban.ItemsSource = kanbanCards;
+    }
+
+    private bool ReadAutoSizeCards() =>
+        bool.TryParse(preferences.Get(PreferenceKeys.AutoSizeCards, "false"), out var enabled) && enabled;
+
+    /// <summary>
+    /// Side length for one note: the full size unless the notes are meant to follow their content,
+    /// in which case a note shrinks until the ink on it fills the note.
+    /// </summary>
+    private double NoteSizeFor(CardViewModel card)
+    {
+        if (!autoSizeCards
+            || card.InkCanvas.Strokes.Count == 0
+            || !InkDocument.TryGetBounds(card.InkCanvas.Strokes, out var bounds)
+            || bounds.MaxExtent <= 0)
+        {
+            return DefaultNoteSize;
+        }
+
+        // The strokes live on a fixed square sheet; the note is the same sheet at a different size,
+        // so the share of the sheet the ink uses is the share of the note it may fill.
+        var share = Math.Min(1, bounds.MaxExtent / InkDocument.Size);
+        return Math.Clamp(DefaultNoteSize * share, MinNoteSize, DefaultNoteSize);
+    }
+
+    /// <summary>
+    /// Brings the note size of every card in line with its ink and reports whether any of them
+    /// changed. Cards are only compared, never re-created, so this is cheap enough to run every
+    /// time the board comes back into view.
+    /// </summary>
+    private bool RefreshCardSizes()
+    {
+        if (viewModel is null)
+        {
+            return false;
+        }
+
+        var changed = false;
+        var shown = new Dictionary<Guid, BoardKanbanCard>();
+        foreach (var item in kanbanCards)
+        {
+            shown[item.CardId] = item;
+        }
+
+        foreach (var card in viewModel.Columns.SelectMany(column => column.Cards))
+        {
+            var size = NoteSizeFor(card);
+            if (shown.TryGetValue(card.Id, out var item) && Math.Abs(item.NoteSize - size) >= 0.5)
+            {
+                item.NoteSize = size;
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 
     private async void OnKanbanDragEnd(object? sender, KanbanDragEndEventArgs e)
@@ -478,8 +565,12 @@ public partial class BoardPage : ContentPage
         }
     }
 
-    public sealed class BoardKanbanCard
+    public sealed class BoardKanbanCard : INotifyPropertyChanged
     {
+        private double noteSize = DefaultNoteSize;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
         public Guid CardId { get; init; }
 
         public CardViewModel Card { get; init; } = null!;
@@ -487,5 +578,31 @@ public partial class BoardPage : ContentPage
         public string Category { get; set; } = string.Empty;
 
         public string Title { get; init; } = string.Empty;
+
+        /// <summary>Side length of the note, and of the transparent cell that holds it.</summary>
+        public double NoteSize
+        {
+            get => noteSize;
+            set
+            {
+                if (Math.Abs(noteSize - value) < 0.5)
+                {
+                    return;
+                }
+
+                noteSize = value;
+                Raise(nameof(NoteSize));
+                Raise(nameof(CellSize));
+            }
+        }
+
+        /// <summary>
+        /// The note plus the margin its rotation and its shadow need, so the corners are never cut
+        /// off at the cell edge.
+        /// </summary>
+        public double CellSize => NoteSize + (2 * NoteCellPadding);
+
+        private void Raise(string propertyName) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

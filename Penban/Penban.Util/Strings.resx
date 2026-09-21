@@ -124,6 +124,9 @@
   <data name="Undo" xml:space="preserve">
     <value>Undo</value>
   </data>
+  <data name="Redo" xml:space="preserve">
+    <value>Redo</value>
+  </data>
   <data name="Eraser" xml:space="preserve">
     <value>Eraser</value>
   </data>
@@ -204,6 +207,33 @@
   </data>
   <data name="PenColorGreen" xml:space="preserve">
     <value>Green pen</value>
+  </data>
+  <data name="PenColorOrange" xml:space="preserve">
+    <value>Orange pen</value>
+  </data>
+  <data name="PenColorPurple" xml:space="preserve">
+    <value>Purple pen</value>
+  </data>
+  <data name="PenColorTeal" xml:space="preserve">
+    <value>Teal pen</value>
+  </data>
+  <data name="PenColorBrown" xml:space="preserve">
+    <value>Brown pen</value>
+  </data>
+  <data name="PenColorPink" xml:space="preserve">
+    <value>Pink pen</value>
+  </data>
+  <data name="PenColorGray" xml:space="preserve">
+    <value>Gray pen</value>
+  </data>
+  <data name="SettingsGesturesSection" xml:space="preserve">
+    <value>Gestures</value>
+  </data>
+  <data name="TwoFingerTapUndo" xml:space="preserve">
+    <value>Two-finger tap: undo</value>
+  </data>
+  <data name="ThreeFingerTapRedo" xml:space="preserve">
+    <value>Three-finger tap: redo</value>
   </data>
   <data name="TransferTitle" xml:space="preserve">
     <value>Export / Import</value>

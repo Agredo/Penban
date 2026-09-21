@@ -23,6 +23,28 @@ public class InkCanvasHostView : ContentView
     }
 
     /// <summary>
+    /// Points the Android touch reader at this surface while it is alive - see
+    /// <see cref="AndroidInkInput"/>. Only Android needs it: there the pen's tilt and the
+    /// two- and three-finger taps are only visible to the activity, and the drawing surface itself
+    /// keeps its touches to itself.
+    /// </summary>
+    protected override void OnHandlerChanged()
+    {
+        base.OnHandlerChanged();
+
+#if ANDROID
+        if (Handler is null)
+        {
+            AndroidInkInput.Detach();
+        }
+        else
+        {
+            AndroidInkInput.Attach(this);
+        }
+#endif
+    }
+
+    /// <summary>
     /// Injects the preferences store used to persist the renderer choice and to read the drawing
     /// settings, and immediately restores both. Set this once, e.g. right after the view is
     /// created via dependency injection - XAML-instantiated controls cannot take constructor
@@ -87,6 +109,24 @@ public class InkCanvasHostView : ContentView
     public void Clear() => activeRenderer.Clear();
 
     public void Undo() => activeRenderer.Undo();
+
+    public void Redo() => activeRenderer.Redo();
+
+    public bool CanUndo => activeRenderer.CanUndo;
+
+    public bool CanRedo => activeRenderer.CanRedo;
+
+    /// <summary>
+    /// Hands the stylus tilt reported by a platform input handler down to the renderer. Only the Skia
+    /// renderer stores tilt; the toolkit renderer has nowhere to put it and ignores this.
+    /// </summary>
+    public void SetStylusTilt(float tilt, float azimuth)
+    {
+        if (activeRenderer is SkiaInkCanvasView skia)
+        {
+            skia.SetStylusTilt(tilt, azimuth);
+        }
+    }
 
     /// <summary>
     /// Raised when <see cref="IsEraserMode"/> changes through the setter, so the page can keep its
@@ -164,6 +204,8 @@ public class InkCanvasHostView : ContentView
         if (activeRenderer is SkiaInkCanvasView skia)
         {
             skia.PressureSensitiveWidth = ReadBool(PreferenceKeys.PressureSensitiveWidth, true);
+            skia.TiltRenderingEffect = ReadBool(PreferenceKeys.TiltDetectionEnabled, false)
+                && ReadBool(PreferenceKeys.TiltRenderingEffect, false);
         }
     }
 

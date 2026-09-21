@@ -17,7 +17,26 @@ public class CardService : ICardService
         this.preferences = preferences;
     }
 
-    public Task<List<Card>> GetCardsAsync(Guid columnId) => repository.GetByColumnAsync(columnId);
+    public async Task<List<Card>> GetCardsAsync(Guid columnId)
+    {
+        var cards = await repository.GetByColumnAsync(columnId);
+
+        // Ink used to be stored in whatever surface pixels the renderer had; cards written before
+        // document space existed have to be converted once. Migrate is idempotent and marks the card,
+        // so this is a no-op from the second load on.
+        foreach (var card in cards)
+        {
+            if (!InkDocument.NeedsMigration(card))
+            {
+                continue;
+            }
+
+            InkDocument.Migrate(card);
+            await repository.SaveAsync(card);
+        }
+
+        return cards;
+    }
 
     public async Task<Card> CreateCardAsync(Guid columnId)
     {
@@ -26,6 +45,10 @@ public class CardService : ICardService
         {
             ColumnId = columnId,
             SortOrder = existing.Count,
+
+            // A brand new note is already in document space; without this it would look like a card
+            // from before the change and be run through the migration on its first load.
+            InkSpaceVersion = InkDocument.CurrentSpaceVersion,
 
             // A new note starts in the colour the last one was given, so a run of notes does not
             // have to be recoloured one by one. Without a stored choice it stays null and

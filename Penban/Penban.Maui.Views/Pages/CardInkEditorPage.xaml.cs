@@ -28,13 +28,22 @@ public partial class CardInkEditorPage : ContentPage
     /// </summary>
     private const string InkColor = "#1E2230";
 
-    /// <summary>Pen colours offered in the editor, dark enough to read on every paper colour.</summary>
+    /// <summary>
+    /// Pen colours offered in the editor, dark enough to read on every paper colour. The picker
+    /// scrolls sideways, so the palette can be as wide as a real pen case.
+    /// </summary>
     private static readonly (string Hex, string Name)[] PenColors =
     [
         ("#000000", Strings.PenColorBlack),
         ("#1B4FD8", Strings.PenColorBlue),
         ("#C62828", Strings.PenColorRed),
         ("#1B7F3B", Strings.PenColorGreen),
+        ("#E07000", Strings.PenColorOrange),
+        ("#6A3FC0", Strings.PenColorPurple),
+        ("#0F7B8A", Strings.PenColorTeal),
+        ("#6D4C2F", Strings.PenColorBrown),
+        ("#C2185B", Strings.PenColorPink),
+        ("#4A5568", Strings.PenColorGray),
     ];
 
     private readonly CardViewModel cardViewModel;
@@ -65,16 +74,28 @@ public partial class CardInkEditorPage : ContentPage
         UpdateToolButtons();
 
 #if IOS
-        // Apple Pencil double-tap switches to the eraser. Only iOS exposes that gesture; Android's
-        // S Pen button has no equivalent.
+        // Apple Pencil double-tap switches to the eraser, and the pencil's tilt feeds the
+        // calligraphy effect. Only iOS exposes the double-tap; Android's S Pen button has no
+        // equivalent.
         InkHost.Behaviors.Add(new PencilTapBehavior(preferences));
+        InkHost.Behaviors.Add(new PenTiltBehavior(preferences));
+
+        // Two-finger tap undoes, three-finger tap redoes.
+        InkHost.Behaviors.Add(new MultiFingerTapBehavior());
 #endif
 
 #if WINDOWS
         // The eraser end of a Surface Pen erases while it is held against the surface, and writes
-        // again as soon as it is lifted.
+        // again as soon as it is lifted. Two-finger tap undoes, three-finger tap redoes, and the
+        // pen's tilt feeds the calligraphy effect.
         InkHost.Behaviors.Add(new PenTailEraserBehavior(preferences));
+        InkHost.Behaviors.Add(new MultiFingerTapBehavior());
+        InkHost.Behaviors.Add(new PenTiltBehavior(preferences));
 #endif
+
+        // Android needs nothing here: its tilt and its two- and three-finger taps are read out of
+        // the activity's touch stream instead, because the drawing surface keeps every touch to
+        // itself - see AndroidInkInput.
     }
 
     /// <summary>
@@ -202,13 +223,17 @@ public partial class CardInkEditorPage : ContentPage
         }
     }
 
-    /// <summary>Keeps the tool buttons showing which mode is active.</summary>
+    /// <summary>Keeps the tool buttons showing which mode is active and what can be undone.</summary>
     private void UpdateToolButtons()
     {
         var resources = Application.Current!.Resources;
         PenButton.Style = (Style)resources[InkHost.IsEraserMode ? "GhostButton" : "PrimaryButton"];
         EraserButton.Style = (Style)resources[InkHost.IsEraserMode ? "PrimaryButton" : "GhostButton"];
         FingerButton.Style = (Style)resources[InkHost.AllowFingerDrawing ? "PrimaryButton" : "GhostButton"];
+
+        // Nothing to take back or to put back yet, so the buttons say so instead of doing nothing.
+        UndoButton.IsEnabled = InkHost.CanUndo;
+        RedoButton.IsEnabled = InkHost.CanRedo;
     }
 
     private void OnStrokeCompleted(object? sender, EventArgs e)
@@ -219,6 +244,7 @@ public partial class CardInkEditorPage : ContentPage
             cardViewModel.InkCanvas.AddStroke(stroke);
         }
 
+        UpdateToolButtons();
         QueueSave();
     }
 
@@ -295,7 +321,17 @@ public partial class CardInkEditorPage : ContentPage
         UpdateToolButtons();
     }
 
-    private void OnUndoClicked(object? sender, EventArgs e) => InkHost.Undo();
+    private void OnUndoClicked(object? sender, EventArgs e)
+    {
+        InkHost.Undo();
+        UpdateToolButtons();
+    }
+
+    private void OnRedoClicked(object? sender, EventArgs e)
+    {
+        InkHost.Redo();
+        UpdateToolButtons();
+    }
 
     private async void OnDeleteClicked(object? sender, EventArgs e)
     {

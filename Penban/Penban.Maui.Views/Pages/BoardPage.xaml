@@ -82,23 +82,25 @@
                 <DataTemplate>
                     <!-- The card is the note: no frame of its own, so the column reads as a stack
                          of stuck-on notes rather than as a list of rows.
-                         The transparent 170x170 cell is deliberately larger than the 150x150 note:
-                         the note is rotated by up to ~2.8 degrees and casts a 6pt shadow, so its
-                         bounding box is about 157pt - without the padding the corners get clipped
-                         at the cell edge.
+                         The transparent cell is deliberately larger than the note: the note is
+                         rotated by up to ~2.8 degrees and casts a 6pt shadow, so its bounding box
+                         is about 7pt wider than the note - without the margin the corners get
+                         clipped at the cell edge.
                          Centre on both axes: the fixed note size only wins over a stretching parent
                          when the alignment is not Fill, which is what keeps the note square while
                          it is dragged (the drag overlay hands the card a much taller cell than the
-                         column does). -->
-                    <Grid HeightRequest="170"
-                          WidthRequest="170"
+                         column does).
+                         Both sizes come from the card, which is 150pt unless the notes are set to
+                         follow their content in the settings. -->
+                    <Grid HeightRequest="{Binding CellSize}"
+                          WidthRequest="{Binding CellSize}"
                           HorizontalOptions="Center"
                           VerticalOptions="Center">
                         <controls:StickyNoteBorder NoteColorIndex="{Binding Card.NoteColorIndex}"
                                                    NoteTilt="{Binding Card.NoteTilt}"
                                                    Padding="7"
-                                                   HeightRequest="150"
-                                                   WidthRequest="150"
+                                                   HeightRequest="{Binding NoteSize}"
+                                                   WidthRequest="{Binding NoteSize}"
                                                    HorizontalOptions="Center"
                                                    VerticalOptions="Center">
                             <controls:StickyNoteBorder.GestureRecognizers>

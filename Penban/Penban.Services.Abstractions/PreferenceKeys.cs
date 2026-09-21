@@ -36,4 +36,10 @@ public static class PreferenceKeys
 
     /// <summary>Whether stylus tilt is rendered as a calligraphy effect.</summary>
     public const string TiltRenderingEffect = "Draw.TiltRenderingEffect";
+
+    /// <summary>Whether a two-finger tap on the writing surface takes back the last edit.</summary>
+    public const string TwoFingerTapUndoEnabled = "Gesture.TwoFingerTapUndoEnabled";
+
+    /// <summary>Whether a three-finger tap on the writing surface puts the last edit back.</summary>
+    public const string ThreeFingerTapRedoEnabled = "Gesture.ThreeFingerTapRedoEnabled";
 }

@@ -9,8 +9,8 @@
              Style="{StaticResource AppPage}">
     <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="16" RowSpacing="12">
 
-        <!-- Drawing tools: switch between pen/eraser, undo the last edit and turn finger drawing
-             on or off. Horizontally scrollable because four buttons do not fit a phone in
+        <!-- Drawing tools: switch between pen/eraser, undo and redo the last edit and turn finger
+             drawing on or off. Horizontally scrollable because five buttons do not fit a phone in
              portrait. -->
         <ScrollView Grid.Row="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
             <HorizontalStackLayout Spacing="8">
@@ -22,9 +22,16 @@
                         Text="{markup:Translate Eraser}"
                         Style="{StaticResource GhostButton}"
                         Clicked="OnEraserClicked" />
-                <Button Text="{markup:Translate Undo}"
+                <Button x:Name="UndoButton"
+                        Text="{markup:Translate Undo}"
                         Style="{StaticResource GhostButton}"
                         Clicked="OnUndoClicked" />
+                <!-- Undo and redo are also on two- and three-finger taps, so the buttons are the
+                     visible half of the same feature. -->
+                <Button x:Name="RedoButton"
+                        Text="{markup:Translate Redo}"
+                        Style="{StaticResource GhostButton}"
+                        Clicked="OnRedoClicked" />
                 <!-- Same preference as the settings page: a resting hand is noticed mid-sentence,
                      so the toggle belongs next to the pen. -->
                 <Button x:Name="FingerButton"

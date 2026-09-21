@@ -51,6 +51,8 @@ public partial class SettingsViewModel : ObservableObject
             AutoSizeCards = ReadBool(PreferenceKeys.AutoSizeCards, false);
             TiltDetectionEnabled = ReadBool(PreferenceKeys.TiltDetectionEnabled, false);
             TiltRenderingEffect = ReadBool(PreferenceKeys.TiltRenderingEffect, false);
+            TwoFingerTapUndoEnabled = ReadBool(PreferenceKeys.TwoFingerTapUndoEnabled, true);
+            ThreeFingerTapRedoEnabled = ReadBool(PreferenceKeys.ThreeFingerTapRedoEnabled, true);
             SelectedRendererIndex = ReadRendererIndex();
         }
         finally
@@ -116,6 +118,23 @@ public partial class SettingsViewModel : ObservableObject
     private bool autoSizeCards;
 
     partial void OnAutoSizeCardsChanged(bool value) => Persist(PreferenceKeys.AutoSizeCards, value);
+
+    /// <summary>
+    /// Two- and three-finger taps on the writing surface are shortcuts for the undo and redo
+    /// buttons. On by default, because a tap that is not wanted is simply never made, while a
+    /// gesture that has to be switched on first is a gesture nobody finds.
+    /// </summary>
+    [ObservableProperty]
+    private bool twoFingerTapUndoEnabled;
+
+    partial void OnTwoFingerTapUndoEnabledChanged(bool value) =>
+        Persist(PreferenceKeys.TwoFingerTapUndoEnabled, value);
+
+    [ObservableProperty]
+    private bool threeFingerTapRedoEnabled;
+
+    partial void OnThreeFingerTapRedoEnabledChanged(bool value) =>
+        Persist(PreferenceKeys.ThreeFingerTapRedoEnabled, value);
 
     private void Persist(string key, bool value)
     {
