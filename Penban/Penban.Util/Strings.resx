@@ -205,4 +205,61 @@
   <data name="PenColorGreen" xml:space="preserve">
     <value>Green pen</value>
   </data>
+  <data name="TransferTitle" xml:space="preserve">
+    <value>Export / Import</value>
+  </data>
+  <data name="TransferExport" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="TransferImport" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="TransferChooseAction" xml:space="preserve">
+    <value>What would you like to do?</value>
+  </data>
+  <data name="ExportBackup" xml:space="preserve">
+    <value>Back up everything</value>
+  </data>
+  <data name="ExportBoard" xml:space="preserve">
+    <value>Export board</value>
+  </data>
+  <data name="ExportCards" xml:space="preserve">
+    <value>Export cards</value>
+  </data>
+  <data name="ShareBoard" xml:space="preserve">
+    <value>Share board</value>
+  </data>
+  <data name="ImportFile" xml:space="preserve">
+    <value>Pick a file to import</value>
+  </data>
+  <data name="ExportFailedFormat" xml:space="preserve">
+    <value>The export failed: {0}</value>
+  </data>
+  <data name="ImportFailed" xml:space="preserve">
+    <value>This file is not a readable Penban file.</value>
+  </data>
+  <data name="ImportFailedFormat" xml:space="preserve">
+    <value>The import failed: {0}</value>
+  </data>
+  <data name="ImportDoneFormat" xml:space="preserve">
+    <value>Imported {0} board(s) and {1} card(s).</value>
+  </data>
+  <data name="ImportModeTitle" xml:space="preserve">
+    <value>How should the backup be imported?</value>
+  </data>
+  <data name="ImportModeMerge" xml:space="preserve">
+    <value>Merge</value>
+  </data>
+  <data name="ImportModeReplace" xml:space="preserve">
+    <value>Replace everything</value>
+  </data>
+  <data name="ImportModeReplaceWarning" xml:space="preserve">
+    <value>All boards and cards currently in the app will be deleted first, then replaced by the contents of the file. This cannot be undone.</value>
+  </data>
+  <data name="ImportCardsNeedColumn" xml:space="preserve">
+    <value>A card export can only be imported from inside a board, into one of its columns.</value>
+  </data>
+  <data name="ImportCardsInto" xml:space="preserve">
+    <value>Import cards into …</value>
+  </data>
 </root>

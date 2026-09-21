@@ -11,8 +11,8 @@
              Style="{StaticResource AppPage}">
     <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
 
-        <!-- Header: page title + settings + primary add action -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+        <!-- Header: page title + settings + whole-database transfer + primary add action -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
             <Label Grid.Column="0"
                    Text="{markup:Translate BoardsTitle}"
                    Style="{StaticResource LargeTitleLabel}"
@@ -24,6 +24,12 @@
                     SemanticProperties.Description="{markup:Translate Settings}"
                     VerticalOptions="Center" />
             <Button Grid.Column="2"
+                    Text="&#xe467;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnTransferClicked"
+                    SemanticProperties.Description="{markup:Translate TransferTitle}"
+                    VerticalOptions="Center" />
+            <Button Grid.Column="3"
                     Text="&#xf10a;"
                     Style="{StaticResource AccentIconButton}"
                     Command="{Binding AddBoardCommand}"
@@ -123,6 +129,10 @@
                             </VerticalStackLayout>
 
                             <HorizontalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
+                                <Button Text="&#xf6b0;"
+                                        Style="{StaticResource GhostIconButton}"
+                                        Clicked="OnShareBoardClicked"
+                                        SemanticProperties.Description="{markup:Translate ShareBoard}" />
                                 <Button Text="&#xf3de;"
                                         Style="{StaticResource GhostIconButton}"
                                         Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.RenameBoardCommand}"

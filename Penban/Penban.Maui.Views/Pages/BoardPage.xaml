@@ -12,7 +12,7 @@
 
         <!-- Own header instead of the Shell nav bar: the Windows Shell nav bar renders no back
              button, so the app draws its own and every platform gets the same way back. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
             <Button Grid.Column="0"
                     Text="&#xf15c;"
                     Style="{StaticResource GhostIconButton}"
@@ -23,6 +23,11 @@
                    Style="{StaticResource TitleLabel}"
                    LineBreakMode="TailTruncation"
                    VerticalOptions="Center" />
+            <Button Grid.Column="2"
+                    Text="&#xf6b0;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnShareClicked"
+                    SemanticProperties.Description="{markup:Translate ShareBoard}" />
         </Grid>
 
         <!-- ColumnWidth is only the starting value: BoardPage recomputes it on resize so the

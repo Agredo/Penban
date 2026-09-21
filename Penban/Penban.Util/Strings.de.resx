@@ -205,4 +205,61 @@
   <data name="PenColorGreen" xml:space="preserve">
     <value>Grüner Stift</value>
   </data>
+  <data name="TransferTitle" xml:space="preserve">
+    <value>Export / Import</value>
+  </data>
+  <data name="TransferExport" xml:space="preserve">
+    <value>Exportieren</value>
+  </data>
+  <data name="TransferImport" xml:space="preserve">
+    <value>Importieren</value>
+  </data>
+  <data name="TransferChooseAction" xml:space="preserve">
+    <value>Was möchtest du tun?</value>
+  </data>
+  <data name="ExportBackup" xml:space="preserve">
+    <value>Gesamte Datenbank sichern</value>
+  </data>
+  <data name="ExportBoard" xml:space="preserve">
+    <value>Board exportieren</value>
+  </data>
+  <data name="ExportCards" xml:space="preserve">
+    <value>Karten exportieren</value>
+  </data>
+  <data name="ShareBoard" xml:space="preserve">
+    <value>Board teilen</value>
+  </data>
+  <data name="ImportFile" xml:space="preserve">
+    <value>Datei zum Importieren auswählen</value>
+  </data>
+  <data name="ExportFailedFormat" xml:space="preserve">
+    <value>Der Export ist fehlgeschlagen: {0}</value>
+  </data>
+  <data name="ImportFailed" xml:space="preserve">
+    <value>Diese Datei ist keine lesbare Penban-Datei.</value>
+  </data>
+  <data name="ImportFailedFormat" xml:space="preserve">
+    <value>Der Import ist fehlgeschlagen: {0}</value>
+  </data>
+  <data name="ImportDoneFormat" xml:space="preserve">
+    <value>{0} Board(s) und {1} Karte(n) importiert.</value>
+  </data>
+  <data name="ImportModeTitle" xml:space="preserve">
+    <value>Wie soll das Backup importiert werden?</value>
+  </data>
+  <data name="ImportModeMerge" xml:space="preserve">
+    <value>Zusammenführen</value>
+  </data>
+  <data name="ImportModeReplace" xml:space="preserve">
+    <value>Alles ersetzen</value>
+  </data>
+  <data name="ImportModeReplaceWarning" xml:space="preserve">
+    <value>Alle aktuell vorhandenen Boards und Karten werden zuerst gelöscht und dann durch den Inhalt der Datei ersetzt. Das kann nicht rückgängig gemacht werden.</value>
+  </data>
+  <data name="ImportCardsNeedColumn" xml:space="preserve">
+    <value>Ein Karten-Export kann nur innerhalb eines Boards in eine seiner Spalten importiert werden.</value>
+  </data>
+  <data name="ImportCardsInto" xml:space="preserve">
+    <value>Karten importieren nach …</value>
+  </data>
 </root>

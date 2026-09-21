@@ -3,7 +3,7 @@ using Penban.Services.Abstractions;
 
 namespace Penban.Maui.Services;
 
-/// <summary>MAUI-backed implementation of <see cref="IPreferences"/>, wrapping <see cref="Preferences.Default"/>.</summary>
+/// <summary>MAUI-backed implementation of <see cref="Penban.Services.Abstractions.IPreferences"/>, wrapping <see cref="Preferences.Default"/>.</summary>
 public class MauiPreferences : Penban.Services.Abstractions.IPreferences
 {
     public string Get(string key, string defaultValue) => Preferences.Default.Get(key, defaultValue);

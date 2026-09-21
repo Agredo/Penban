@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Penban.Maui.Views.Services;
 using Penban.Services.Abstractions;
+using Penban.Util;
 using Penban.ViewModels;
 using Syncfusion.Maui.Kanban;
 using IPreferences = Penban.Services.Abstractions.IPreferences;
@@ -21,6 +23,7 @@ public partial class BoardPage : ContentPage
     private const double MinColumnWidth = 180;
 
     private readonly IPreferences preferences;
+    private readonly TransferCoordinator transferCoordinator;
     private readonly List<(ColumnViewModel Column, PropertyChangedEventHandler Handler)> titleSubscriptions = [];
 
     private ObservableCollection<BoardKanbanCard> kanbanCards = new();
@@ -33,16 +36,37 @@ public partial class BoardPage : ContentPage
     private static readonly BindableProperty ColumnViewModelProperty =
         BindableProperty.CreateAttached("ColumnViewModel", typeof(ColumnViewModel), typeof(BoardPage), null);
 
-    public BoardPage(BoardViewModel viewModel, IPreferences preferences)
+    public BoardPage(BoardViewModel viewModel, IPreferences preferences, TransferCoordinator transferCoordinator)
     {
         InitializeComponent();
         this.preferences = preferences;
+        this.transferCoordinator = transferCoordinator;
         BindingContext = this.viewModel = viewModel;
         BoardKanban.ItemsSource = kanbanCards;
         BoardKanban.DragEnd += OnKanbanDragEnd;
         BoardKanban.SizeChanged += OnBoardKanbanSizeChanged;
         viewModel.Columns.CollectionChanged += OnColumnsChanged;
         Application.Current!.RequestedThemeChanged += OnRequestedThemeChanged;
+    }
+
+    /// <summary>
+    /// Export the board or its cards, or import a file. The columns are handed over so that a card
+    /// export can be appended to whichever one the user picks.
+    /// </summary>
+    private async void OnShareClicked(object? sender, EventArgs e)
+    {
+        if (viewModel is null)
+        {
+            return;
+        }
+
+        if (await transferCoordinator.ShowBoardMenuAsync(
+                viewModel.Id,
+                viewModel.Columns.Select(column => new ColumnChoice(column.Id, column.Title)).ToList()))
+        {
+            // An import landed cards in this board, so the columns are rebuilt from the database.
+            await LoadColumnsAndCardsAsync();
+        }
     }
 
     private void OnRequestedThemeChanged(object? sender, AppThemeChangedEventArgs e)
