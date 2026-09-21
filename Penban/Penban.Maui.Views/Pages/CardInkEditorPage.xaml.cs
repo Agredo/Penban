@@ -1,5 +1,10 @@
+using Microsoft.Maui.Controls.Shapes;
 using Penban.Maui.Views.Controls;
+using Penban.Maui.Views.Ink;
+using Penban.Services.Abstractions;
+using Penban.Util;
 using Penban.ViewModels;
+using IPreferences = Penban.Services.Abstractions.IPreferences;
 
 namespace Penban.Maui.Views.Pages;
 
@@ -14,20 +19,83 @@ public partial class CardInkEditorPage : ContentPage
     /// <summary>Edge length of one paper colour swatch in the picker.</summary>
     private const double SwatchSize = 34;
 
+    /// <summary>Diameter of one pen colour swatch.</summary>
+    private const double PenSwatchSize = 26;
+
+    /// <summary>
+    /// Ink is dark on paper in both themes, so the ring that marks the picked pen colour cannot
+    /// come from the theme's accent - it would vanish on a dark swatch.
+    /// </summary>
+    private const string InkColor = "#1E2230";
+
+    /// <summary>
+    /// Pen colours offered in the editor, dark enough to read on every paper colour. The picker
+    /// scrolls sideways, so the palette can be as wide as a real pen case.
+    /// </summary>
+    private static readonly (string Hex, string Name)[] PenColors =
+    [
+        ("#000000", Strings.PenColorBlack),
+        ("#1B4FD8", Strings.PenColorBlue),
+        ("#C62828", Strings.PenColorRed),
+        ("#1B7F3B", Strings.PenColorGreen),
+        ("#E07000", Strings.PenColorOrange),
+        ("#6A3FC0", Strings.PenColorPurple),
+        ("#0F7B8A", Strings.PenColorTeal),
+        ("#6D4C2F", Strings.PenColorBrown),
+        ("#C2185B", Strings.PenColorPink),
+        ("#4A5568", Strings.PenColorGray),
+    ];
+
     private readonly CardViewModel cardViewModel;
+    private readonly IPreferences preferences;
     private readonly List<StickyNoteBorder> swatches = [];
+    private readonly List<Border> penSwatches = [];
+    private int selectedPenColorIndex;
     private int saveVersion;
     private bool isClosing;
 
-    public CardInkEditorPage(CardViewModel cardViewModel)
+    public CardInkEditorPage(CardViewModel cardViewModel, IPreferences preferences)
     {
         InitializeComponent();
         this.cardViewModel = cardViewModel;
+        this.preferences = preferences;
+
+        // Attaching the store also restores the renderer and the drawing settings, so it has to
+        // happen before anything is loaded into the host.
+        InkHost.Preferences = preferences;
+        InkHost.LoadStrokes(cardViewModel.InkCanvas.Strokes);
+        InkHost.StrokeCompleted += OnStrokeCompleted;
+        InkHost.IsEraserModeChanged += OnEraserModeChanged;
+
         NoteSurface.NoteColorIndex = cardViewModel.NoteColorIndex;
         NoteArea.SizeChanged += OnNoteAreaSizeChanged;
         BuildColorPicker();
-        InkHost.LoadStrokes(cardViewModel.InkCanvas.Strokes);
-        InkHost.StrokeCompleted += OnStrokeCompleted;
+        BuildPenColorPicker();
+        UpdateToolButtons();
+
+#if IOS
+        // Apple Pencil double-tap switches to the eraser, and the pencil's tilt feeds the
+        // calligraphy effect. Only iOS exposes the double-tap; Android's S Pen button has no
+        // equivalent.
+        InkHost.Behaviors.Add(new PencilTapBehavior(preferences));
+        InkHost.Behaviors.Add(new PenTiltBehavior(preferences));
+
+        // Two-finger tap undoes, three-finger tap redoes.
+        InkHost.Behaviors.Add(new MultiFingerTapBehavior());
+#endif
+
+#if WINDOWS
+        // The eraser end of a Surface Pen erases while it is held against the surface, and writes
+        // again as soon as it is lifted. Two-finger tap undoes, three-finger tap redoes, and the
+        // pen's tilt feeds the calligraphy effect.
+        InkHost.Behaviors.Add(new PenTailEraserBehavior(preferences));
+        InkHost.Behaviors.Add(new MultiFingerTapBehavior());
+        InkHost.Behaviors.Add(new PenTiltBehavior(preferences));
+#endif
+
+        // Android needs nothing here: its tilt and its two- and three-finger taps are read out of
+        // the activity's touch stream instead, because the drawing surface keeps every touch to
+        // itself - see AndroidInkInput.
     }
 
     /// <summary>
@@ -79,6 +147,10 @@ public partial class CardInkEditorPage : ContentPage
     /// <summary>Repaints the writing surface and remembers the choice on the card.</summary>
     private void ApplyNoteColor(int index)
     {
+        // Stored before the guard: the next new note should start in this colour even if this
+        // card already happened to have it.
+        preferences.Set(PreferenceKeys.NoteLastColorIndex, index.ToString());
+
         if (cardViewModel.NoteColorIndex == index)
         {
             return;
@@ -105,6 +177,65 @@ public partial class CardInkEditorPage : ContentPage
         }
     }
 
+    /// <summary>
+    /// Fills the picker with one round swatch per pen colour, so the choice is made on the colour
+    /// itself rather than on its name.
+    /// </summary>
+    private void BuildPenColorPicker()
+    {
+        for (var index = 0; index < PenColors.Length; index++)
+        {
+            var (hex, name) = PenColors[index];
+
+            var swatch = new Border
+            {
+                BackgroundColor = Color.FromArgb(hex),
+                StrokeShape = new Ellipse(),
+                WidthRequest = PenSwatchSize,
+                HeightRequest = PenSwatchSize,
+            };
+            SemanticProperties.SetDescription(swatch, name);
+
+            var chosen = index;
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (_, _) => ApplyPenColor(chosen);
+            swatch.GestureRecognizers.Add(tap);
+
+            penSwatches.Add(swatch);
+            PenColorPicker.Add(swatch);
+        }
+
+        ApplyPenColor(selectedPenColorIndex);
+    }
+
+    /// <summary>Colours new strokes and marks the swatch, without touching strokes already drawn.</summary>
+    private void ApplyPenColor(int index)
+    {
+        selectedPenColorIndex = index;
+        InkHost.StrokeColor = PenColors[index].Hex;
+
+        for (var i = 0; i < penSwatches.Count; i++)
+        {
+            var isChosen = i == index;
+            penSwatches[i].Stroke = isChosen ? new SolidColorBrush(Color.FromArgb(InkColor)) : null;
+            penSwatches[i].StrokeThickness = isChosen ? 3 : 0;
+            penSwatches[i].Scale = isChosen ? 1.18 : 1;
+        }
+    }
+
+    /// <summary>Keeps the tool buttons showing which mode is active and what can be undone.</summary>
+    private void UpdateToolButtons()
+    {
+        var resources = Application.Current!.Resources;
+        PenButton.Style = (Style)resources[InkHost.IsEraserMode ? "GhostButton" : "PrimaryButton"];
+        EraserButton.Style = (Style)resources[InkHost.IsEraserMode ? "PrimaryButton" : "GhostButton"];
+        FingerButton.Style = (Style)resources[InkHost.AllowFingerDrawing ? "PrimaryButton" : "GhostButton"];
+
+        // Nothing to take back or to put back yet, so the buttons say so instead of doing nothing.
+        UndoButton.IsEnabled = InkHost.CanUndo;
+        RedoButton.IsEnabled = InkHost.CanRedo;
+    }
+
     private void OnStrokeCompleted(object? sender, EventArgs e)
     {
         cardViewModel.InkCanvas.Clear();
@@ -113,6 +244,7 @@ public partial class CardInkEditorPage : ContentPage
             cardViewModel.InkCanvas.AddStroke(stroke);
         }
 
+        UpdateToolButtons();
         QueueSave();
     }
 
@@ -167,21 +299,39 @@ public partial class CardInkEditorPage : ContentPage
         _ = SaveAsync();
     }
 
-    private void OnPenClicked(object? sender, EventArgs e)
+    private void OnPenClicked(object? sender, EventArgs e) => InkHost.IsEraserMode = false;
+
+    private void OnEraserClicked(object? sender, EventArgs e) => InkHost.IsEraserMode = true;
+
+    /// <summary>
+    /// The double-tap on the Apple Pencil flips the mode without a button being pressed, so the
+    /// toolbar follows the host rather than the click handlers.
+    /// </summary>
+    private void OnEraserModeChanged(object? sender, EventArgs e) => UpdateToolButtons();
+
+    /// <summary>
+    /// Turns finger drawing on or off for this card. The choice goes straight into the same
+    /// preference the settings page reads, so both entry points stay in step.
+    /// </summary>
+    private void OnFingerClicked(object? sender, EventArgs e)
     {
-        InkHost.IsEraserMode = false;
-        PenButton.Style = (Style)Application.Current!.Resources["PrimaryButton"];
-        EraserButton.Style = (Style)Application.Current!.Resources["GhostButton"];
+        var allow = !InkHost.AllowFingerDrawing;
+        InkHost.AllowFingerDrawing = allow;
+        preferences.Set(PreferenceKeys.AllowFingerDrawing, allow.ToString());
+        UpdateToolButtons();
     }
 
-    private void OnEraserClicked(object? sender, EventArgs e)
+    private void OnUndoClicked(object? sender, EventArgs e)
     {
-        InkHost.IsEraserMode = true;
-        PenButton.Style = (Style)Application.Current!.Resources["GhostButton"];
-        EraserButton.Style = (Style)Application.Current!.Resources["PrimaryButton"];
+        InkHost.Undo();
+        UpdateToolButtons();
     }
 
-    private void OnUndoClicked(object? sender, EventArgs e) => InkHost.Undo();
+    private void OnRedoClicked(object? sender, EventArgs e)
+    {
+        InkHost.Redo();
+        UpdateToolButtons();
+    }
 
     private async void OnDeleteClicked(object? sender, EventArgs e)
     {

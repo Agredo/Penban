@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Penban.Data;
 using Penban.Maui.Services;
 using Penban.Maui.Views.Pages;
+using Penban.Maui.Views.Services;
 using Penban.Services;
 using Penban.Services.Abstractions;
 using Penban.ViewModels;
@@ -62,11 +63,16 @@ public static class MauiProgram
         services.AddSingleton<IPreferences, MauiPreferences>();
         services.AddSingleton<ISecureStorage, MauiSecureStorage>();
         services.AddSingleton<IDialogService, MauiDialogService>();
+
+        services.AddSingleton<IFileShareService, MauiFileShareService>();
+        services.AddSingleton<IDataTransferService, DataTransferService>();
+        services.AddSingleton<TransferCoordinator>();
     }
 
     private static void RegisterPages(IServiceCollection services)
     {
         services.AddTransient<BoardsViewModel>();
         services.AddTransient<BoardsPage>();
+        services.AddTransient<SettingsViewModel>();
     }
 }

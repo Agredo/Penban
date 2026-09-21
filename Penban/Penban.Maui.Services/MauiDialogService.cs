@@ -26,4 +26,12 @@ public class MauiDialogService : IDialogService
         await CurrentPage.Navigation.PushModalAsync(page);
         return await page.ResultTask;
     }
+
+    public async Task<int> DisplayActionSheetAsync(string title, string cancel, params string[] options)
+    {
+        // Custom modal page for the same reason as the prompt above.
+        var page = new ActionSheetPage(title, cancel, options);
+        await CurrentPage.Navigation.PushModalAsync(page);
+        return await page.ResultTask;
+    }
 }

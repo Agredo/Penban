@@ -1,15 +1,24 @@
+using Penban.Maui.Views.Services;
+using Penban.Services.Abstractions;
 using Penban.ViewModels;
+using IPreferences = Penban.Services.Abstractions.IPreferences;
 
 namespace Penban.Maui.Views.Pages;
 
 /// <summary>Board overview page: lists existing boards, allows creating/deleting/opening them.</summary>
 public partial class BoardsPage : ContentPage
 {
+    private readonly IPreferences preferences;
+    private readonly SettingsViewModel settingsViewModel;
+    private readonly TransferCoordinator transferCoordinator;
     private bool isOpeningBoard;
 
-    public BoardsPage(BoardsViewModel viewModel)
+    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, IPreferences preferences, TransferCoordinator transferCoordinator)
     {
         InitializeComponent();
+        this.settingsViewModel = settingsViewModel;
+        this.preferences = preferences;
+        this.transferCoordinator = transferCoordinator;
         BindingContext = viewModel;
     }
 
@@ -39,11 +48,34 @@ public partial class BoardsPage : ContentPage
         isOpeningBoard = true;
         try
         {
-            await Navigation.PushAsync(new BoardPage(viewModel.FindBoard(board.Id) ?? board));
+            await Navigation.PushAsync(new BoardPage(viewModel.FindBoard(board.Id) ?? board, preferences, transferCoordinator));
         }
         finally
         {
             isOpeningBoard = false;
+        }
+    }
+
+    private async void OnSettingsClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new SettingsPage(settingsViewModel));
+    }
+
+    private async void OnTransferClicked(object? sender, EventArgs e)
+    {
+        // An import can replace or extend the database behind this page's back, so the list is
+        // rebuilt from the database whenever the coordinator reports a change.
+        if (await transferCoordinator.ShowDatabaseMenuAsync() && BindingContext is BoardsViewModel viewModel)
+        {
+            viewModel.LoadBoardsCommand.Execute(null);
+        }
+    }
+
+    private async void OnShareBoardClicked(object? sender, EventArgs e)
+    {
+        if (sender is Element { BindingContext: BoardViewModel board })
+        {
+            await transferCoordinator.ShowBoardExportMenuAsync(board.Id);
         }
     }
 }

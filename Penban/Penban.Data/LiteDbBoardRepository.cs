@@ -37,4 +37,22 @@ public class LiteDbBoardRepository : IBoardRepository
         boards.Update(board);
         return Task.CompletedTask;
     }
+
+    public Task SaveAllAsync(IReadOnlyList<Board> imported)
+    {
+        // Upsert rather than Insert: it writes what it is given without touching it, and it does not
+        // abort the whole import when a file happens to name the same board twice.
+        if (imported.Count > 0)
+        {
+            boards.Upsert(imported);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task ClearAsync()
+    {
+        boards.DeleteAll();
+        return Task.CompletedTask;
+    }
 }

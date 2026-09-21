@@ -20,4 +20,11 @@ public class Card : SyncableEntity
     /// keep looking exactly as they did.
     /// </summary>
     public int? NoteColorIndex { get; set; }
+
+    /// <summary>
+    /// The <see cref="InkDocument"/> space version <see cref="Strokes"/> were captured in. Cards written
+    /// before the coordinate space was fixed read <c>0</c> and are converted once on load; new cards are
+    /// marked with the current version as soon as they are created.
+    /// </summary>
+    public int InkSpaceVersion { get; set; }
 }

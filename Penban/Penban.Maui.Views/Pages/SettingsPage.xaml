@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             x:Class="Penban.Maui.Views.Pages.SettingsPage"
+             Title="{markup:Translate Settings}"
+             Shell.NavBarIsVisible="False"
+             Style="{StaticResource AppPage}">
+    <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
+
+        <!-- Own header instead of the Shell nav bar, like every other page in the app. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+            <Button Grid.Column="0"
+                    Text="&#xf15c;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnBackClicked"
+                    SemanticProperties.Description="{markup:Translate Settings}" />
+            <Label Grid.Column="1"
+                   Text="{markup:Translate Settings}"
+                   Style="{StaticResource TitleLabel}"
+                   VerticalOptions="Center" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="12">
+
+                <Label Text="{markup:Translate SettingsDrawingSection}"
+                       Style="{StaticResource CaptionLabel}" />
+
+                <Border Style="{StaticResource CardBorder}" Padding="16,6">
+                    <VerticalStackLayout Spacing="0">
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                            <Label Grid.Column="0"
+                                   Text="{markup:Translate AllowFingerDrawing}"
+                                   Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" />
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding AllowFingerDrawing}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                        <BoxView HeightRequest="1"
+                                 Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                            <Label Grid.Column="0"
+                                   Text="{markup:Translate PressureSensitiveWidth}"
+                                   Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" />
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding PressureSensitiveWidth}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                        <BoxView HeightRequest="1"
+                                 Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                            <Label Grid.Column="0"
+                                   Text="{markup:Translate PencilDoubleTapEnabled}"
+                                   Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" />
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding PencilDoubleTapEnabled}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                        <BoxView HeightRequest="1"
+                                 Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+
+                        <!-- The eraser end of a pen is a Windows thing (Surface Pen); no other
+                             platform reports which end is down, so the row is hidden there rather
+                             than offering a switch that would do nothing. -->
+                        <VerticalStackLayout x:Name="PenTailEraserRow" Spacing="0">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                                <Label Grid.Column="0"
+                                       Text="{markup:Translate PenTailEraser}"
+                                       Style="{StaticResource BodyLabel}"
+                                       VerticalOptions="Center" />
+                                <Switch Grid.Column="1"
+                                        IsToggled="{Binding PenTailEraserEnabled}"
+                                        VerticalOptions="Center" />
+                            </Grid>
+
+                            <BoxView HeightRequest="1"
+                                     Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+                        </VerticalStackLayout>
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                            <Label Grid.Column="0"
+                                   Text="{markup:Translate InkRenderer}"
+                                   Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" />
+                            <Picker Grid.Column="1"
+                                    WidthRequest="190"
+                                    ItemsSource="{Binding RendererNames}"
+                                    SelectedIndex="{Binding SelectedRendererIndex}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="{markup:Translate SettingsGesturesSection}"
+                       Style="{StaticResource CaptionLabel}"
+                       Margin="0,6,0,0" />
+
+                <!-- The two taps are the same shortcut as the undo and redo buttons in the editor,
+                     so they can be turned off for anyone who rests a hand on the screen. -->
+                <Border Style="{StaticResource CardBorder}" Padding="16,6">
+                    <VerticalStackLayout Spacing="0">
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                            <Label Grid.Column="0"
+                                   Text="{markup:Translate TwoFingerTapUndo}"
+                                   Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" />
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding TwoFingerTapUndoEnabled}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                        <BoxView HeightRequest="1"
+                                 Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                            <Label Grid.Column="0"
+                                   Text="{markup:Translate ThreeFingerTapRedo}"
+                                   Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" />
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding ThreeFingerTapRedoEnabled}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="{markup:Translate SettingsBoardSection}"
+                       Style="{StaticResource CaptionLabel}"
+                       Margin="0,6,0,0" />
+
+                <Border Style="{StaticResource CardBorder}" Padding="16,6">
+                    <VerticalStackLayout Spacing="0">
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                            <Label Grid.Column="0"
+                                   Text="{markup:Translate AutoSizeCards}"
+                                   Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" />
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding AutoSizeCards}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                        <BoxView HeightRequest="1"
+                                 Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                            <Label Grid.Column="0"
+                                   Text="{markup:Translate TiltDetectionEnabled}"
+                                   Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" />
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding TiltDetectionEnabled}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                        <BoxView HeightRequest="1"
+                                 Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+
+                        <!-- The calligraphy effect has nothing to render while tilt detection is off,
+                             so it is only reachable once that is on. -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                            <Label Grid.Column="0"
+                                   Text="{markup:Translate TiltRenderingEffect}"
+                                   Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" />
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding TiltRenderingEffect}"
+                                    IsEnabled="{Binding TiltDetectionEnabled}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

@@ -1,4 +1,5 @@
 using Penban.Models;
+using Penban.Services.Abstractions;
 using IPreferences = Penban.Services.Abstractions.IPreferences;
 
 namespace Penban.Maui.Views.Ink;
@@ -10,8 +11,6 @@ namespace Penban.Maui.Views.Ink;
 /// </summary>
 public class InkCanvasHostView : ContentView
 {
-    private const string RendererPreferenceKey = "InkCanvas.Renderer";
-
     private IPreferences? preferences;
     private IInkCanvasView activeRenderer;
     private InkRenderer renderer;
@@ -24,10 +23,32 @@ public class InkCanvasHostView : ContentView
     }
 
     /// <summary>
-    /// Injects the preferences store used to persist the renderer choice, and immediately
-    /// restores whichever renderer was last selected. Set this once, e.g. right after the
-    /// view is created via dependency injection - XAML-instantiated controls cannot take
-    /// constructor parameters, so this is done as a follow-up property instead.
+    /// Points the Android touch reader at this surface while it is alive - see
+    /// <see cref="AndroidInkInput"/>. Only Android needs it: there the pen's tilt and the
+    /// two- and three-finger taps are only visible to the activity, and the drawing surface itself
+    /// keeps its touches to itself.
+    /// </summary>
+    protected override void OnHandlerChanged()
+    {
+        base.OnHandlerChanged();
+
+#if ANDROID
+        if (Handler is null)
+        {
+            AndroidInkInput.Detach();
+        }
+        else
+        {
+            AndroidInkInput.Attach(this);
+        }
+#endif
+    }
+
+    /// <summary>
+    /// Injects the preferences store used to persist the renderer choice and to read the drawing
+    /// settings, and immediately restores both. Set this once, e.g. right after the view is
+    /// created via dependency injection - XAML-instantiated controls cannot take constructor
+    /// parameters, so this is done as a follow-up property instead.
     /// </summary>
     public IPreferences? Preferences
     {
@@ -39,6 +60,10 @@ public class InkCanvasHostView : ContentView
             if (stored != renderer)
             {
                 Renderer = stored;
+            }
+            else
+            {
+                ApplyPreferences();
             }
         }
     }
@@ -60,12 +85,20 @@ public class InkCanvasHostView : ContentView
             }
 
             var existingStrokes = activeRenderer.Strokes.ToList();
+            var strokeColor = activeRenderer.StrokeColor;
+            var strokeThickness = activeRenderer.StrokeThickness;
+            var isEraserMode = activeRenderer.IsEraserMode;
+
             renderer = value;
             activeRenderer = CreateRenderer(renderer);
             activeRenderer.LoadStrokes(existingStrokes);
+            activeRenderer.StrokeColor = strokeColor;
+            activeRenderer.StrokeThickness = strokeThickness;
+            activeRenderer.IsEraserMode = isEraserMode;
             Content = (View)activeRenderer;
 
-            preferences?.Set(RendererPreferenceKey, renderer.ToString());
+            ApplyPreferences();
+            preferences?.Set(PreferenceKeys.InkRenderer, renderer.ToString());
         }
     }
 
@@ -77,15 +110,111 @@ public class InkCanvasHostView : ContentView
 
     public void Undo() => activeRenderer.Undo();
 
+    public void Redo() => activeRenderer.Redo();
+
+    public bool CanUndo => activeRenderer.CanUndo;
+
+    public bool CanRedo => activeRenderer.CanRedo;
+
+    /// <summary>
+    /// Hands the stylus tilt reported by a platform input handler down to the renderer. Only the Skia
+    /// renderer stores tilt; the toolkit renderer has nowhere to put it and ignores this.
+    /// </summary>
+    public void SetStylusTilt(float tilt, float azimuth)
+    {
+        if (activeRenderer is SkiaInkCanvasView skia)
+        {
+            skia.SetStylusTilt(tilt, azimuth);
+        }
+    }
+
+    /// <summary>
+    /// Raised when <see cref="IsEraserMode"/> changes through the setter, so the page can keep its
+    /// pen/eraser buttons in step - the Apple Pencil double-tap flips the mode without any button
+    /// being pressed.
+    /// </summary>
+    public event EventHandler? IsEraserModeChanged;
+
     public bool IsEraserMode
     {
         get => activeRenderer.IsEraserMode;
-        set => activeRenderer.IsEraserMode = value;
+        set
+        {
+            if (activeRenderer.IsEraserMode == value)
+            {
+                return;
+            }
+
+            activeRenderer.IsEraserMode = value;
+            IsEraserModeChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
+
+    /// <summary>Colour of new strokes as <c>#RRGGBB</c>.</summary>
+    public string StrokeColor
+    {
+        get => activeRenderer.StrokeColor;
+        set => activeRenderer.StrokeColor = value;
+    }
+
+    /// <summary>Width of new strokes.</summary>
+    public float StrokeThickness
+    {
+        get => activeRenderer.StrokeThickness;
+        set => activeRenderer.StrokeThickness = value;
+    }
+
+    /// <summary>When false, only a pen or the mouse draws - see <see cref="IInkCanvasView"/>.</summary>
+    public bool AllowFingerDrawing
+    {
+        get => activeRenderer.AllowFingerDrawing;
+        set => activeRenderer.AllowFingerDrawing = value;
+    }
+
+    /// <summary>
+    /// Erases while the eraser end of the pen stays down - see
+    /// <see cref="SkiaInkCanvasView.BeginPenTailErase"/>. Only the Skia renderer sees pen input
+    /// finely enough to tell the two ends of a pen apart; the toolkit renderer ignores this.
+    /// </summary>
+    public void BeginPenTailErase()
+    {
+        if (activeRenderer is SkiaInkCanvasView skia)
+        {
+            skia.BeginPenTailErase();
+        }
+    }
+
+    /// <summary>Ends the eraser-end contact - see <see cref="BeginPenTailErase"/>.</summary>
+    public void EndPenTailErase()
+    {
+        if (activeRenderer is SkiaInkCanvasView skia)
+        {
+            skia.EndPenTailErase();
+        }
+    }
+
+    /// <summary>
+    /// Re-reads the drawing settings. Called whenever the store is attached or the renderer is
+    /// swapped, so a card opened after a setting was changed behaves the same way.
+    /// </summary>
+    public void ApplyPreferences()
+    {
+        activeRenderer.AllowFingerDrawing = ReadBool(PreferenceKeys.AllowFingerDrawing, true);
+
+        if (activeRenderer is SkiaInkCanvasView skia)
+        {
+            skia.PressureSensitiveWidth = ReadBool(PreferenceKeys.PressureSensitiveWidth, true);
+            skia.TiltRenderingEffect = ReadBool(PreferenceKeys.TiltDetectionEnabled, false)
+                && ReadBool(PreferenceKeys.TiltRenderingEffect, false);
+        }
+    }
+
+    private bool ReadBool(string key, bool @default) =>
+        bool.TryParse(preferences?.Get(key, @default.ToString()), out var value) ? value : @default;
 
     private static InkRenderer ReadStoredRenderer(IPreferences? preferences)
     {
-        var stored = preferences?.Get(RendererPreferenceKey, InkRenderer.Skia.ToString());
+        var stored = preferences?.Get(PreferenceKeys.InkRenderer, InkRenderer.Skia.ToString());
         return Enum.TryParse<InkRenderer>(stored, out var parsed) ? parsed : InkRenderer.Skia;
     }
 

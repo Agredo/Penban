@@ -40,4 +40,28 @@ public class LiteDbCardRepository : ICardRepository
         cards.Update(card);
         return Task.CompletedTask;
     }
+
+    public Task DeleteByColumnAsync(Guid columnId)
+    {
+        cards.DeleteMany(c => c.ColumnId == columnId);
+        return Task.CompletedTask;
+    }
+
+    public Task SaveAllAsync(IReadOnlyList<Card> imported)
+    {
+        // Upsert rather than Insert, for the same reason as in LiteDbBoardRepository: write the file's
+        // cards verbatim, and let a duplicate id in a malformed file overwrite instead of throwing.
+        if (imported.Count > 0)
+        {
+            cards.Upsert(imported);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task ClearAsync()
+    {
+        cards.DeleteAll();
+        return Task.CompletedTask;
+    }
 }

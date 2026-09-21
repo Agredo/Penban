@@ -12,7 +12,7 @@
 
         <!-- Own header instead of the Shell nav bar: the Windows Shell nav bar renders no back
              button, so the app draws its own and every platform gets the same way back. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
             <Button Grid.Column="0"
                     Text="&#xf15c;"
                     Style="{StaticResource GhostIconButton}"
@@ -23,10 +23,16 @@
                    Style="{StaticResource TitleLabel}"
                    LineBreakMode="TailTruncation"
                    VerticalOptions="Center" />
+            <Button Grid.Column="2"
+                    Text="&#xf6b0;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnShareClicked"
+                    SemanticProperties.Description="{markup:Translate ShareBoard}" />
         </Grid>
 
-        <!-- Fixed column width, sized so a 150pt note sits comfortably with room for its tilt
-             instead of being centred in a column that stretches with the window. -->
+        <!-- ColumnWidth is only the starting value: BoardPage recomputes it on resize so the
+             columns fill the window, never dropping below the 180 that a 150pt note plus its
+             tilt buffer needs. -->
         <kanban:SfKanban x:Name="BoardKanban"
                          Grid.Row="1"
                          AutoGenerateColumns="False"
@@ -75,25 +81,37 @@
             <kanban:SfKanban.CardTemplate>
                 <DataTemplate>
                     <!-- The card is the note: no frame of its own, so the column reads as a stack
-                         of stuck-on notes rather than as a list of rows. Centre on both axes: the
-                         fixed 150x150 request only wins over a stretching parent when the alignment
-                         is not Fill, which is what keeps the note square while it is dragged
-                         (the drag overlay hands the card a much taller cell than the column does). -->
-                    <controls:StickyNoteBorder NoteColorIndex="{Binding Card.NoteColorIndex}"
-                                               NoteTilt="{Binding Card.NoteTilt}"
-                                               Padding="7"
-                                               HeightRequest="150"
-                                               WidthRequest="150"
-                                               HorizontalOptions="Center"
-                                               VerticalOptions="Center">
-                        <controls:StickyNoteBorder.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnCardTapped" />
-                        </controls:StickyNoteBorder.GestureRecognizers>
-                        <controls:InkPreviewView HorizontalOptions="Fill"
-                                                 VerticalOptions="Fill"
-                                                 BackgroundColor="Transparent"
-                                                 StrokesSource="{Binding Card.InkCanvas.Strokes}" />
-                    </controls:StickyNoteBorder>
+                         of stuck-on notes rather than as a list of rows.
+                         The transparent cell is deliberately larger than the note: the note is
+                         rotated by up to ~2.8 degrees and casts a 6pt shadow, so its bounding box
+                         is about 7pt wider than the note - without the margin the corners get
+                         clipped at the cell edge.
+                         Centre on both axes: the fixed note size only wins over a stretching parent
+                         when the alignment is not Fill, which is what keeps the note square while
+                         it is dragged (the drag overlay hands the card a much taller cell than the
+                         column does).
+                         Both sizes come from the card, which is 150pt unless the notes are set to
+                         follow their content in the settings. -->
+                    <Grid HeightRequest="{Binding CellSize}"
+                          WidthRequest="{Binding CellSize}"
+                          HorizontalOptions="Center"
+                          VerticalOptions="Center">
+                        <controls:StickyNoteBorder NoteColorIndex="{Binding Card.NoteColorIndex}"
+                                                   NoteTilt="{Binding Card.NoteTilt}"
+                                                   Padding="7"
+                                                   HeightRequest="{Binding NoteSize}"
+                                                   WidthRequest="{Binding NoteSize}"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center">
+                            <controls:StickyNoteBorder.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnCardTapped" />
+                            </controls:StickyNoteBorder.GestureRecognizers>
+                            <controls:InkPreviewView HorizontalOptions="Fill"
+                                                     VerticalOptions="Fill"
+                                                     BackgroundColor="Transparent"
+                                                     StrokesSource="{Binding Card.InkCanvas.Strokes}" />
+                        </controls:StickyNoteBorder>
+                    </Grid>
                 </DataTemplate>
             </kanban:SfKanban.CardTemplate>
         </kanban:SfKanban>

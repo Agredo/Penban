@@ -1,7 +1,13 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
+using Penban.Maui.Views.Services;
+using Penban.Models;
+using Penban.Services.Abstractions;
+using Penban.Util;
 using Penban.ViewModels;
 using Syncfusion.Maui.Kanban;
+using IPreferences = Penban.Services.Abstractions.IPreferences;
 
 namespace Penban.Maui.Views.Pages;
 
@@ -11,24 +17,80 @@ namespace Penban.Maui.Views.Pages;
 /// </summary>
 public partial class BoardPage : ContentPage
 {
+    /// <summary>
+    /// Lower bound for the computed column width. The note plus its tilt buffer needs this much,
+    /// so a board with many columns scrolls horizontally instead of squeezing the notes.
+    /// </summary>
+    private const double MinColumnWidth = 180;
+
+    /// <summary>Side length of a note that is not sized to its content.</summary>
+    private const double DefaultNoteSize = 150;
+
+    /// <summary>
+    /// Smallest note the content-driven sizing may produce. Below this a note would no longer be
+    /// big enough to write on comfortably.
+    /// </summary>
+    private const double MinNoteSize = 100;
+
+    /// <summary>
+    /// Transparent margin the cell keeps around the note, so its rotation and its shadow stay
+    /// inside the cell at every note size. Half of the difference between the 170pt cell and the
+    /// 150pt note the board used before the size could vary.
+    /// </summary>
+    private const double NoteCellPadding = 10;
+
+    private readonly IPreferences preferences;
+    private readonly TransferCoordinator transferCoordinator;
+    private readonly List<(ColumnViewModel Column, PropertyChangedEventHandler Handler)> titleSubscriptions = [];
+
     private ObservableCollection<BoardKanbanCard> kanbanCards = new();
     private BoardViewModel? viewModel;
     private bool isLoaded;
     private bool suppressCardRebuild;
+
+    /// <summary>
+    /// Whether the notes are sized to their content. Read from the settings when the board appears
+    /// so a change there is picked up without restarting the app; the field is what the card
+    /// rebuild compares against.
+    /// </summary>
+    private bool autoSizeCards;
 
     /// <summary>Carries the owning <see cref="ColumnViewModel"/> on each <see cref="KanbanColumn"/>
     /// so header-template buttons (whose BindingContext is the Syncfusion column) can reach it.</summary>
     private static readonly BindableProperty ColumnViewModelProperty =
         BindableProperty.CreateAttached("ColumnViewModel", typeof(ColumnViewModel), typeof(BoardPage), null);
 
-    public BoardPage(BoardViewModel viewModel)
+    public BoardPage(BoardViewModel viewModel, IPreferences preferences, TransferCoordinator transferCoordinator)
     {
         InitializeComponent();
+        this.preferences = preferences;
+        this.transferCoordinator = transferCoordinator;
         BindingContext = this.viewModel = viewModel;
         BoardKanban.ItemsSource = kanbanCards;
         BoardKanban.DragEnd += OnKanbanDragEnd;
+        BoardKanban.SizeChanged += OnBoardKanbanSizeChanged;
         viewModel.Columns.CollectionChanged += OnColumnsChanged;
         Application.Current!.RequestedThemeChanged += OnRequestedThemeChanged;
+    }
+
+    /// <summary>
+    /// Export the board or its cards, or import a file. The columns are handed over so that a card
+    /// export can be appended to whichever one the user picks.
+    /// </summary>
+    private async void OnShareClicked(object? sender, EventArgs e)
+    {
+        if (viewModel is null)
+        {
+            return;
+        }
+
+        if (await transferCoordinator.ShowBoardMenuAsync(
+                viewModel.Id,
+                viewModel.Columns.Select(column => new ColumnChoice(column.Id, column.Title)).ToList()))
+        {
+            // An import landed cards in this board, so the columns are rebuilt from the database.
+            await LoadColumnsAndCardsAsync();
+        }
     }
 
     private void OnRequestedThemeChanged(object? sender, AppThemeChangedEventArgs e)
@@ -49,14 +111,33 @@ public partial class BoardPage : ContentPage
             return;
         }
 
-        await LoadColumnsAndCardsAsync();
-        if (!isLoaded)
+        if (isLoaded)
         {
-            RebuildKanbanColumns();
-            isLoaded = true;
+            // Coming back from the ink editor. The card the editor worked on is the very instance
+            // this board already holds, and both its note colour and its ink preview follow it
+            // live, so reloading every column and rebuilding the whole board here only made
+            // returning from the editor slow - on a full board, several seconds of nothing
+            // happening. Only a deletion still has to be applied, because it happens on the card
+            // and so cannot reach the column it came from.
+            //
+            // Content-driven note sizes are the other exception: the ink was drawn in the editor,
+            // so the note that has to change size is the one that was just worked on. The setting
+            // is re-read first so that it also takes effect without restarting the app.
+            autoSizeCards = ReadAutoSizeCards();
+
+            if (RemoveDeletedCards() | RefreshCardSizes())
+            {
+                RebuildKanbanCards();
+            }
+
+            return;
         }
 
+        autoSizeCards = ReadAutoSizeCards();
+        await LoadColumnsAndCardsAsync();
+        RebuildKanbanColumns();
         RebuildKanbanCards();
+        isLoaded = true;
     }
 
     private async void OnColumnsChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -102,11 +183,25 @@ public partial class BoardPage : ContentPage
             return;
         }
 
-        foreach (var column in viewModel.Columns)
+        var columns = viewModel.Columns.ToList();
+        foreach (var column in columns)
         {
             column.Cards.CollectionChanged -= OnCardsChanged;
             column.Cards.CollectionChanged += OnCardsChanged;
-            await column.LoadCardsCommand.ExecuteAsync(null);
+        }
+
+        // Filling a column is a Clear() plus one Add() per card, and each of those raises
+        // CollectionChanged - which used to rebuild the whole board. That made opening a board with
+        // a few dozen cards quadratic, and it is why a big board took seconds to appear. Load
+        // first, build the board once.
+        suppressCardRebuild = true;
+        try
+        {
+            await Task.WhenAll(columns.Select(column => column.LoadCardsCommand.ExecuteAsync(null)));
+        }
+        finally
+        {
+            suppressCardRebuild = false;
         }
     }
 
@@ -130,6 +225,7 @@ public partial class BoardPage : ContentPage
             StrokeDashArray = new DoubleCollection { 3, 2 },
         };
 
+        UnsubscribeColumnTitles();
         BoardKanban.Columns.Clear();
         foreach (var column in viewModel.Columns)
         {
@@ -142,8 +238,57 @@ public partial class BoardPage : ContentPage
                 Background = columnBrush,
             };
             kanbanColumn.SetValue(ColumnViewModelProperty, column);
+
+            // KanbanColumn.Title is a plain property with no binding behind it, so renaming a
+            // column in the view model would otherwise only reach the board the next time the
+            // whole column set is rebuilt.
+            PropertyChangedEventHandler onColumnChanged = (_, e) =>
+            {
+                if (e.PropertyName == nameof(ColumnViewModel.Title))
+                {
+                    kanbanColumn.Title = column.Title;
+                }
+            };
+
+            column.PropertyChanged += onColumnChanged;
+            titleSubscriptions.Add((column, onColumnChanged));
+
             BoardKanban.Columns.Add(kanbanColumn);
         }
+
+        UpdateColumnWidth();
+    }
+
+    private void OnBoardKanbanSizeChanged(object? sender, EventArgs e) => UpdateColumnWidth();
+
+    /// <summary>
+    /// Spreads the columns over the available width instead of leaving a gap at the right edge,
+    /// while never going below <see cref="MinColumnWidth"/>.
+    /// </summary>
+    private void UpdateColumnWidth()
+    {
+        if (viewModel is null || viewModel.Columns.Count == 0 || BoardKanban.Width <= 0)
+        {
+            return;
+        }
+
+        var computed = BoardKanban.Width / viewModel.Columns.Count;
+        BoardKanban.ColumnWidth = Math.Max(MinColumnWidth, computed);
+    }
+
+    /// <summary>
+    /// Drops the title subscriptions from the previous column set. <see cref="RebuildKanbanColumns"/>
+    /// runs on every theme change and column change, and the event source outlives the columns, so
+    /// without this each rebuild would leave another handler behind.
+    /// </summary>
+    private void UnsubscribeColumnTitles()
+    {
+        foreach (var (column, handler) in titleSubscriptions)
+        {
+            column.PropertyChanged -= handler;
+        }
+
+        titleSubscriptions.Clear();
     }
 
     private void RebuildKanbanCards()
@@ -164,12 +309,68 @@ public partial class BoardPage : ContentPage
                     Card = card,
                     Category = column.Id.ToString(),
                     Title = card.Id.ToString()[..8],
+                    NoteSize = NoteSizeFor(card),
                 });
             }
         }
 
         kanbanCards = nextCards;
         BoardKanban.ItemsSource = kanbanCards;
+    }
+
+    private bool ReadAutoSizeCards() =>
+        bool.TryParse(preferences.Get(PreferenceKeys.AutoSizeCards, "false"), out var enabled) && enabled;
+
+    /// <summary>
+    /// Side length for one note: the full size unless the notes are meant to follow their content,
+    /// in which case a note shrinks until the ink on it fills the note.
+    /// </summary>
+    private double NoteSizeFor(CardViewModel card)
+    {
+        if (!autoSizeCards
+            || card.InkCanvas.Strokes.Count == 0
+            || !InkDocument.TryGetBounds(card.InkCanvas.Strokes, out var bounds)
+            || bounds.MaxExtent <= 0)
+        {
+            return DefaultNoteSize;
+        }
+
+        // The strokes live on a fixed square sheet; the note is the same sheet at a different size,
+        // so the share of the sheet the ink uses is the share of the note it may fill.
+        var share = Math.Min(1, bounds.MaxExtent / InkDocument.Size);
+        return Math.Clamp(DefaultNoteSize * share, MinNoteSize, DefaultNoteSize);
+    }
+
+    /// <summary>
+    /// Brings the note size of every card in line with its ink and reports whether any of them
+    /// changed. Cards are only compared, never re-created, so this is cheap enough to run every
+    /// time the board comes back into view.
+    /// </summary>
+    private bool RefreshCardSizes()
+    {
+        if (viewModel is null)
+        {
+            return false;
+        }
+
+        var changed = false;
+        var shown = new Dictionary<Guid, BoardKanbanCard>();
+        foreach (var item in kanbanCards)
+        {
+            shown[item.CardId] = item;
+        }
+
+        foreach (var card in viewModel.Columns.SelectMany(column => column.Cards))
+        {
+            var size = NoteSizeFor(card);
+            if (shown.TryGetValue(card.Id, out var item) && Math.Abs(item.NoteSize - size) >= 0.5)
+            {
+                item.NoteSize = size;
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 
     private async void OnKanbanDragEnd(object? sender, KanbanDragEndEventArgs e)
@@ -244,13 +445,64 @@ public partial class BoardPage : ContentPage
         await Navigation.PopAsync();
     }
 
-    private async void OnCardTapped(object? sender, TappedEventArgs e)    {
+    /// <summary>
+    /// Removes the cards that were deleted in the ink editor from their columns. Deletion is the
+    /// one edit the editor cannot apply where it happens - the delete command knows the card but not
+    /// the column holding it. Returns whether anything went, so the caller can rebuild the board
+    /// once instead of once per removed card.
+    /// </summary>
+    private bool RemoveDeletedCards()
+    {
+        if (viewModel is null)
+        {
+            return false;
+        }
+
+        var removed = false;
+        suppressCardRebuild = true;
+        try
+        {
+            foreach (var column in viewModel.Columns)
+            {
+                for (var i = column.Cards.Count - 1; i >= 0; i--)
+                {
+                    if (column.Cards[i].IsDeleted)
+                    {
+                        column.Cards.RemoveAt(i);
+                        removed = true;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            suppressCardRebuild = false;
+        }
+
+        return removed;
+    }
+
+    /// <summary>
+    /// Opens the ink editor for a card and applies whatever it changed about the board itself.
+    /// </summary>
+    private async Task OpenCardEditorAsync(CardViewModel card)
+    {
+        await Navigation.PushModalAsync(new CardInkEditorPage(card, preferences));
+
+        if (RemoveDeletedCards())
+        {
+            RebuildKanbanCards();
+        }
+    }
+
+    private async void OnCardTapped(object? sender, TappedEventArgs e)
+    {
         if ((sender as BindableObject)?.BindingContext is not BoardKanbanCard card)
         {
             return;
         }
 
-        await Navigation.PushModalAsync(new CardInkEditorPage(card.Card));
+        await OpenCardEditorAsync(card.Card);
     }
 
     private async void OnAddCardClicked(object? sender, EventArgs e)
@@ -269,7 +521,7 @@ public partial class BoardPage : ContentPage
         var newCard = columnViewModel.Cards.LastOrDefault();
         if (newCard is not null)
         {
-            await Navigation.PushModalAsync(new CardInkEditorPage(newCard));
+            await OpenCardEditorAsync(newCard);
         }
     }
 
@@ -313,8 +565,12 @@ public partial class BoardPage : ContentPage
         }
     }
 
-    public sealed class BoardKanbanCard
+    public sealed class BoardKanbanCard : INotifyPropertyChanged
     {
+        private double noteSize = DefaultNoteSize;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
         public Guid CardId { get; init; }
 
         public CardViewModel Card { get; init; } = null!;
@@ -322,5 +578,31 @@ public partial class BoardPage : ContentPage
         public string Category { get; set; } = string.Empty;
 
         public string Title { get; init; } = string.Empty;
+
+        /// <summary>Side length of the note, and of the transparent cell that holds it.</summary>
+        public double NoteSize
+        {
+            get => noteSize;
+            set
+            {
+                if (Math.Abs(noteSize - value) < 0.5)
+                {
+                    return;
+                }
+
+                noteSize = value;
+                Raise(nameof(NoteSize));
+                Raise(nameof(CellSize));
+            }
+        }
+
+        /// <summary>
+        /// The note plus the margin its rotation and its shadow need, so the corners are never cut
+        /// off at the cell edge.
+        /// </summary>
+        public double CellSize => NoteSize + (2 * NoteCellPadding);
+
+        private void Raise(string propertyName) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

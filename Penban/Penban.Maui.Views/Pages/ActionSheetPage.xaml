@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Penban.Maui.Views.Pages.ActionSheetPage"
+             BackgroundColor="{AppThemeBinding Light={StaticResource ScrimLight}, Dark={StaticResource ScrimDark}}">
+    <!--
+    Custom in-app replacement for Page.DisplayActionSheet, following the same reasoning as
+    PromptDialogPage: the native dialog surface this environment's WinUI3/WindowsAppSDK preview
+    build uses is unreliable for unpackaged apps, so the menu lives in a normal modal page inside
+    the app's own content tree.
+    -->
+    <Border Padding="24"
+            Margin="40"
+            StrokeShape="RoundRectangle 16"
+            VerticalOptions="Center"
+            HorizontalOptions="Center"
+            WidthRequest="360"
+            Background="{AppThemeBinding Light={StaticResource SurfaceLight}, Dark={StaticResource SurfaceDark}}"
+            Stroke="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}">
+        <VerticalStackLayout Spacing="14">
+            <Label x:Name="TitleLabel" Style="{StaticResource TitleLabel}" />
+
+            <!-- One button per option, filled from code so that the page only has to be told
+                 which labels to show. -->
+            <VerticalStackLayout x:Name="OptionsStack" Spacing="6">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate>
+                        <Button Text="{Binding Text}"
+                                Style="{StaticResource GhostButton}"
+                                Clicked="OnOptionClicked"
+                                HorizontalOptions="Fill" />
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <Button x:Name="CancelButton"
+                    Style="{StaticResource GhostButton}"
+                    Clicked="OnCancelClicked"
+                    Margin="0,4,0,0" />
+        </VerticalStackLayout>
+    </Border>
+</ContentPage>

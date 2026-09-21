@@ -6,6 +6,16 @@ namespace Penban.Maui.Views.Controls;
 
 /// <summary>
 /// Lightweight, read-only ink preview for board cards.
+/// <para>
+/// The strokes are in <see cref="InkDocument"/> space, so the preview only has to scale the whole
+/// document onto itself - the note is square and so is the document, so one factor is enough. That is
+/// what makes a card look the same as the note it was written on: the drawing keeps its position and
+/// its size relative to the sheet instead of being enlarged and centred in it.
+/// </para>
+/// <para>
+/// This is a reduced rendering on purpose - it uses one width per stroke rather than following the
+/// pressure along it, and it ignores pen tilt. The note editor shows the real thing.
+/// </para>
 /// </summary>
 public sealed class InkPreviewView : GraphicsView, IDrawable
 {
@@ -19,11 +29,6 @@ public sealed class InkPreviewView : GraphicsView, IDrawable
     /// <summary>A preview stroke never renders thinner than this many device-independent units,
     /// so a much-reduced note still shows its pen marks.</summary>
     private const float MinimumStrokeSize = 1f;
-
-    /// <summary>…and never thicker than this share of the preview. Ink is fitted into the note by
-    /// its bounding box, so a drawing that covers little of the sheet is scaled up a lot; without
-    /// a ceiling its strokes would come out as thick marker lines on a note this small.</summary>
-    private const float MaximumStrokeShare = 0.02f;
 
     private INotifyCollectionChanged? observedCollection;
 
@@ -51,31 +56,21 @@ public sealed class InkPreviewView : GraphicsView, IDrawable
             return;
         }
 
-        var (minX, minY, maxX, maxY) = GetInkBounds(strokes);
-        var sourceWidth = Math.Max(maxX - minX, 1f);
-        var sourceHeight = Math.Max(maxY - minY, 1f);
-        const float padding = 6f;
-        var targetWidth = Math.Max(dirtyRect.Width - (padding * 2f), 1f);
-        var targetHeight = Math.Max(dirtyRect.Height - (padding * 2f), 1f);
-        var scale = Math.Min(targetWidth / sourceWidth, targetHeight / sourceHeight);
-        var offsetX = dirtyRect.Left + padding + ((targetWidth - (sourceWidth * scale)) / 2f);
-        var offsetY = dirtyRect.Top + padding + ((targetHeight - (sourceHeight * scale)) / 2f);
+        var targetWidth = Math.Max(dirtyRect.Width, 1f);
+        var targetHeight = Math.Max(dirtyRect.Height, 1f);
+        var scale = Math.Min(targetWidth / InkDocument.Size, targetHeight / InkDocument.Size);
 
-        // Thicknesses below are in ink units; the canvas is scaled, so they are divided by the
-        // scale to land on the wanted size on screen.
+        // Thicknesses are in document units; the canvas is scaled, so they are divided by the scale to
+        // land on the wanted size on screen. Only a lower bound is needed now - nothing is scaled up
+        // any more, so a stroke can only come out too thin to see, never too thick.
         var minimumInkStroke = MinimumStrokeSize / scale;
-        var maximumInkStroke = Math.Max(
-            Math.Min(dirtyRect.Width, dirtyRect.Height) * MaximumStrokeShare / scale,
-            minimumInkStroke);
 
         canvas.SaveState();
-        canvas.Translate(offsetX, offsetY);
         canvas.Scale(scale, scale);
-        canvas.Translate(-minX, -minY);
 
         foreach (var stroke in strokes)
         {
-            var thickness = Math.Clamp(stroke.Thickness, minimumInkStroke, maximumInkStroke);
+            var thickness = Math.Max(stroke.Thickness, minimumInkStroke);
 
             canvas.StrokeColor = Color.FromArgb(stroke.Color);
             canvas.StrokeSize = thickness;
@@ -129,30 +124,4 @@ public sealed class InkPreviewView : GraphicsView, IDrawable
 
     private void OnObservedCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         => Invalidate();
-
-    private static (float minX, float minY, float maxX, float maxY) GetInkBounds(IEnumerable<InkStroke> strokes)
-    {
-        var minX = float.MaxValue;
-        var minY = float.MaxValue;
-        var maxX = float.MinValue;
-        var maxY = float.MinValue;
-
-        foreach (var stroke in strokes)
-        {
-            foreach (var point in stroke.Points)
-            {
-                minX = Math.Min(minX, point.X);
-                minY = Math.Min(minY, point.Y);
-                maxX = Math.Max(maxX, point.X);
-                maxY = Math.Max(maxY, point.Y);
-            }
-        }
-
-        if (minX == float.MaxValue)
-        {
-            return (0f, 0f, 1f, 1f);
-        }
-
-        return (minX, minY, maxX, maxY);
-    }
 }

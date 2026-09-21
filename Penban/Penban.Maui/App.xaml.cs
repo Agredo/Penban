@@ -19,6 +19,15 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        return new Window(new AppShell(services));
+        var window = new Window(new AppShell(services));
+
+        // Custom title bar (Windows/Mac Catalyst) with the Penban mark.
+        window.TitleBar = new TitleBar
+        {
+            Icon = "penban_logo.png",
+            Title = "Penban",
+        };
+
+        return window;
     }
 }

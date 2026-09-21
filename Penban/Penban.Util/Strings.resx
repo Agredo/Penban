@@ -110,7 +110,7 @@
     <value>{0} cards</value>
   </data>
   <data name="DeleteBoardConfirmation" xml:space="preserve">
-    <value>Delete this board? This cannot be undone.</value>
+    <value>Delete this board and all its cards? This cannot be undone.</value>
   </data>
   <data name="DeleteColumnConfirmation" xml:space="preserve">
     <value>Delete this column and all its cards? This cannot be undone.</value>
@@ -123,6 +123,9 @@
   </data>
   <data name="Undo" xml:space="preserve">
     <value>Undo</value>
+  </data>
+  <data name="Redo" xml:space="preserve">
+    <value>Redo</value>
   </data>
   <data name="Eraser" xml:space="preserve">
     <value>Eraser</value>
@@ -156,5 +159,137 @@
   </data>
   <data name="TimeDaysAgoFormat" xml:space="preserve">
     <value>{0} days ago</value>
+  </data>
+  <data name="SettingsDrawingSection" xml:space="preserve">
+    <value>Drawing</value>
+  </data>
+  <data name="SettingsBoardSection" xml:space="preserve">
+    <value>Board</value>
+  </data>
+  <data name="InkRendererSkia" xml:space="preserve">
+    <value>Skia (stylus pressure)</value>
+  </data>
+  <data name="InkRendererToolkit" xml:space="preserve">
+    <value>DrawingView (simple)</value>
+  </data>
+  <data name="AllowFingerDrawing" xml:space="preserve">
+    <value>Draw with a finger</value>
+  </data>
+  <data name="FingerDrawing" xml:space="preserve">
+    <value>Finger</value>
+  </data>
+  <data name="PressureSensitiveWidth" xml:space="preserve">
+    <value>Line width follows pen pressure</value>
+  </data>
+  <data name="PencilDoubleTapEnabled" xml:space="preserve">
+    <value>Apple Pencil double-tap switches to the eraser</value>
+  </data>
+  <data name="PenTailEraser" xml:space="preserve">
+    <value>Erase with the back of the pen</value>
+  </data>
+  <data name="TiltDetectionEnabled" xml:space="preserve">
+    <value>Detect pen tilt</value>
+  </data>
+  <data name="TiltRenderingEffect" xml:space="preserve">
+    <value>Calligraphy effect from pen tilt</value>
+  </data>
+  <data name="AutoSizeCards" xml:space="preserve">
+    <value>Notes grow with their content</value>
+  </data>
+  <data name="PenColorBlack" xml:space="preserve">
+    <value>Black pen</value>
+  </data>
+  <data name="PenColorBlue" xml:space="preserve">
+    <value>Blue pen</value>
+  </data>
+  <data name="PenColorRed" xml:space="preserve">
+    <value>Red pen</value>
+  </data>
+  <data name="PenColorGreen" xml:space="preserve">
+    <value>Green pen</value>
+  </data>
+  <data name="PenColorOrange" xml:space="preserve">
+    <value>Orange pen</value>
+  </data>
+  <data name="PenColorPurple" xml:space="preserve">
+    <value>Purple pen</value>
+  </data>
+  <data name="PenColorTeal" xml:space="preserve">
+    <value>Teal pen</value>
+  </data>
+  <data name="PenColorBrown" xml:space="preserve">
+    <value>Brown pen</value>
+  </data>
+  <data name="PenColorPink" xml:space="preserve">
+    <value>Pink pen</value>
+  </data>
+  <data name="PenColorGray" xml:space="preserve">
+    <value>Gray pen</value>
+  </data>
+  <data name="SettingsGesturesSection" xml:space="preserve">
+    <value>Gestures</value>
+  </data>
+  <data name="TwoFingerTapUndo" xml:space="preserve">
+    <value>Two-finger tap: undo</value>
+  </data>
+  <data name="ThreeFingerTapRedo" xml:space="preserve">
+    <value>Three-finger tap: redo</value>
+  </data>
+  <data name="TransferTitle" xml:space="preserve">
+    <value>Export / Import</value>
+  </data>
+  <data name="TransferExport" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="TransferImport" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="TransferChooseAction" xml:space="preserve">
+    <value>What would you like to do?</value>
+  </data>
+  <data name="ExportBackup" xml:space="preserve">
+    <value>Back up everything</value>
+  </data>
+  <data name="ExportBoard" xml:space="preserve">
+    <value>Export board</value>
+  </data>
+  <data name="ExportCards" xml:space="preserve">
+    <value>Export cards</value>
+  </data>
+  <data name="ShareBoard" xml:space="preserve">
+    <value>Share board</value>
+  </data>
+  <data name="ImportFile" xml:space="preserve">
+    <value>Pick a file to import</value>
+  </data>
+  <data name="ExportFailedFormat" xml:space="preserve">
+    <value>The export failed: {0}</value>
+  </data>
+  <data name="ImportFailed" xml:space="preserve">
+    <value>This file is not a readable Penban file.</value>
+  </data>
+  <data name="ImportFailedFormat" xml:space="preserve">
+    <value>The import failed: {0}</value>
+  </data>
+  <data name="ImportDoneFormat" xml:space="preserve">
+    <value>Imported {0} board(s) and {1} card(s).</value>
+  </data>
+  <data name="ImportModeTitle" xml:space="preserve">
+    <value>How should the backup be imported?</value>
+  </data>
+  <data name="ImportModeMerge" xml:space="preserve">
+    <value>Merge</value>
+  </data>
+  <data name="ImportModeReplace" xml:space="preserve">
+    <value>Replace everything</value>
+  </data>
+  <data name="ImportModeReplaceWarning" xml:space="preserve">
+    <value>All boards and cards currently in the app will be deleted first, then replaced by the contents of the file. This cannot be undone.</value>
+  </data>
+  <data name="ImportCardsNeedColumn" xml:space="preserve">
+    <value>A card export can only be imported from inside a board, into one of its columns.</value>
+  </data>
+  <data name="ImportCardsInto" xml:space="preserve">
+    <value>Import cards into …</value>
   </data>
 </root>
