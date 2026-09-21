@@ -16,4 +16,12 @@ public interface ICardRepository
 
     /// <summary>Soft-deletes the card with the given id.</summary>
     Task DeleteAsync(Guid cardId);
+
+    /// <summary>
+    /// Removes every card in the given column from the database, including cards that are already
+    /// marked as deleted. Called when the column itself disappears: a card is only ever reachable
+    /// through its <see cref="Card.ColumnId"/>, so anything left behind could never be opened again
+    /// and would grow the file with every deleted board or column.
+    /// </summary>
+    Task DeleteByColumnAsync(Guid columnId);
 }

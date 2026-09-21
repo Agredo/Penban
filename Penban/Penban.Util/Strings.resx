@@ -110,7 +110,7 @@
     <value>{0} cards</value>
   </data>
   <data name="DeleteBoardConfirmation" xml:space="preserve">
-    <value>Delete this board? This cannot be undone.</value>
+    <value>Delete this board and all its cards? This cannot be undone.</value>
   </data>
   <data name="DeleteColumnConfirmation" xml:space="preserve">
     <value>Delete this column and all its cards? This cannot be undone.</value>

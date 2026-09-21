@@ -9,10 +9,12 @@ namespace Penban.Services;
 public class BoardService : IBoardService
 {
     private readonly IBoardRepository repository;
+    private readonly ICardRepository cardRepository;
 
-    public BoardService(IBoardRepository repository)
+    public BoardService(IBoardRepository repository, ICardRepository cardRepository)
     {
         this.repository = repository;
+        this.cardRepository = cardRepository;
     }
 
     public Task<List<Board>> GetBoardsAsync() => repository.GetAllAsync();
@@ -61,7 +63,26 @@ public class BoardService : IBoardService
         await repository.SaveAsync(board);
     }
 
-    public Task DeleteBoardAsync(Guid boardId) => repository.DeleteAsync(boardId);
+    /// <summary>
+    /// Deletes the board together with every card in it. The cards are removed outright rather than
+    /// flagged: they are only reachable through the columns of this board, so once the board is gone
+    /// nothing could ever open them again.
+    /// </summary>
+    public async Task DeleteBoardAsync(Guid boardId)
+    {
+        var board = await FindBoardAsync(boardId);
+
+        // Read the columns before deleting: afterwards the board is flagged as deleted and no longer
+        // returned by GetAllAsync, so its column ids could not be looked up any more.
+        var columnIds = board?.Columns.Select(c => c.Id).ToList() ?? [];
+
+        await repository.DeleteAsync(boardId);
+
+        foreach (var columnId in columnIds)
+        {
+            await cardRepository.DeleteByColumnAsync(columnId);
+        }
+    }
 
     public async Task<BoardColumn> AddColumnAsync(Guid boardId, string title)
     {
@@ -93,6 +114,10 @@ public class BoardService : IBoardService
         await repository.SaveAsync(board);
     }
 
+    /// <summary>
+    /// Removes the column from its board and deletes every card it held, for the same reason a
+    /// deleted board takes its cards with it: the cards would be unreachable from then on.
+    /// </summary>
     public async Task DeleteColumnAsync(Guid boardId, Guid columnId)
     {
         var board = await FindBoardAsync(boardId);
@@ -103,6 +128,7 @@ public class BoardService : IBoardService
 
         board.Columns.RemoveAll(c => c.Id == columnId);
         await repository.SaveAsync(board);
+        await cardRepository.DeleteByColumnAsync(columnId);
     }
 
     public async Task ReorderColumnsAsync(Guid boardId, IReadOnlyList<Guid> orderedColumnIds)

@@ -13,7 +13,11 @@ public abstract class SyncableEntity
     /// <summary>UTC timestamp of the last modification, used for conflict resolution during sync.</summary>
     public DateTimeOffset UpdatedAtUtc { get; set; }
 
-    /// <summary>Soft-delete flag. Entities are never hard-deleted so sync can propagate deletions.</summary>
+    /// <summary>
+    /// Soft-delete flag. Deleting a single entity flags it instead of removing it, so a later sync
+    /// can propagate the deletion. The cards of a deleted board or column are the exception and are
+    /// removed outright, because nothing can reach them once their column is gone.
+    /// </summary>
     public bool IsDeleted { get; set; }
 
     /// <summary>Opaque revision/ETag tag reserved for future sync conflict detection.</summary>

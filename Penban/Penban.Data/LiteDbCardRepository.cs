@@ -40,4 +40,10 @@ public class LiteDbCardRepository : ICardRepository
         cards.Update(card);
         return Task.CompletedTask;
     }
+
+    public Task DeleteByColumnAsync(Guid columnId)
+    {
+        cards.DeleteMany(c => c.ColumnId == columnId);
+        return Task.CompletedTask;
+    }
 }

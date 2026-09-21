@@ -110,7 +110,7 @@
     <value>{0} Karten</value>
   </data>
   <data name="DeleteBoardConfirmation" xml:space="preserve">
-    <value>Dieses Board löschen? Das kann nicht rückgängig gemacht werden.</value>
+    <value>Dieses Board und alle seine Karten löschen? Das kann nicht rückgängig gemacht werden.</value>
   </data>
   <data name="DeleteColumnConfirmation" xml:space="preserve">
     <value>Diese Spalte und alle ihre Karten löschen? Das kann nicht rückgängig gemacht werden.</value>
