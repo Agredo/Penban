@@ -6,6 +6,7 @@
 #   scripts/ios-testflight.sh build             Release-IPA für den App Store bauen
 #   scripts/ios-testflight.sh upload <ipa>      vorhandene IPA hochladen
 #   scripts/ios-testflight.sh all               bauen und direkt hochladen
+#   scripts/ios-testflight.sh clean             veraltete obj/bin-Artefakte (iOS) löschen
 #
 # Konfiguration über Umgebungsvariablen (alle optional, Defaults kommen aus dem
 # Projekt bzw. dem Schlüsselbund):
@@ -23,6 +24,12 @@
 #   2. "Apple Distribution"-Zertifikat (Xcode → Settings → Accounts → Manage Certificates)
 #   3. App-Store-Provisioning-Profil für die App-ID
 #   4. App-Store-Connect-API-Key (.p8) in ~/.appstoreconnect/private_keys/ oder Apple-ID + App-Passwort
+#
+# Zum Build: vor jedem Release-Build werden obj/bin für $IOS_TFM geleert und das
+# erzeugte Bundle wird geprüft. Ein inkrementeller iOS-Build nach einem Wechsel
+# von SDK, Workload oder iOS-Paket kann eine Microsoft.iOS.dll in das Bundle
+# kopieren, deren Runtime-Hash nicht zum Executable passt; die App stürzt dann
+# direkt beim Start ab ("The static registrar map ... is invalid").
 #
 set -euo pipefail
 
@@ -175,6 +182,64 @@ detect_signing() {
   fi
 }
 
+# ------------------------------------------------- Build-Artefakte + Bundle-Prüfung --
+# Ein inkrementeller iOS-Build nach einem Wechsel von SDK, Workload oder iOS-Paket
+# kann eine Microsoft.iOS.dll in das Bundle kopieren, deren Runtime-Hash nicht zu
+# dem des Executables passt. Zur Laufzeit findet die ObjC-Brücke dann keine
+# Managed-Tokens mehr und die App stürzt direkt beim Start ab:
+#   "The static registrar map for Microsoft.iOS (...) is invalid" ->
+#   ArgumentNullException ('obj') in ObjCRuntime.Class.ResolveTokenReference.
+clean_ios_outputs() {
+  local path removed=0
+  while IFS= read -r path; do
+    rm -rf "$path"
+    removed=$((removed + 1))
+  done < <(find "$REPO_ROOT/Penban" -type d \
+             \( -path "*/obj/Release/$IOS_TFM" -o -path "*/bin/Release/$IOS_TFM" \) -prune -print)
+  echo "Veraltete Build-Artefakte entfernt: $removed Verzeichnis(se)"
+}
+
+# 40-stellige Hex-Hashes (u. a. der Runtime-Hash des Registrar-Map) eines Binaries.
+binary_runtime_hashes() {
+  strings -a "$1" 2>/dev/null | grep -oE '\b[0-9a-f]{40}\b' | sort -u || true
+}
+
+# Bundle nur freigeben, wenn Executable und Microsoft.iOS.dll denselben Runtime-Hash
+# tragen – sonst startet die App auf dem Gerät nicht.
+verify_bundle_runtime_hash() { # <pfad/zur/App.app>
+  local app="$1" exe dll exe_hashes dll_hashes hash
+  exe="$(plutil -extract CFBundleExecutable raw -o - "$app/Info.plist" 2>/dev/null || true)"
+  exe="$app/${exe:-$(basename "$app" .app)}"
+  dll="$app/Microsoft.iOS.dll"
+
+  if [ ! -f "$exe" ] || [ ! -f "$dll" ]; then
+    warn "Bundle-Prüfung übersprungen: $app enthält kein Executable oder keine Microsoft.iOS.dll."
+    return 0
+  fi
+
+  exe_hashes="$(binary_runtime_hashes "$exe")"
+  dll_hashes="$(binary_runtime_hashes "$dll")"
+  if [ -z "$dll_hashes" ]; then
+    warn "Bundle-Prüfung übersprungen: in Microsoft.iOS.dll wurde kein Runtime-Hash gefunden."
+    return 0
+  fi
+
+  while IFS= read -r hash; do
+    [ -n "$hash" ] || continue
+    if printf '%s\n' "$exe_hashes" | grep -qx "$hash"; then
+      echo "Runtime-Hash OK: ${hash:0:8} (Executable und Microsoft.iOS.dll stimmen überein)"
+      return 0
+    fi
+  done <<<"$dll_hashes"
+
+  die "Bundle ist inkonsistent: Microsoft.iOS.dll und das Executable passen nicht zusammen.
+    Microsoft.iOS.dll: $(printf '%s ' $dll_hashes)
+    Executable:        $(printf '%s ' $exe_hashes)
+    Ursache: gemischte Build-Artefakte (Runtime-Hash des Registrar-Map weicht ab);
+    eine so signierte App stürzt direkt beim Start ab.
+    Lösung: '$0 clean' ausführen und erneut bauen."
+}
+
 # ------------------------------------------------------------------- Kommandos --
 cmd_info() {
   select_build_dir
@@ -211,6 +276,9 @@ cmd_build() {
   [ -n "$profile_uuid" ] || die "Kein App-Store-Provisioning-Profil gefunden.
     developer.apple.com → Certificates, Identifiers & Profiles → Profiles → + → App Store → App-ID $BUNDLE_ID"
 
+  log "Bereinige alte iOS-Build-Artefakte (obj/bin/$IOS_TFM)"
+  clean_ios_outputs
+
   log "Baue Release-IPA: $BUNDLE_ID $VERSION ($BUILD)"
   echo "Signierung: ${SIGNING_KEY}"
   echo "Profil:     ${profile_name} (${profile_uuid})"
@@ -246,6 +314,17 @@ cmd_build() {
   IPA_PATH="$(find "$REPO_ROOT/Penban/Penban.Maui/bin/Release/$IOS_TFM/$RID" -name '*.ipa' -print -quit 2>/dev/null || true)"
   [ -n "$IPA_PATH" ] || die "Build erfolgreich, aber keine .ipa unter bin/Release/$IOS_TFM/$RID gefunden."
   log "IPA erstellt: $IPA_PATH"
+
+  APP_PATH="${IPA_PATH%.ipa}.app"
+  if [ ! -d "$APP_PATH" ]; then
+    APP_PATH="$(find "$REPO_ROOT/Penban/Penban.Maui/bin/Release/$IOS_TFM/$RID" \
+      -maxdepth 3 -type d -name '*.app' -print -quit 2>/dev/null || true)"
+  fi
+  [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ] || die "Kein .app-Bundle zum Prüfen gefunden (IPA: $IPA_PATH)."
+
+  log "Prüfe Bundle auf konsistente Runtime-Hashes"
+  verify_bundle_runtime_hash "$APP_PATH"
+
   printf 'Nächster Schritt: %s upload "%s"\n' "$0" "$IPA_PATH"
 }
 
@@ -275,8 +354,9 @@ cmd_upload() {
 case "${1:-info}" in
   info)            cmd_info;;
   build)           cmd_build;;
+  clean)           clean_ios_outputs;;
   upload)          shift; cmd_upload "${1:-}";;
   all)             cmd_build && cmd_upload "$IPA_PATH";;
-  -h|--help|help)  sed -n '2,26p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//';;
-  *)               die "Unbekanntes Kommando '$1' (info | build | upload <ipa> | all)";;
+  -h|--help|help)  sed -n '2,33p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//';;
+  *)               die "Unbekanntes Kommando '$1' (info | build | upload <ipa> | clean | all)";;
 esac
