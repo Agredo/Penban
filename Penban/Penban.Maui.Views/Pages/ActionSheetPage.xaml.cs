@@ -10,6 +10,9 @@ public partial class ActionSheetPage : ContentPage
 {
     private readonly TaskCompletionSource<int> completionSource = new();
 
+    /// <summary>The option a handler picked, or <c>null</c> while no handler has claimed the dismissal.</summary>
+    private int? chosenIndex;
+
     public ActionSheetPage(string title, string cancel, IReadOnlyList<string> options)
     {
         InitializeComponent();
@@ -27,30 +30,54 @@ public partial class ActionSheetPage : ContentPage
     public Task<int> ResultTask => completionSource.Task;
 
     /// <summary>
-    /// Closes the menu as "dismissed" whenever the page goes away for any reason other than the two
-    /// handlers below - a hardware back button, for instance. Without this the caller would wait for
-    /// an answer that can never arrive.
+    /// Closes the menu as "dismissed" whenever the page goes away without one of the two handlers
+    /// below having claimed it - a hardware back button, for instance. Without this the caller would
+    /// wait for an answer that can never arrive.
     /// </summary>
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        completionSource.TrySetResult(-1);
+
+        // A dismissal a handler already claimed is not a cancellation; its answer is published once
+        // the menu is actually gone, see CloseAsync.
+        if (chosenIndex is null)
+        {
+            completionSource.TrySetResult(-1);
+        }
     }
 
     private async void OnOptionClicked(object? sender, EventArgs e)
     {
         if ((sender as BindableObject)?.BindingContext is Option option)
         {
-            completionSource.TrySetResult(option.Index);
+            chosenIndex = option.Index;
         }
 
-        await Navigation.PopModalAsync();
+        await CloseAsync();
     }
 
     private async void OnCancelClicked(object? sender, EventArgs e)
     {
-        completionSource.TrySetResult(-1);
-        await Navigation.PopModalAsync();
+        chosenIndex = -1;
+        await CloseAsync();
+    }
+
+    /// <summary>
+    /// Dismisses the menu first and only then hands the answer to the caller. Answering before the
+    /// dismissal has finished lets the caller drive the next step while this menu is still on its way
+    /// out - which on iOS is a presentation that is silently dropped, so an export that follows a
+    /// menu never reached the share sheet.
+    /// </summary>
+    private async Task CloseAsync()
+    {
+        try
+        {
+            await Navigation.PopModalAsync();
+        }
+        finally
+        {
+            completionSource.TrySetResult(chosenIndex ?? -1);
+        }
     }
 
     /// <summary>
