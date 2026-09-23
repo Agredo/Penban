@@ -10,27 +10,29 @@
     <Grid RowDefinitions="Auto,*" Padding="16" RowSpacing="12">
 
         <!-- Everything that is a button or a colour lives in the one row above the note, so the note
-             keeps the whole height underneath it: the five drawing tools, the pen colours and the
+             keeps the whole height underneath it: the four drawing tools, the pen colours and the
              paper colours scroll, and the way into the ring plus the two buttons that leave the card
              are pinned to the right end of the row, where they are always one press away.
-             Drawing tools: switch between pen/eraser, undo and redo the last edit and turn finger
-             drawing on or off. Each button carries the glyph of the same tool that the radial menu
-             draws on its ring, and the words that used to be on them are what a screen reader reads
-             out. The font size is set here rather than left to the two styles so a button that changes
-             between them does not change the size of its glyph with it. Horizontally scrollable,
-             because the five buttons and the two rows of colours together are wider than any phone
-             held upright. -->
+             Drawing tools: one button for the two ways the pen draws, one for the eraser, and one
+             each to undo and redo the last edit. Each button carries the glyph of the same tool that
+             the radial menu draws on its ring, and the words that used to be on them are what a screen
+             reader reads out. The font size is set here rather than left to the two styles so a button
+             that changes between them does not change the size of its glyph with it. Horizontally
+             scrollable, because the four buttons and the two rows of colours together are wider than
+             any phone held upright. -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
             <ScrollView x:Name="ToolBar" Grid.Column="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
                 <HorizontalStackLayout Spacing="8">
-                    <!-- Pen = U+E8D8, eraser = U+E5E5, undo = U+F19A, redo = U+F16F, finger = U+E6D8,
+                    <!-- The pen and the finger share one button: it carries the mode that is drawing
+                         - a finger draws as well, or only the pencil does - and pressing it hands over
+                         to the other one. The glyph of the two (pen U+E8D8, finger U+E6D8) and the
+                         words it is read out with are put on in the code-behind, because that is what
+                         tells the two modes apart. Eraser = U+E5E5, undo = U+F19A, redo = U+F16F,
                          radial menu = U+F07A5. -->
-                    <Button x:Name="PenButton"
-                            Text="&#xe8d8;"
+                    <Button x:Name="DrawModeButton"
                             FontSize="20"
-                            Style="{StaticResource AccentIconButton}"
-                            Clicked="OnPenClicked"
-                            SemanticProperties.Description="{markup:Translate Pen}" />
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnDrawModeClicked" />
                     <Button x:Name="EraserButton"
                             Text="&#xe5e5;"
                             FontSize="20"
@@ -51,14 +53,6 @@
                             Style="{StaticResource GhostIconButton}"
                             Clicked="OnRedoClicked"
                             SemanticProperties.Description="{markup:Translate Redo}" />
-                    <!-- Same preference as the settings page: a resting hand is noticed mid-sentence,
-                         so the toggle belongs next to the pen. -->
-                    <Button x:Name="FingerButton"
-                            Text="&#xe6d8;"
-                            FontSize="20"
-                            Style="{StaticResource AccentIconButton}"
-                            Clicked="OnFingerClicked"
-                            SemanticProperties.Description="{markup:Translate FingerDrawing}" />
                     <!-- A hairline, so the colours read as the other half of the same row rather than as
                          more tools. -->
                     <BoxView x:Name="PenColorSeparator"

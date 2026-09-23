@@ -351,9 +351,17 @@ public partial class CardInkEditorPage : ContentPage
     private void UpdateToolButtons()
     {
         var resources = Application.Current!.Resources;
-        PenButton.Style = (Style)resources[InkHost.IsEraserMode ? "GhostIconButton" : "AccentIconButton"];
-        EraserButton.Style = (Style)resources[InkHost.IsEraserMode ? "AccentIconButton" : "GhostIconButton"];
-        FingerButton.Style = (Style)resources[InkHost.AllowFingerDrawing ? "AccentIconButton" : "GhostIconButton"];
+        var eraserDraws = InkHost.IsEraserMode;
+        var fingerDraws = InkHost.AllowFingerDrawing;
+
+        // The one button for the two ways the pen draws carries the mode that is set - a finger
+        // draws as well, or only the pencil does - and is lit while that is the finger, so the row
+        // shows how the note is drawn without a second button for the mode that is not in use. It
+        // goes quiet while the eraser is the one drawing, so only ever one of the two is lit.
+        DrawModeButton.Text = fingerDraws ? IconFont.Finger : IconFont.Pen;
+        DrawModeButton.Style = (Style)resources[fingerDraws && !eraserDraws ? "AccentIconButton" : "GhostIconButton"];
+        SemanticProperties.SetDescription(DrawModeButton, fingerDraws ? Strings.FingerDrawing : Strings.Pen);
+        EraserButton.Style = (Style)resources[eraserDraws ? "AccentIconButton" : "GhostIconButton"];
 
         // Nothing to take back or to put back yet, so the buttons say so instead of doing nothing.
         UndoButton.IsEnabled = InkHost.CanUndo;
@@ -424,21 +432,25 @@ public partial class CardInkEditorPage : ContentPage
         _ = SaveAsync();
     }
 
-    private void OnPenClicked(object? sender, EventArgs e) => InkHost.IsEraserMode = false;
+    /// <summary>
+    /// The one button for the two ways the pen draws: it hands over between the finger drawing as
+    /// well and only the pencil doing so. The glyph and the words on it follow the mode, so what is
+    /// set is read off the button itself.
+    /// </summary>
+    private void OnDrawModeClicked(object? sender, EventArgs e) => ToggleFingerDrawing();
 
-    private void OnEraserClicked(object? sender, EventArgs e) => InkHost.IsEraserMode = true;
+    /// <summary>
+    /// The eraser on or off again. Off is the way back to drawing - with the finger or without it,
+    /// whichever of the two the button beside it holds - so the mode the eraser took the place of is
+    /// always one press away.
+    /// </summary>
+    private void OnEraserClicked(object? sender, EventArgs e) => InkHost.IsEraserMode = !InkHost.IsEraserMode;
 
     /// <summary>
     /// The double-tap on the Apple Pencil flips the mode without a button being pressed, so the
     /// toolbar follows the host rather than the click handlers.
     /// </summary>
     private void OnEraserModeChanged(object? sender, EventArgs e) => UpdateToolButtons();
-
-    /// <summary>
-    /// Turns finger drawing on or off for this card. The choice goes straight into the same
-    /// preference the settings page reads, so both entry points stay in step.
-    /// </summary>
-    private void OnFingerClicked(object? sender, EventArgs e) => ToggleFingerDrawing();
 
     /// <summary>
     /// Flips which tool draws, and remembers it. The radial menu offers the same switch as a block of
@@ -748,7 +760,7 @@ public partial class CardInkEditorPage : ContentPage
     }
 
     /// <summary>
-    /// Shows the way in that was picked and takes the other one away: the ring carries what the five
+    /// Shows the way in that was picked and takes the other one away: the ring carries what the four
     /// tool buttons and the two palettes carry, so the two are alternatives and never both. That is
     /// the whole of the scrolling row - <see cref="ToolBar"/> holds the tools, the pen colours and the
     /// paper colours together - so hiding it hands the note the space all of them were taking, and the
