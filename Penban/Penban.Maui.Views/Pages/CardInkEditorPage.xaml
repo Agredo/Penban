@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
@@ -7,77 +7,103 @@
              x:Class="Penban.Maui.Views.Pages.CardInkEditorPage"
              Title="Card"
              Style="{StaticResource AppPage}">
-    <Grid RowDefinitions="Auto,*,Auto" Padding="16" RowSpacing="12">
+    <Grid RowDefinitions="Auto,*" Padding="16" RowSpacing="12">
 
-        <!-- Drawing tools: switch between pen/eraser, undo and redo the last edit and turn finger
-             drawing on or off, followed by the pen colours, so everything that goes with the ink sits
-             in one row. Each button carries the glyph of the same tool that the radial menu draws on
-             its ring, and the words that used to be on them are what a screen reader reads out. The
-             font size is set here rather than left to the two styles so a button that changes between
-             them does not change the size of its glyph with it. Horizontally scrollable, because the
-             six buttons and ten colours together are wider than any phone held upright. -->
-        <ScrollView x:Name="ToolBar" Grid.Row="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
-            <HorizontalStackLayout Spacing="8">
-                <!-- Pen = U+E8D8, eraser = U+E5E5, undo = U+F19A, redo = U+F16F, finger = U+E6D8,
-                     radial menu = U+F07A5. -->
-                <Button x:Name="PenButton"
-                        Text="&#xe8d8;"
-                        FontSize="20"
-                        Style="{StaticResource AccentIconButton}"
-                        Clicked="OnPenClicked"
-                        SemanticProperties.Description="{markup:Translate Pen}" />
-                <Button x:Name="EraserButton"
-                        Text="&#xe5e5;"
-                        FontSize="20"
-                        Style="{StaticResource GhostIconButton}"
-                        Clicked="OnEraserClicked"
-                        SemanticProperties.Description="{markup:Translate Eraser}" />
-                <Button x:Name="UndoButton"
-                        Text="&#xf19a;"
-                        FontSize="20"
-                        Style="{StaticResource GhostIconButton}"
-                        Clicked="OnUndoClicked"
-                        SemanticProperties.Description="{markup:Translate Undo}" />
-                <!-- Undo and redo are also on two- and three-finger taps, so the buttons are the
-                     visible half of the same feature. -->
-                <Button x:Name="RedoButton"
-                        Text="&#xf16f;"
-                        FontSize="20"
-                        Style="{StaticResource GhostIconButton}"
-                        Clicked="OnRedoClicked"
-                        SemanticProperties.Description="{markup:Translate Redo}" />
-                <!-- Same preference as the settings page: a resting hand is noticed mid-sentence,
-                     so the toggle belongs next to the pen. -->
-                <Button x:Name="FingerButton"
-                        Text="&#xe6d8;"
-                        FontSize="20"
-                        Style="{StaticResource AccentIconButton}"
-                        Clicked="OnFingerClicked"
-                        SemanticProperties.Description="{markup:Translate FingerDrawing}" />
-                <!-- The tool row holds the five tools in the toolbar mode, and in the menu mode it
-                     holds this button alone: it is the way into the ring when the note cannot be
-                     tapped - the finger draws, or there is no right mouse button. Either way it is
-                     one press away, so it is shown in the mode that needs it and not in the other
-                     one. -->
+        <!-- Everything that is a button or a colour lives in the one row above the note, so the note
+             keeps the whole height underneath it: the five drawing tools, the pen colours and the
+             paper colours scroll, and the way into the ring plus the two buttons that leave the card
+             are pinned to the right end of the row, where they are always one press away.
+             Drawing tools: switch between pen/eraser, undo and redo the last edit and turn finger
+             drawing on or off. Each button carries the glyph of the same tool that the radial menu
+             draws on its ring, and the words that used to be on them are what a screen reader reads
+             out. The font size is set here rather than left to the two styles so a button that changes
+             between them does not change the size of its glyph with it. Horizontally scrollable,
+             because the five buttons and the two rows of colours together are wider than any phone
+             held upright. -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <ScrollView x:Name="ToolBar" Grid.Column="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout Spacing="8">
+                    <!-- Pen = U+E8D8, eraser = U+E5E5, undo = U+F19A, redo = U+F16F, finger = U+E6D8,
+                         radial menu = U+F07A5. -->
+                    <Button x:Name="PenButton"
+                            Text="&#xe8d8;"
+                            FontSize="20"
+                            Style="{StaticResource AccentIconButton}"
+                            Clicked="OnPenClicked"
+                            SemanticProperties.Description="{markup:Translate Pen}" />
+                    <Button x:Name="EraserButton"
+                            Text="&#xe5e5;"
+                            FontSize="20"
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnEraserClicked"
+                            SemanticProperties.Description="{markup:Translate Eraser}" />
+                    <Button x:Name="UndoButton"
+                            Text="&#xf19a;"
+                            FontSize="20"
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnUndoClicked"
+                            SemanticProperties.Description="{markup:Translate Undo}" />
+                    <!-- Undo and redo are also on two- and three-finger taps, so the buttons are the
+                         visible half of the same feature. -->
+                    <Button x:Name="RedoButton"
+                            Text="&#xf16f;"
+                            FontSize="20"
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnRedoClicked"
+                            SemanticProperties.Description="{markup:Translate Redo}" />
+                    <!-- Same preference as the settings page: a resting hand is noticed mid-sentence,
+                         so the toggle belongs next to the pen. -->
+                    <Button x:Name="FingerButton"
+                            Text="&#xe6d8;"
+                            FontSize="20"
+                            Style="{StaticResource AccentIconButton}"
+                            Clicked="OnFingerClicked"
+                            SemanticProperties.Description="{markup:Translate FingerDrawing}" />
+                    <!-- A hairline, so the colours read as the other half of the same row rather than as
+                         more tools. -->
+                    <BoxView x:Name="PenColorSeparator"
+                             WidthRequest="1"
+                             HeightRequest="24"
+                             VerticalOptions="Center"
+                             Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+                    <!-- Pen colours, filled in from the palette in the code-behind so a swatch is the ink
+                         itself. They belong to the toolbar: the radial menu carries the same palette on
+                         its ring, so only one of the two is shown. -->
+                    <HorizontalStackLayout x:Name="PenColorPicker" Spacing="10" Padding="2" VerticalOptions="Center" />
+                    <!-- The paper colours sit behind a hairline of their own, so the two palettes are told
+                         apart at a glance: the first one is the ink, this one is the note. -->
+                    <BoxView x:Name="NoteColorSeparator"
+                             WidthRequest="1"
+                             HeightRequest="24"
+                             VerticalOptions="Center"
+                             Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+                    <!-- Paper colours, filled in from the palette so a swatch is the note itself. -->
+                    <HorizontalStackLayout x:Name="ColorPicker" Spacing="10" Padding="2" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </ScrollView>
+
+            <!-- The way into the ring and the two ways out of the card. They stay outside the
+                 scrolling row so they are always one press away: the ring is what a free finger taps
+                 on the note, and the button is what is left when there is no free finger or no right
+                 mouse button. In the toolbar mode the ring is off altogether and only the two ways
+                 out are left here. -->
+            <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
                 <Button x:Name="MenuButton"
                         Text="&#xf07a5;"
                         FontSize="20"
                         Style="{StaticResource GhostIconButton}"
                         Clicked="OnMenuClicked"
                         SemanticProperties.Description="{markup:Translate RadialMenu}" />
-                <!-- A hairline, so the colours read as the other half of the same row rather than as
-                     more tools. -->
-                <BoxView x:Name="PenColorSeparator"
-                         WidthRequest="1"
-                         HeightRequest="24"
-                         VerticalOptions="Center"
-                         Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
-                <!-- Pen colours, filled in from the palette in the code-behind so a swatch is the ink
-                     itself. They belong to the toolbar: the radial menu carries the same palette on
-                     its ring, so only one of the two is shown. -->
-                <HorizontalStackLayout x:Name="PenColorPicker" Spacing="10" Padding="2" VerticalOptions="Center" />
+                <Button x:Name="DeleteButton"
+                        Text="{markup:Translate Delete}"
+                        Style="{StaticResource DangerGhostButton}"
+                        Clicked="OnDeleteClicked" />
+                <Button x:Name="DoneButton"
+                        Text="{markup:Translate Done}"
+                        Style="{StaticResource PrimaryButton}"
+                        Clicked="OnDoneClicked" />
             </HorizontalStackLayout>
-        </ScrollView>
+        </Grid>
 
         <!-- The writing surface is the very note that sits on the board, in its own paper colour
              (set from the view model in the constructor). Strokes are stored dark-on-light.
@@ -95,29 +121,12 @@
             </Border>
         </Grid>
 
-        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-            <Button Grid.Column="0"
-                    Text="{markup:Translate Delete}"
-                    Style="{StaticResource DangerGhostButton}"
-                    Clicked="OnDeleteClicked" />
-            <!-- Paper colours, filled in from the palette so a swatch is the note itself. -->
-            <HorizontalStackLayout x:Name="ColorPicker"
-                                   Grid.Column="1"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center"
-                                   Spacing="10" />
-            <Button Grid.Column="2"
-                    Text="{markup:Translate Done}"
-                    Style="{StaticResource PrimaryButton}"
-                    Clicked="OnDoneClicked" />
-        </Grid>
-
         <!-- The radial menu covers the whole page so a press beside it can be told from one on it:
              it is transparent and lets touches through until it is opened, and the ring is drawn
              around the point it was opened at. Last child, so it is above the note it was asked for
              from. -->
         <ink:RadialMenuView x:Name="RadialMenu"
-                            Grid.RowSpan="3"
+                            Grid.RowSpan="2"
                             BackgroundColor="Transparent"
                             InputTransparent="True" />
     </Grid>

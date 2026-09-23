@@ -32,8 +32,8 @@ public static class PreferenceKeys
     /// <summary>
     /// Which of the two ways of reaching the drawing tools is in use, as a member of
     /// <see cref="InkToolUi"/>. The radial menu covers the page and takes every touch on it, and it
-    /// offers what the toolbar and the pen colours offer, so the two are alternatives: the chosen one
-    /// is shown and the other one is not.
+    /// offers what the tools and the two palettes of the row above the note offer, so the two are
+    /// alternatives: the chosen one is shown and the other one is not.
     /// </summary>
     public const string InkToolUi = "Draw.InkToolUi";
 

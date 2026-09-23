@@ -595,10 +595,10 @@ public partial class CardInkEditorPage : ContentPage
     }
 
     /// <summary>
-    /// The button that stays in the tool row while the menu is the way in. It is what is left when the
-    /// note cannot be tapped - there is no free finger while the finger draws, and there is no right
-    /// mouse button on a tablet - so the ring is always one press away. It comes up over the middle of
-    /// the note.
+    /// The button that stays in the row above the note while the menu is the way in. It is what is
+    /// left when the note cannot be tapped - there is no free finger while the finger draws, and there
+    /// is no right mouse button on a tablet - so the ring is always one press away. It comes up over
+    /// the middle of the note.
     /// </summary>
     private void OnMenuClicked(object? sender, EventArgs e)
     {
@@ -749,24 +749,20 @@ public partial class CardInkEditorPage : ContentPage
 
     /// <summary>
     /// Shows the way in that was picked and takes the other one away: the ring carries what the five
-    /// tool buttons and the pen colours carry, so the two are alternatives and never both. While the
-    /// menu is the way in, the tool row keeps nothing but the button that opens it - the note is what
-    /// a free finger taps, and the button is what is left when there is no free finger - which leaves
-    /// the note the space the buttons and the pen colours were taking. In the toolbar mode the menu is
-    /// off altogether: no tap on the note, no right mouse button and no button of its own.
+    /// tool buttons and the two palettes carry, so the two are alternatives and never both. That is
+    /// the whole of the scrolling row - <see cref="ToolBar"/> holds the tools, the pen colours and the
+    /// paper colours together - so hiding it hands the note the space all of them were taking, and the
+    /// only thing left in the row is the button that opens the ring: the note is what a free finger
+    /// taps, and the button is what is left when there is no free finger. The two buttons that leave
+    /// the card stand outside it and are not touched here, because the ring cannot delete or close a
+    /// card. In the toolbar mode the menu is off altogether: no tap on the note, no right mouse button
+    /// and no button of its own.
     /// </summary>
     private void ApplyToolUi()
     {
         var isToolBar = ReadToolUi() == InkToolUi.ToolBar;
 
-        PenButton.IsVisible = isToolBar;
-        EraserButton.IsVisible = isToolBar;
-        UndoButton.IsVisible = isToolBar;
-        RedoButton.IsVisible = isToolBar;
-        FingerButton.IsVisible = isToolBar;
-        PenColorSeparator.IsVisible = isToolBar;
-        PenColorPicker.IsVisible = isToolBar;
-
+        ToolBar.IsVisible = isToolBar;
         MenuButton.IsVisible = !isToolBar;
         InkHost.RadialMenuEnabled = !isToolBar;
 
