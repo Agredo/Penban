@@ -8,11 +8,13 @@
              Title="{Binding Title}"
              Shell.NavBarIsVisible="False"
              Style="{StaticResource AppPage}">
-    <Grid RowDefinitions="Auto,*,Auto" Padding="12" RowSpacing="12">
+    <Grid RowDefinitions="Auto,*" Padding="12" RowSpacing="12">
 
         <!-- Own header instead of the Shell nav bar: the Windows Shell nav bar renders no back
-             button, so the app draws its own and every platform gets the same way back. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+             button, so the app draws its own and every platform gets the same way back.
+             Adding a column belongs here rather than under the board: it acts on the board, not on
+             a single column, and it keeps the whole height of the board free for the notes. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
             <Button Grid.Column="0"
                     Text="&#xf15c;"
                     Style="{StaticResource GhostIconButton}"
@@ -28,11 +30,16 @@
                     Style="{StaticResource GhostIconButton}"
                     Clicked="OnShareClicked"
                     SemanticProperties.Description="{markup:Translate ShareBoard}" />
+            <Button Grid.Column="3"
+                    Text="&#xf2fd;"
+                    Style="{StaticResource AccentIconButton}"
+                    Command="{Binding AddColumnCommand}"
+                    SemanticProperties.Description="{markup:Translate AddColumn}" />
         </Grid>
 
         <!-- ColumnWidth is only the starting value: BoardPage recomputes it on resize so the
-             columns fill the window, never dropping below the 180 that a 150pt note plus its
-             tilt buffer needs. -->
+             columns fill the window, never dropping below the 180 that keeps a note writable.
+             The notes themselves are as wide as their column. -->
         <kanban:SfKanban x:Name="BoardKanban"
                          Grid.Row="1"
                          AutoGenerateColumns="False"
@@ -90,8 +97,8 @@
                          when the alignment is not Fill, which is what keeps the note square while
                          it is dragged (the drag overlay hands the card a much taller cell than the
                          column does).
-                         Both sizes come from the card, which is 150pt unless the notes are set to
-                         follow their content in the settings. -->
+                         Both sizes come from the card, which is as wide as its column unless the
+                         notes are set to follow their content in the settings. -->
                     <Grid HeightRequest="{Binding CellSize}"
                           WidthRequest="{Binding CellSize}"
                           HorizontalOptions="Center"
@@ -115,10 +122,5 @@
                 </DataTemplate>
             </kanban:SfKanban.CardTemplate>
         </kanban:SfKanban>
-        <Button Grid.Row="2"
-                Text="{markup:Translate AddColumn}"
-                Style="{StaticResource PrimaryButton}"
-                HorizontalOptions="Center"
-                Command="{Binding AddColumnCommand}" />
     </Grid>
 </ContentPage>

@@ -23,6 +23,21 @@ public static class PreferenceKeys
     public const string PressureSensitiveWidth = "Draw.PressureSensitiveWidth";
 
     /// <summary>
+    /// Width of new strokes, in note units, as written by the pen width picker. Stored as the width
+    /// itself rather than as a rung of the ladder, so a stroke drawn earlier keeps its width even if
+    /// the ladder is ever changed.
+    /// </summary>
+    public const string PenThickness = "Draw.PenThickness";
+
+    /// <summary>
+    /// Which of the two ways of reaching the drawing tools is in use, as a member of
+    /// <see cref="InkToolUi"/>. The radial menu covers the page and takes every touch on it, and it
+    /// offers what the tools and the two palettes of the row above the note offer, so the two are
+    /// alternatives: the chosen one is shown and the other one is not.
+    /// </summary>
+    public const string InkToolUi = "Draw.InkToolUi";
+
+    /// <summary>
     /// Whether the eraser end of a pen erases while it is held against the surface. Only Windows
     /// reports which end of the pen is down (a Surface Pen's tail); the setting is inert elsewhere.
     /// </summary>
