@@ -3,6 +3,11 @@
   <PropertyGroup>
     <TargetFrameworks>$(PenbanNetVersion)-windows10.0.19041.0;$(PenbanNetVersion)-ios;$(PenbanNetVersion)-maccatalyst;$(PenbanNetVersion)-android</TargetFrameworks>
     <OutputType>Exe</OutputType>
+    <!-- Windows needs WinExe, otherwise the app host is built with the console subsystem and Windows
+         opens a console window on launch. The MAUI SDK does this rewrite itself in
+         Microsoft.Maui.Sdk.Before.targets, but that import is skipped when the build runs with
+         MSBuildEnableWorkloadResolver=false (needed on this machine). -->
+    <OutputType Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">WinExe</OutputType>
     <RootNamespace>Penban.Maui</RootNamespace>
     <UseMaui>true</UseMaui>
     <!-- iOS has no CoreCLR runtime pack (only Mono or NativeAOT), so keep Mono there. -->
