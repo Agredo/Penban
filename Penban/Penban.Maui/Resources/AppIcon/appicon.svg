@@ -1,6 +1,7 @@
 <svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
   <!-- No background on purpose: the logo tile stands on its own here. iOS takes the same mark on a
-       dark background (appicon_ios.svg), because the App Store icon must not contain transparency. -->
+       full-bleed brand gradient (Resources/AppIcon/iOS/appicon.svg), because the App Store icon must
+       not contain transparency. -->
   <defs>
     <linearGradient id="tile" x1="48" y1="48" x2="408" y2="408" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#6366F1"/>

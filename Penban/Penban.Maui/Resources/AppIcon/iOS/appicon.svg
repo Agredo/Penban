@@ -1,15 +1,14 @@
 <svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
-  <!-- The iOS icon: the same logo mark as appicon.svg, on the dark background the App Store needs,
-       because that icon must not contain transparency. Oversized on purpose so that edge pixels
-       stay opaque at every rendered size. -->
-  <rect x="-8" y="-8" width="472" height="472" fill="#171A21"/>
+  <!-- The iOS icon: the same logo mark as appicon.svg, on a full-bleed version of the brand gradient
+       (no dark frame around the tile), because the App Store icon must not contain transparency.
+       Oversized on purpose so that edge pixels stay opaque at every rendered size. -->
   <defs>
     <linearGradient id="tile" x1="48" y1="48" x2="408" y2="408" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#6366F1"/>
       <stop offset="1" stop-color="#4338CA"/>
     </linearGradient>
   </defs>
-  <rect x="48" y="48" width="360" height="360" rx="88" fill="url(#tile)"/>
+  <rect x="-8" y="-8" width="472" height="472" fill="url(#tile)"/>
   <g transform="translate(34.2,34.2) scale(0.85)">
     <g fill="#FFFFFF">
       <rect x="84" y="178" width="68" height="72" rx="16"/>
