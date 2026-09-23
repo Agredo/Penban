@@ -44,6 +44,18 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// <summary>Ids of the fingers currently down on the surface.</summary>
     private readonly HashSet<long> activeFingers = new();
 
+    /// <summary>
+    /// Ids of the contacts the platform has named as the pen - see <see cref="SetStylusContact"/>.
+    /// Stays empty on every platform whose own touch events already tell a pen from a finger.
+    /// </summary>
+    private readonly HashSet<long> stylusContacts = new();
+
+    /// <summary>
+    /// The press of a contact the platform has not named yet, kept until it does: a pen that is
+    /// confirmed a moment after it touched down still starts its stroke from that very press.
+    /// </summary>
+    private readonly Dictionary<long, SKTouchEventArgs> unnamedPresses = new();
+
     private InkStroke? currentStroke;
     private float penTilt;
     private float penAzimuth;
@@ -51,7 +63,14 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// <summary>Whether the stroke being drawn came from a finger rather than from a pen or mouse.</summary>
     private bool currentStrokeIsFinger;
 
-    /// <summary>How many pens or mice are down, so a resting hand cannot interrupt one of them.</summary>
+    /// <summary>The contact the stroke being drawn belongs to, for as long as there is one.</summary>
+    private long currentStrokeContactId;
+
+    /// <summary>
+    /// How many pens or mice are down, so a resting hand cannot interrupt one of them. Not counted
+    /// where the platform names the pen instead - see <see cref="PlatformNamesStylusContacts"/> -
+    /// because there the named contacts already are that count.
+    /// </summary>
     private int activeStylusCount;
 
     /// <summary>
@@ -118,6 +137,78 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         penAzimuth = azimuth;
     }
 
+    /// <summary>
+    /// Whether the platform names the contacts that come from the pen, through
+    /// <see cref="SetStylusContact"/>. Apple's SkiaSharp backend reports every contact as
+    /// <see cref="SKTouchDeviceType.Touch"/> - the device type is the same for the pencil and for a
+    /// finger lying on the note - so there the canvas has to be told which contact is which before it
+    /// can decide what to do with one. Elsewhere the device type already is that answer, and nothing
+    /// is waited for.
+    /// </summary>
+    public bool PlatformNamesStylusContacts { get; set; }
+
+    /// <summary>
+    /// Names the contact with this id as the pen, so the canvas stops reading it as a finger. Called
+    /// for every contact the platform recognises as the pen, on each touch it reports.
+    /// <para>
+    /// The answer can arrive after the press it belongs to, so a stroke that was already started from
+    /// that press - or a press that was held back because only a pen draws - is put right here.
+    /// </para>
+    /// </summary>
+    public void SetStylusContact(long contactId)
+    {
+        stylusContacts.Add(contactId);
+
+        if (activeFingers.Remove(contactId))
+        {
+            // A pen coming down is not a finger joining in, and a hand resting next to it must not be
+            // read as a two-finger tap either.
+            isMultiTouchGesture = false;
+        }
+
+        if (currentStroke is not null && currentStrokeContactId == contactId)
+        {
+            // This contact is drawing already, it just was not known to be the pen yet.
+            currentStrokeIsFinger = false;
+            unnamedPresses.Remove(contactId);
+            return;
+        }
+
+        if (!unnamedPresses.Remove(contactId, out var press))
+        {
+            return;
+        }
+
+        // Nothing is being drawn for this contact yet: its press was held back or taken by a gesture,
+        // so the stroke starts here instead, where the pen touched down.
+        if (IsEraserMode || isPenTailErasing)
+        {
+            HandleEraseTouch(press);
+            return;
+        }
+
+        StartStroke(press, isFinger: false);
+    }
+
+    /// <summary>
+    /// Drops the contact again once the platform reports that it has left the surface, so that the id
+    /// it used cannot be mistaken for the pen when the next contact is given it.
+    /// <para>
+    /// A contact that is still drawing is kept: its own release has to be the last thing that arrives,
+    /// and until then the canvas cannot tell the end of the contact from the platform simply getting
+    /// its report in first.
+    /// </para>
+    /// </summary>
+    public void EndStylusContact(long contactId)
+    {
+        if (currentStroke is not null && currentStrokeContactId == contactId)
+        {
+            return;
+        }
+
+        stylusContacts.Remove(contactId);
+    }
+
     public void Clear()
     {
         Strokes.Clear();
@@ -174,23 +265,48 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     {
         currentStroke = null;
         currentStrokeIsFinger = false;
+        currentStrokeContactId = 0;
         activeFingers.Clear();
         activeStylusCount = 0;
         isMultiTouchGesture = false;
+
+        // A press that was held back belongs to the stroke set that has just been replaced, so it goes
+        // with it. The named contacts are not dropped: those are contacts that are still down, and
+        // only the platform's own end report can say otherwise.
+        unnamedPresses.Clear();
     }
 
     private void OnTouch(object? sender, SKTouchEventArgs e)
     {
-        // A finger is not a pen: with finger drawing off the touch is left unhandled so the
-        // surrounding scroll/pan can have it.
-        if (!AllowFingerDrawing && e.DeviceType == SKTouchDeviceType.Touch)
+        var isStylus = IsStylusContact(e);
+
+        if (IsLeftToTheScroll(e))
         {
             e.Handled = false;
             return;
         }
 
+        if (!AllowFingerDrawing && !isStylus)
+        {
+            // Only reached where the platform names the pen, and there "not the pen" is not known yet:
+            // Apple reports the pencil as a finger, so a press is only settled once the platform has
+            // named it, which can be after the press arrived. The press is kept until then, and the
+            // contact stays handled meanwhile, because on Apple a touch that is left unhandled is
+            // dropped for good - taking the pencil's whole stroke with it.
+            HoldBack(e);
+            e.Handled = true;
+            return;
+        }
+
         if (TrackMultiTouch(e))
         {
+            if (PlatformNamesStylusContacts && e.ActionType == SKTouchAction.Pressed)
+            {
+                // A gesture must never swallow the pencil: the press that the first finger of a
+                // two-finger tap started is kept, in case the platform names it as the pen later.
+                unnamedPresses[e.Id] = e;
+            }
+
             e.Handled = true;
             return;
         }
@@ -204,11 +320,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         switch (e.ActionType)
         {
             case SKTouchAction.Pressed:
-                currentStroke = new InkStroke { Color = StrokeColor, Thickness = StrokeThickness };
-                currentStrokeIsFinger = e.DeviceType == SKTouchDeviceType.Touch;
-                AddPoint(currentStroke, e);
-                Strokes.Add(currentStroke);
-                commands.RecordAdded(currentStroke);
+                StartStroke(e, isFinger: !isStylus);
                 e.Handled = true;
                 break;
 
@@ -227,13 +339,76 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                 if (currentStroke is not null)
                 {
                     currentStroke = null;
+                    currentStrokeContactId = 0;
                     canvasView.InvalidateSurface();
                     StrokeCompleted?.Invoke(this, EventArgs.Empty);
                 }
 
+                // The contact is over, so what was learned about it is over too: Apple hands the same
+                // id to the next contact, and a stale one would let a finger draw like the pen that
+                // used it before.
+                stylusContacts.Remove(e.Id);
+                unnamedPresses.Remove(e.Id);
                 e.Handled = true;
                 break;
         }
+    }
+
+    /// <summary>
+    /// Whether this touch comes from the pen. Where the touch already carries a device type that
+    /// answers it, that is the answer; where it does not, the platform names the pen instead - see
+    /// <see cref="SetStylusContact"/>.
+    /// </summary>
+    private bool IsStylusContact(SKTouchEventArgs e) =>
+        e.DeviceType != SKTouchDeviceType.Touch || stylusContacts.Contains(e.Id);
+
+    /// <summary>Whether a pen or mouse is down right now - see <see cref="activeStylusCount"/>.</summary>
+    private bool IsStylusDown => activeStylusCount > 0 || stylusContacts.Count > 0;
+
+    /// <summary>
+    /// Whether the touch has to be left to the surrounding scroll/pan instead of being drawn with,
+    /// which is what a finger gets while only the pen draws. Where the platform names the pen, the
+    /// touch alone cannot answer that, so nothing is left to the scroll there and the canvas waits for
+    /// the platform's answer instead - see <see cref="PlatformNamesStylusContacts"/>.
+    /// </summary>
+    private bool IsLeftToTheScroll(SKTouchEventArgs e) =>
+        !AllowFingerDrawing && !IsStylusContact(e) && !PlatformNamesStylusContacts;
+
+    /// <summary>
+    /// Keeps the press of a contact that only draws once it turns out to be the pen, until the
+    /// platform has said which it is - see <see cref="PlatformNamesStylusContacts"/>. Everything else
+    /// such a contact does is watched and nothing more, so a hand resting on the note leaves nothing
+    /// behind.
+    /// </summary>
+    private void HoldBack(SKTouchEventArgs e)
+    {
+        switch (e.ActionType)
+        {
+            case SKTouchAction.Pressed:
+                unnamedPresses[e.Id] = e;
+                break;
+
+            case SKTouchAction.Released:
+            case SKTouchAction.Cancelled:
+                unnamedPresses.Remove(e.Id);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Starts a stroke from the press of a contact. The contact is remembered with the stroke, so the
+    /// stroke is closed by its own release, and so that a later "this is the pen" still lands on the
+    /// stroke it belongs to.
+    /// </summary>
+    private void StartStroke(SKTouchEventArgs e, bool isFinger)
+    {
+        currentStroke = new InkStroke { Color = StrokeColor, Thickness = StrokeThickness };
+        currentStrokeContactId = e.Id;
+        currentStrokeIsFinger = isFinger;
+        AddPoint(currentStroke, e);
+        Strokes.Add(currentStroke);
+        commands.RecordAdded(currentStroke);
+        canvasView.InvalidateSurface();
     }
 
     /// <summary>
@@ -248,7 +423,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// </summary>
     private bool TrackMultiTouch(SKTouchEventArgs e)
     {
-        var isFinger = e.DeviceType == SKTouchDeviceType.Touch;
+        var isFinger = !IsStylusContact(e);
 
         switch (e.ActionType)
         {
@@ -256,7 +431,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                 if (isFinger)
                 {
                     activeFingers.Add(e.Id);
-                    if (activeFingers.Count > 1 && activeStylusCount == 0)
+                    if (activeFingers.Count > 1 && !IsStylusDown)
                     {
                         isMultiTouchGesture = true;
                         if (currentStrokeIsFinger)
@@ -265,7 +440,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                         }
                     }
                 }
-                else
+                else if (!PlatformNamesStylusContacts)
                 {
                     activeStylusCount++;
                 }
@@ -282,7 +457,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                         isMultiTouchGesture = false;
                     }
                 }
-                else
+                else if (!PlatformNamesStylusContacts)
                 {
                     activeStylusCount = Math.Max(activeStylusCount - 1, 0);
                 }
@@ -306,7 +481,12 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
         Strokes.Remove(currentStroke);
         commands.Discard(currentStroke);
+
+        // The press that started it goes with it, so that a stroke dropped by a gesture cannot be
+        // brought back to life by a "this is the pen" that arrives after the fact.
+        unnamedPresses.Remove(currentStrokeContactId);
         currentStroke = null;
+        currentStrokeContactId = 0;
         currentStrokeIsFinger = false;
         canvasView.InvalidateSurface();
     }
@@ -315,7 +495,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// forgiving than pixel-level erasing, and easy to reason about for handwritten notes.</summary>
     private void HandleEraseTouch(SKTouchEventArgs e)
     {
-        if (!AllowFingerDrawing && e.DeviceType == SKTouchDeviceType.Touch)
+        if (IsLeftToTheScroll(e))
         {
             e.Handled = false;
             return;

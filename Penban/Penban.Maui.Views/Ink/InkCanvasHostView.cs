@@ -14,6 +14,7 @@ public class InkCanvasHostView : ContentView
     private IPreferences? preferences;
     private IInkCanvasView activeRenderer;
     private InkRenderer renderer;
+    private bool platformNamesStylusContacts;
 
     public InkCanvasHostView()
     {
@@ -129,6 +130,49 @@ public class InkCanvasHostView : ContentView
     }
 
     /// <summary>
+    /// Whether the platform names the contacts that come from the pen, through
+    /// <see cref="SetStylusContact"/>. Set by the behavior that reads those contacts - see
+    /// <see cref="PenTiltBehavior"/> - and only on Apple, where SkiaSharp's touch events call every
+    /// contact a finger and the pencil therefore cannot be told from a hand without being named. While
+    /// it is on, the canvas waits for a press to be named before it decides what to do with it.
+    /// </summary>
+    public bool PlatformNamesStylusContacts
+    {
+        get => platformNamesStylusContacts;
+        set
+        {
+            platformNamesStylusContacts = value;
+
+            if (activeRenderer is SkiaInkCanvasView skia)
+            {
+                skia.PlatformNamesStylusContacts = value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Hands the contact the platform named as the pen down to the renderer - see
+    /// <see cref="SkiaInkCanvasView.SetStylusContact"/>. Only the Skia renderer can tell the pen from
+    /// a finger; the toolkit renderer has no such distinction and ignores this.
+    /// </summary>
+    public void SetStylusContact(long contactId)
+    {
+        if (activeRenderer is SkiaInkCanvasView skia)
+        {
+            skia.SetStylusContact(contactId);
+        }
+    }
+
+    /// <summary>Ends a named pen contact again - see <see cref="SetStylusContact"/>.</summary>
+    public void EndStylusContact(long contactId)
+    {
+        if (activeRenderer is SkiaInkCanvasView skia)
+        {
+            skia.EndStylusContact(contactId);
+        }
+    }
+
+    /// <summary>
     /// Raised when <see cref="IsEraserMode"/> changes through the setter, so the page can keep its
     /// pen/eraser buttons in step - the Apple Pencil double-tap flips the mode without any button
     /// being pressed.
@@ -206,6 +250,10 @@ public class InkCanvasHostView : ContentView
             skia.PressureSensitiveWidth = ReadBool(PreferenceKeys.PressureSensitiveWidth, true);
             skia.TiltRenderingEffect = ReadBool(PreferenceKeys.TiltDetectionEnabled, false)
                 && ReadBool(PreferenceKeys.TiltRenderingEffect, false);
+
+            // The renderer that is being swapped in has to be told this again as well: it is not a
+            // setting but something a platform behavior asked for.
+            skia.PlatformNamesStylusContacts = platformNamesStylusContacts;
         }
     }
 
