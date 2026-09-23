@@ -24,6 +24,8 @@ namespace Penban.Maui.Views.Ink;
 public class MultiFingerTapBehavior : PlatformBehavior<View, UIView>
 {
     private readonly List<UITapGestureRecognizer> recognizers = [];
+    private readonly List<TapHandler> handlers = [];
+    private readonly SimultaneousRecognizerDelegate recognizerDelegate = new();
 
     protected override void OnAttachedTo(View view, UIView platformView)
     {
@@ -49,21 +51,57 @@ public class MultiFingerTapBehavior : PlatformBehavior<View, UIView>
         }
 
         recognizers.Clear();
+
+        // UIKit holds the target of a recogniser weakly, so it has to be kept alive here.
+        handlers.Clear();
     }
 
     private void AddRecognizer(UIView platformView, InkCanvasHostView host, int fingers, string preferenceKey, bool redo)
     {
         var handler = new TapHandler(host, preferenceKey, redo);
-        var recognizer = new UITapGestureRecognizer(handler, new Selector("HandleTap:"))
+        handlers.Add(handler);
+        var recognizer = new ObservedTapRecognizer(handler, new Selector("HandleTap:"))
         {
             NumberOfTouchesRequired = (nuint)fingers,
 
-            // The canvas keeps handling the touches; the tap is only observed.
+            // The canvas keeps handling the touches; the tap is only observed, and neither the
+            // canvas nor the tap may cancel the other.
             CancelsTouchesInView = false,
+            Delegate = recognizerDelegate,
         };
 
         platformView.AddGestureRecognizer(recognizer);
         recognizers.Add(recognizer);
+    }
+
+    /// <summary>
+    /// Keeps the tap out of the canvas' way and the canvas out of the tap's way. Skia's touch
+    /// handler sits on the drawing surface below the host and recognises as soon as a finger lands;
+    /// without this the tap would be cancelled by it and would never fire.
+    /// </summary>
+    private sealed class SimultaneousRecognizerDelegate : UIGestureRecognizerDelegate
+    {
+        public override bool ShouldRecognizeSimultaneously(UIGestureRecognizer gestureRecognizer, UIGestureRecognizer otherGestureRecognizer) => true;
+
+        public override bool ShouldRequireFailureOf(UIGestureRecognizer gestureRecognizer, UIGestureRecognizer otherGestureRecognizer) => false;
+
+        public override bool ShouldBeRequiredToFailBy(UIGestureRecognizer gestureRecognizer, UIGestureRecognizer otherGestureRecognizer) => false;
+    }
+
+    /// <summary>
+    /// A tap that never takes a touch away from anybody and never lets anybody take its own touches
+    /// away, so the canvas and the tap both see the same fingers.
+    /// </summary>
+    private sealed class ObservedTapRecognizer : UITapGestureRecognizer
+    {
+        public ObservedTapRecognizer(NSObject target, Selector action)
+            : base(target, action)
+        {
+        }
+
+        public override bool CanPreventGestureRecognizer(UIGestureRecognizer preventedGestureRecognizer) => false;
+
+        public override bool CanBePreventedByGestureRecognizer(UIGestureRecognizer preventingGestureRecognizer) => false;
     }
 
     /// <summary>
