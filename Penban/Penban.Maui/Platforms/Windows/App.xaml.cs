@@ -17,6 +17,15 @@ public partial class App : MauiWinUIApplication
 	public App()
 	{
 		this.InitializeComponent();
+
+		// Temporary: the Windows crashes end in Microsoft.UI.Xaml.dll without a managed stack, so
+		// every way an exception can escape is written to a file instead.
+		AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+			CrashLog.Write("AppDomain", e.ExceptionObject as Exception);
+		TaskScheduler.UnobservedTaskException += (_, e) =>
+			CrashLog.Write("UnobservedTask", e.Exception);
+		UnhandledException += (_, e) =>
+			CrashLog.Write("Xaml", e.Exception);
 	}
 
 	protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
