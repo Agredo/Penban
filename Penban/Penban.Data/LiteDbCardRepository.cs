@@ -16,38 +16,35 @@ public class LiteDbCardRepository : ICardRepository
     }
 
     public Task<List<Card>> GetByColumnAsync(Guid columnId)
-        => Task.FromResult(cards.Find(c => c.ColumnId == columnId && !c.IsDeleted)
+        => DatabaseWork.RunAsync(() => cards.Find(c => c.ColumnId == columnId && !c.IsDeleted)
             .OrderBy(c => c.SortOrder)
             .ToList());
 
-    public Task SaveAsync(Card card)
+    public Task SaveAsync(Card card) => DatabaseWork.RunAsync(() =>
     {
         card.UpdatedAtUtc = DateTimeOffset.UtcNow;
         cards.Upsert(card);
-        return Task.CompletedTask;
-    }
+    });
 
-    public Task DeleteAsync(Guid cardId)
+    public Task DeleteAsync(Guid cardId) => DatabaseWork.RunAsync(() =>
     {
         var card = cards.FindById(cardId);
         if (card is null)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         card.IsDeleted = true;
         card.UpdatedAtUtc = DateTimeOffset.UtcNow;
         cards.Update(card);
-        return Task.CompletedTask;
-    }
+    });
 
-    public Task DeleteByColumnAsync(Guid columnId)
+    public Task DeleteByColumnAsync(Guid columnId) => DatabaseWork.RunAsync(() =>
     {
         cards.DeleteMany(c => c.ColumnId == columnId);
-        return Task.CompletedTask;
-    }
+    });
 
-    public Task SaveAllAsync(IReadOnlyList<Card> imported)
+    public Task SaveAllAsync(IReadOnlyList<Card> imported) => DatabaseWork.RunAsync(() =>
     {
         // Upsert rather than Insert, for the same reason as in LiteDbBoardRepository: write the file's
         // cards verbatim, and let a duplicate id in a malformed file overwrite instead of throwing.
@@ -55,13 +52,10 @@ public class LiteDbCardRepository : ICardRepository
         {
             cards.Upsert(imported);
         }
+    });
 
-        return Task.CompletedTask;
-    }
-
-    public Task ClearAsync()
+    public Task ClearAsync() => DatabaseWork.RunAsync(() =>
     {
         cards.DeleteAll();
-        return Task.CompletedTask;
-    }
+    });
 }
