@@ -48,8 +48,10 @@
   <ItemGroup>
     <!-- App Icon: the Penban logo tile carries the brand on every platform. Apple icons must not
          contain transparency (App Store rule), so iOS and Mac Catalyst get the variant with the
-         dark background; Windows and Android show the same logo without any background. -->
-    <MauiIcon Include="Resources\AppIcon\appicon_ios.svg"
+         dark background; Windows and Android show the same logo without any background.
+         Both variants must be called appicon.svg: the Apple icon set is named after the file and
+         Platforms/iOS/Info.plist points XSAppIconAssets at Assets.xcassets/appicon.appiconset. -->
+    <MauiIcon Include="Resources\AppIcon\iOS\appicon.svg"
               Condition="$(TargetFramework.Contains('-ios')) Or $(TargetFramework.Contains('-maccatalyst'))" />
     <MauiIcon Include="Resources\AppIcon\appicon.svg"
               Condition="!$(TargetFramework.Contains('-ios')) And !$(TargetFramework.Contains('-maccatalyst'))" />
