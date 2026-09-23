@@ -38,8 +38,8 @@
         </Grid>
 
         <!-- ColumnWidth is only the starting value: BoardPage recomputes it on resize so the
-             columns fill the window, never dropping below the 180 that a 150pt note plus its
-             tilt buffer needs. -->
+             columns fill the window, never dropping below the 180 that keeps a note writable.
+             The notes themselves are as wide as their column. -->
         <kanban:SfKanban x:Name="BoardKanban"
                          Grid.Row="1"
                          AutoGenerateColumns="False"
@@ -97,8 +97,8 @@
                          when the alignment is not Fill, which is what keeps the note square while
                          it is dragged (the drag overlay hands the card a much taller cell than the
                          column does).
-                         Both sizes come from the card, which is 150pt unless the notes are set to
-                         follow their content in the settings. -->
+                         Both sizes come from the card, which is as wide as its column unless the
+                         notes are set to follow their content in the settings. -->
                     <Grid HeightRequest="{Binding CellSize}"
                           WidthRequest="{Binding CellSize}"
                           HorizontalOptions="Center"

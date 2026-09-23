@@ -18,13 +18,22 @@ namespace Penban.Maui.Views.Pages;
 public partial class BoardPage : ContentPage
 {
     /// <summary>
-    /// Lower bound for the computed column width. The note plus its tilt buffer needs this much,
-    /// so a board with many columns scrolls horizontally instead of squeezing the notes.
+    /// Lower bound for the computed column width. A board with many columns scrolls horizontally
+    /// instead of squeezing the notes down to a size that can no longer be written on.
     /// </summary>
     private const double MinColumnWidth = 180;
 
-    /// <summary>Side length of a note that is not sized to its content.</summary>
+    /// <summary>
+    /// Side length a note starts out with, before the board has been measured. The note size follows
+    /// the column width, so this is only what the very first layout pass works with.
+    /// </summary>
     private const double DefaultNoteSize = 150;
+
+    /// <summary>
+    /// Share of the column width a note takes up. The rest of the column stays empty, so a note
+    /// keeps a visible margin to the column edges instead of touching them.
+    /// </summary>
+    private const double NoteColumnFill = 0.8;
 
     /// <summary>
     /// Smallest note the content-driven sizing may produce. Below this a note would no longer be
@@ -34,8 +43,7 @@ public partial class BoardPage : ContentPage
 
     /// <summary>
     /// Transparent margin the cell keeps around the note, so its rotation and its shadow stay
-    /// inside the cell at every note size. Half of the difference between the 170pt cell and the
-    /// 150pt note the board used before the size could vary.
+    /// inside the cell at every note size.
     /// </summary>
     private const double NoteCellPadding = 10;
 
@@ -263,7 +271,8 @@ public partial class BoardPage : ContentPage
 
     /// <summary>
     /// Spreads the columns over the available width instead of leaving a gap at the right edge,
-    /// while never going below <see cref="MinColumnWidth"/>.
+    /// while never going below <see cref="MinColumnWidth"/>. The note size follows the column width,
+    /// so a new column width is also a new note size.
     /// </summary>
     private void UpdateColumnWidth()
     {
@@ -274,6 +283,7 @@ public partial class BoardPage : ContentPage
 
         var computed = BoardKanban.Width / viewModel.Columns.Count;
         BoardKanban.ColumnWidth = Math.Max(MinColumnWidth, computed);
+        RefreshCardSizes();
     }
 
     /// <summary>
@@ -322,23 +332,31 @@ public partial class BoardPage : ContentPage
         bool.TryParse(preferences.Get(PreferenceKeys.AutoSizeCards, "false"), out var enabled) && enabled;
 
     /// <summary>
-    /// Side length for one note: the full size unless the notes are meant to follow their content,
-    /// in which case a note shrinks until the ink on it fills the note.
+    /// Side length a note grows to: a fixed share of its column width. The rest of the column is the
+    /// margin the note keeps, so it is clearly wider than before without touching the column edges.
+    /// </summary>
+    private double NoteBaseSize =>
+        Math.Max(MinNoteSize, BoardKanban.ColumnWidth * NoteColumnFill);
+
+    /// <summary>
+    /// Side length for one note: a share of the column width, unless the notes are meant to follow
+    /// their content, in which case a note shrinks until the ink on it fills the note.
     /// </summary>
     private double NoteSizeFor(CardViewModel card)
     {
+        var baseSize = NoteBaseSize;
         if (!autoSizeCards
             || card.InkCanvas.Strokes.Count == 0
             || !InkDocument.TryGetBounds(card.InkCanvas.Strokes, out var bounds)
             || bounds.MaxExtent <= 0)
         {
-            return DefaultNoteSize;
+            return baseSize;
         }
 
         // The strokes live on a fixed square sheet; the note is the same sheet at a different size,
         // so the share of the sheet the ink uses is the share of the note it may fill.
         var share = Math.Min(1, bounds.MaxExtent / InkDocument.Size);
-        return Math.Clamp(DefaultNoteSize * share, MinNoteSize, DefaultNoteSize);
+        return Math.Clamp(baseSize * share, MinNoteSize, baseSize);
     }
 
     /// <summary>
