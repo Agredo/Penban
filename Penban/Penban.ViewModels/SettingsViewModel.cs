@@ -19,6 +19,13 @@ public partial class SettingsViewModel : ObservableObject
         InkRenderer.CommunityToolkitDrawingView,
     ];
 
+    /// <summary>Order of <see cref="InkToolUiNames"/>; index in this array is the picked value.</summary>
+    private static readonly InkToolUi[] ToolUis =
+    [
+        InkToolUi.RadialMenu,
+        InkToolUi.ToolBar,
+    ];
+
     private readonly IPreferences preferences;
 
     /// <summary>Suppresses the write-through while <see cref="Refresh"/> is reading, so loading the
@@ -35,6 +42,12 @@ public partial class SettingsViewModel : ObservableObject
     public IReadOnlyList<string> RendererNames { get; } = [Strings.InkRendererSkia, Strings.InkRendererToolkit];
 
     /// <summary>
+    /// Display names of the two ways of reaching the drawing tools, in the order of
+    /// <see cref="SelectedInkToolUiIndex"/>.
+    /// </summary>
+    public IReadOnlyList<string> InkToolUiNames { get; } = [Strings.InkToolUiRadialMenu, Strings.InkToolUiToolBar];
+
+    /// <summary>
     /// Re-reads every setting from the store. Settings can also be changed outside this page (the
     /// ink editor has an inline finger-drawing toggle), so the page refreshes on appearing rather
     /// than trusting the values it was constructed with.
@@ -45,6 +58,7 @@ public partial class SettingsViewModel : ObservableObject
         try
         {
             AllowFingerDrawing = ReadBool(PreferenceKeys.AllowFingerDrawing, true);
+            SelectedInkToolUiIndex = ReadInkToolUiIndex();
             PencilDoubleTapEnabled = ReadBool(PreferenceKeys.PencilDoubleTapEnabled, true);
             PenTailEraserEnabled = ReadBool(PreferenceKeys.PenTailEraserEnabled, true);
             PressureSensitiveWidth = ReadBool(PreferenceKeys.PressureSensitiveWidth, true);
@@ -67,6 +81,21 @@ public partial class SettingsViewModel : ObservableObject
     private bool allowFingerDrawing;
 
     partial void OnAllowFingerDrawingChanged(bool value) => Persist(PreferenceKeys.AllowFingerDrawing, value);
+
+    /// <summary>
+    /// How the drawing tools are reached, as an index into <see cref="ToolUis"/>. The radial menu is
+    /// the default, because it is the one that leaves the whole page to the note.
+    /// </summary>
+    [ObservableProperty]
+    private int selectedInkToolUiIndex;
+
+    partial void OnSelectedInkToolUiIndexChanged(int value)
+    {
+        if (!isLoading && value >= 0 && value < ToolUis.Length)
+        {
+            preferences.Set(PreferenceKeys.InkToolUi, ToolUis[value].ToString());
+        }
+    }
 
     [ObservableProperty]
     private bool pencilDoubleTapEnabled;
@@ -149,6 +178,18 @@ public partial class SettingsViewModel : ObservableObject
         var stored = preferences.Get(PreferenceKeys.InkRenderer, InkRenderer.Skia.ToString());
         var renderer = Enum.TryParse<InkRenderer>(stored, out var parsed) ? parsed : InkRenderer.Skia;
         return Math.Max(Array.IndexOf(Renderers, renderer), 0);
+    }
+
+    /// <summary>
+    /// The way of reaching the drawing tools that is stored, as an index into <see cref="ToolUis"/>. A
+    /// value that is not one of them - an empty store, or one written by a version that knew only the
+    /// other way - falls back on the radial menu.
+    /// </summary>
+    private int ReadInkToolUiIndex()
+    {
+        var stored = preferences.Get(PreferenceKeys.InkToolUi, InkToolUi.RadialMenu.ToString());
+        var toolUi = Enum.TryParse<InkToolUi>(stored, out var parsed) ? parsed : InkToolUi.RadialMenu;
+        return Math.Max(Array.IndexOf(ToolUis, toolUi), 0);
     }
 
     private bool ReadBool(string key, bool @default) =>

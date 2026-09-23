@@ -16,6 +16,7 @@ public class InkCanvasHostView : ContentView
     private InkRenderer renderer;
     private bool platformNamesStylusContacts;
     private bool closeOnSwipeDown;
+    private bool radialMenuEnabled;
 
     public InkCanvasHostView()
     {
@@ -137,6 +138,48 @@ public class InkCanvasHostView : ContentView
             if (activeRenderer is SkiaInkCanvasView skia)
             {
                 skia.CloseOnSwipeDown = value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Raised when the menu is asked for from the note itself - see
+    /// <see cref="SkiaInkCanvasView.MenuRequested"/>. Raised by the Skia renderer only: the toolkit
+    /// renderer never sees individual contacts and so has no tap to read a request off.
+    /// </summary>
+    public event EventHandler<MenuRequest>? MenuRequested
+    {
+        add
+        {
+            if (activeRenderer is SkiaInkCanvasView skia)
+            {
+                skia.MenuRequested += value;
+            }
+        }
+        remove
+        {
+            if (activeRenderer is SkiaInkCanvasView skia)
+            {
+                skia.MenuRequested -= value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether a finger tapped on the note asks for the menu - see <see cref="MenuRequested"/>. Asked
+    /// for by the page that has such a menu, so it is not a preference; remembered here because a
+    /// renderer swapped in later has to be told again.
+    /// </summary>
+    public bool RadialMenuEnabled
+    {
+        get => radialMenuEnabled;
+        set
+        {
+            radialMenuEnabled = value;
+
+            if (activeRenderer is SkiaInkCanvasView skia)
+            {
+                skia.RadialMenuEnabled = value;
             }
         }
     }
@@ -323,6 +366,7 @@ public class InkCanvasHostView : ContentView
 
             // Nor is this a setting: the page the surface is on asks for it.
             skia.CloseOnSwipeDown = closeOnSwipeDown;
+            skia.RadialMenuEnabled = radialMenuEnabled;
         }
     }
 

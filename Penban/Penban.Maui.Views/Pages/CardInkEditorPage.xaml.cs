@@ -5,6 +5,7 @@ using Penban.Models;
 using Penban.Services.Abstractions;
 using Penban.Util;
 using Penban.ViewModels;
+using System.Globalization;
 using IPreferences = Penban.Services.Abstractions.IPreferences;
 
 namespace Penban.Maui.Views.Pages;
@@ -73,6 +74,23 @@ public partial class CardInkEditorPage : ContentPage
     private const string InkColor = "#1E2230";
 
     /// <summary>
+    /// Edge length of the largest dot the pen width ring draws, in device units. The widest rungs of
+    /// the ladder would be drawn wider than the segment carrying them, so past a point the dots only
+    /// hint at the width.
+    /// </summary>
+    private const double ThicknessDotMaxSize = 26;
+
+    /// <summary>
+    /// The blocks of the radial menu, in the order they sit on the ring from the top clockwise: the
+    /// two that hold choices, then the three that act the moment they are taken.
+    /// </summary>
+    private const int ColorArc = 0;
+    private const int ThicknessArc = 1;
+    private const int RedoArc = 2;
+    private const int UndoArc = 3;
+    private const int ModeArc = 4;
+
+    /// <summary>
     /// Pen colours offered in the editor, dark enough to read on every paper colour. The picker
     /// scrolls sideways, so the palette can be as wide as a real pen case.
     /// </summary>
@@ -90,11 +108,25 @@ public partial class CardInkEditorPage : ContentPage
         ("#4A5568", Strings.PenColorGray),
     ];
 
+    /// <summary>
+    /// Names of the pen widths, in the order of <see cref="PenThickness.Presets"/>. The ring offers
+    /// them as dots drawn at the width itself, so these are only ever read in the middle of the menu.
+    /// </summary>
+    private static readonly string[] ThicknessNames =
+    [
+        Strings.PenThicknessFine,
+        Strings.PenThicknessNormal,
+        Strings.PenThicknessMedium,
+        Strings.PenThicknessBold,
+        Strings.PenThicknessExtraBold,
+    ];
+
     private readonly CardViewModel cardViewModel;
     private readonly IPreferences preferences;
     private readonly List<StickyNoteBorder> swatches = [];
     private readonly List<Border> penSwatches = [];
     private int selectedPenColorIndex;
+    private int selectedThicknessIndex;
     private int saveVersion;
     private bool isClosing;
 
@@ -112,6 +144,13 @@ public partial class CardInkEditorPage : ContentPage
     /// </summary>
     private double dragOffset;
     private bool isDraggingCard;
+
+    /// <summary>
+    /// Where the radial menu is standing, in the units of the page, or <c>null</c> while it is down.
+    /// Kept because the menu is put up again in the same place whenever a choice is taken, so it
+    /// stays where the finger left it instead of jumping to the middle of the page.
+    /// </summary>
+    private Point? radialMenuOrigin;
 
     public CardInkEditorPage(CardViewModel cardViewModel, IPreferences preferences)
     {
@@ -133,10 +172,19 @@ public partial class CardInkEditorPage : ContentPage
         InkHost.CloseSwipeEnded += OnCloseSwipeEnded;
         InkHost.CloseOnSwipeDown = true;
 
+        // The menu is asked for from the note itself - a tap of a finger that is not drawing, or a
+        // press of the right mouse button where there is one - and the page is the side that owns it,
+        // so the request comes here and the ring is put up by the page. See OnMenuRequested. Whether
+        // the note asks for it at all is not decided here but by ApplyToolUi, further down.
+        InkHost.MenuRequested += OnMenuRequested;
+        RadialMenu.ChoiceRequested += OnRadialMenuChoiceRequested;
+
         NoteSurface.NoteColorIndex = cardViewModel.NoteColorIndex;
         NoteArea.SizeChanged += OnNoteAreaSizeChanged;
         BuildColorPicker();
         BuildPenColorPicker();
+        ApplyToolUi();
+        ApplyThickness(PenThickness.NearestIndex(ReadStoredThickness()));
         UpdateToolButtons();
 
 #if IOS
@@ -303,9 +351,9 @@ public partial class CardInkEditorPage : ContentPage
     private void UpdateToolButtons()
     {
         var resources = Application.Current!.Resources;
-        PenButton.Style = (Style)resources[InkHost.IsEraserMode ? "GhostButton" : "PrimaryButton"];
-        EraserButton.Style = (Style)resources[InkHost.IsEraserMode ? "PrimaryButton" : "GhostButton"];
-        FingerButton.Style = (Style)resources[InkHost.AllowFingerDrawing ? "PrimaryButton" : "GhostButton"];
+        PenButton.Style = (Style)resources[InkHost.IsEraserMode ? "GhostIconButton" : "AccentIconButton"];
+        EraserButton.Style = (Style)resources[InkHost.IsEraserMode ? "AccentIconButton" : "GhostIconButton"];
+        FingerButton.Style = (Style)resources[InkHost.AllowFingerDrawing ? "AccentIconButton" : "GhostIconButton"];
 
         // Nothing to take back or to put back yet, so the buttons say so instead of doing nothing.
         UndoButton.IsEnabled = InkHost.CanUndo;
@@ -372,6 +420,7 @@ public partial class CardInkEditorPage : ContentPage
         }
 
         // Leaving without "Fertig" (hardware back, swipe-down on iPad) still keeps the ink.
+        CloseRadialMenu();
         _ = SaveAsync();
     }
 
@@ -389,7 +438,13 @@ public partial class CardInkEditorPage : ContentPage
     /// Turns finger drawing on or off for this card. The choice goes straight into the same
     /// preference the settings page reads, so both entry points stay in step.
     /// </summary>
-    private void OnFingerClicked(object? sender, EventArgs e)
+    private void OnFingerClicked(object? sender, EventArgs e) => ToggleFingerDrawing();
+
+    /// <summary>
+    /// Flips which tool draws, and remembers it. The radial menu offers the same switch as a block of
+    /// its own, so both go through here.
+    /// </summary>
+    private void ToggleFingerDrawing()
     {
         var allow = !InkHost.AllowFingerDrawing;
         InkHost.AllowFingerDrawing = allow;
@@ -526,6 +581,250 @@ public partial class CardInkEditorPage : ContentPage
         isDraggingCard = false;
         NoteFrame.TranslationY = 0;
         NoteFrame.Scale = 1;
+    }
+
+    /// <summary>
+    /// The menu was asked for from the note itself - a tap of a finger while only the pen draws, or a
+    /// press of the right mouse button where there is one. The point arrives in the units of the ink
+    /// document, so it is turned into a place on the page before the ring is put around it.
+    /// </summary>
+    private void OnMenuRequested(object? sender, MenuRequest request)
+    {
+        var point = DocumentToMenu(request.X, request.Y);
+        ShowRadialMenu(point.X, point.Y);
+    }
+
+    /// <summary>
+    /// The button that stays in the tool row while the menu is the way in. It is what is left when the
+    /// note cannot be tapped - there is no free finger while the finger draws, and there is no right
+    /// mouse button on a tablet - so the ring is always one press away. It comes up over the middle of
+    /// the note.
+    /// </summary>
+    private void OnMenuClicked(object? sender, EventArgs e)
+    {
+        var point = DocumentToMenu(InkDocument.Size / 2, InkDocument.Size / 2);
+        ShowRadialMenu(point.X, point.Y);
+    }
+
+    private void OnRadialMenuChoiceRequested(object? sender, RadialMenuHit hit) => ApplyRadialMenuChoice(hit);
+
+    /// <summary>
+    /// Puts the menu up around a point of the page - or up again in the same place after a choice was
+    /// taken. The blocks are built fresh every time, so the middle of the menu always names what is
+    /// set at the moment and the block that switches the tool offers the one that is not drawing.
+    /// </summary>
+    private void ShowRadialMenu(double x, double y)
+    {
+        radialMenuOrigin = new Point(x, y);
+        RadialMenu.Open(BuildMenuGroups(), x, y);
+    }
+
+    /// <summary>
+    /// The blocks of the ring, in the order of the arc constants: the colours and the pen widths,
+    /// which open a fan of choices, then redo, undo and the pen/finger switch, which are taken on the
+    /// spot and hold nothing.
+    /// </summary>
+    private IReadOnlyList<RadialMenuGroup> BuildMenuGroups()
+    {
+        var colors = new RadialMenuEntry[PenColors.Length];
+        for (var index = 0; index < PenColors.Length; index++)
+        {
+            colors[index] = new RadialMenuEntry(PenColors[index].Name, PenColors[index].Hex, 0);
+        }
+
+        var widths = new RadialMenuEntry[PenThickness.Count];
+        for (var index = 0; index < PenThickness.Count; index++)
+        {
+            widths[index] = new RadialMenuEntry(ThicknessNames[index], null, (float)ThicknessDotDiameter(index));
+        }
+
+        // The tool block offers the tool that is not drawing at the moment, so what pressing it does
+        // is read off the icon and off its name rather than having to be worked out.
+        var drawsWithFinger = InkHost.AllowFingerDrawing;
+
+        return
+        [
+            new RadialMenuGroup(
+                Strings.RadialMenuColors,
+                PenColors[selectedPenColorIndex].Name,
+                colors,
+                IconFont.Color),
+            new RadialMenuGroup(
+                Strings.PenThicknessTitle,
+                ThicknessNames[selectedThicknessIndex],
+                widths,
+                IconFont.LineThickness),
+            new RadialMenuGroup(Strings.Redo, string.Empty, [], IconFont.Redo, IsAction: true),
+            new RadialMenuGroup(Strings.Undo, string.Empty, [], IconFont.Undo, IsAction: true),
+            new RadialMenuGroup(
+                drawsWithFinger ? Strings.Pen : Strings.FingerDrawing,
+                string.Empty,
+                [],
+                drawsWithFinger ? IconFont.Pen : IconFont.Finger,
+                IsAction: true),
+        ];
+    }
+
+    /// <summary>
+    /// What was taken in the menu. A block that holds choices opens them onto the outer ring, a block
+    /// that acts does so at once, and a choice inside a block is applied - which closes that block's
+    /// ring again and nothing else. A press in the middle closes the ring that is out, and takes the
+    /// menu down with it once the ring of blocks is the only one left. The menu otherwise stays up
+    /// through all of it: apart from the middle, only a press beside it puts it away. After a choice
+    /// the ring is built again, so the middle of it names what is set from now on.
+    /// </summary>
+    private void ApplyRadialMenuChoice(RadialMenuHit hit)
+    {
+        switch (hit.Kind)
+        {
+            case RadialMenuHitKind.Outside:
+                CloseRadialMenu();
+                return;
+
+            case RadialMenuHitKind.Center when RadialMenu.IsDetailOpen:
+                RadialMenu.CloseDetail();
+                return;
+
+            case RadialMenuHitKind.Center:
+                CloseRadialMenu();
+                return;
+
+            case RadialMenuHitKind.Group when hit.Group == ColorArc || hit.Group == ThicknessArc:
+                RadialMenu.ToggleDetail(hit.Group);
+                return;
+
+            case RadialMenuHitKind.Group when hit.Group == RedoArc:
+                InkHost.Redo();
+                UpdateToolButtons();
+                break;
+
+            case RadialMenuHitKind.Group when hit.Group == UndoArc:
+                InkHost.Undo();
+                UpdateToolButtons();
+                break;
+
+            case RadialMenuHitKind.Group when hit.Group == ModeArc:
+                ToggleFingerDrawing();
+                break;
+
+            case RadialMenuHitKind.Entry when hit.Group == ColorArc:
+                ApplyPenColor(hit.Index);
+                break;
+
+            case RadialMenuHitKind.Entry when hit.Group == ThicknessArc:
+                ApplyThickness(hit.Index);
+                break;
+
+            default:
+                return;
+        }
+
+        if (radialMenuOrigin is { } origin)
+        {
+            ShowRadialMenu(origin.X, origin.Y);
+        }
+    }
+
+    /// <summary>
+    /// Takes the menu down. Nothing else happens with it: the menu is not a mode, and every choice it
+    /// offers has already been applied where it was taken. Which rows are shown is not decided here
+    /// either - that is the way in the settings page picked, see <see cref="ApplyToolUi"/>.
+    /// </summary>
+    private void CloseRadialMenu()
+    {
+        radialMenuOrigin = null;
+        RadialMenu.Close();
+    }
+
+    /// <summary>
+    /// Which of the two ways of reaching the drawing tools is in use, as written by the settings page.
+    /// A value that is not a member of the enum - an old one, or one written by a newer version - is
+    /// read as the radial menu, which is the default.
+    /// </summary>
+    private InkToolUi ReadToolUi()
+    {
+        var stored = preferences.Get(PreferenceKeys.InkToolUi, InkToolUi.RadialMenu.ToString());
+        return Enum.TryParse<InkToolUi>(stored, out var parsed) ? parsed : InkToolUi.RadialMenu;
+    }
+
+    /// <summary>
+    /// Shows the way in that was picked and takes the other one away: the ring carries what the five
+    /// tool buttons and the pen colours carry, so the two are alternatives and never both. While the
+    /// menu is the way in, the tool row keeps nothing but the button that opens it - the note is what
+    /// a free finger taps, and the button is what is left when there is no free finger - which leaves
+    /// the note the space the buttons and the pen colours were taking. In the toolbar mode the menu is
+    /// off altogether: no tap on the note, no right mouse button and no button of its own.
+    /// </summary>
+    private void ApplyToolUi()
+    {
+        var isToolBar = ReadToolUi() == InkToolUi.ToolBar;
+
+        PenButton.IsVisible = isToolBar;
+        EraserButton.IsVisible = isToolBar;
+        UndoButton.IsVisible = isToolBar;
+        RedoButton.IsVisible = isToolBar;
+        FingerButton.IsVisible = isToolBar;
+        PenColorBar.IsVisible = isToolBar;
+
+        MenuButton.IsVisible = !isToolBar;
+        InkHost.RadialMenuEnabled = !isToolBar;
+
+        if (isToolBar)
+        {
+            // A ring that is up would be left there without a way of being asked for again.
+            CloseRadialMenu();
+        }
+    }
+
+    /// <summary>
+    /// Colours new strokes with the chosen pen width and remembers it for the next card. Strokes that
+    /// have already been drawn keep the width they were drawn with.
+    /// </summary>
+    private void ApplyThickness(int index)
+    {
+        selectedThicknessIndex = PenThickness.ClampIndex(index);
+        var thickness = PenThickness.ValueAt(selectedThicknessIndex);
+        InkHost.StrokeThickness = thickness;
+        preferences.Set(PreferenceKeys.PenThickness, thickness.ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// Width of the dot that stands for a rung of the ladder on the ring, in device units. Scaled up
+    /// from the width itself so the finest rung is still a visible dot, and capped so the widest one
+    /// stays inside the segment that carries it.
+    /// </summary>
+    private static double ThicknessDotDiameter(int index) =>
+        Math.Clamp(PenThickness.ValueAt(index) * 1.6, 5, ThicknessDotMaxSize);
+
+    /// <summary>
+    /// The width the user last drew with. A stored value that is not a number - or one that is no
+    /// longer on the ladder - falls back on the width a pen starts with rather than leaving the
+    /// editor without one.
+    /// </summary>
+    private float ReadStoredThickness()
+    {
+        var stored = preferences.Get(PreferenceKeys.PenThickness, string.Empty);
+        return float.TryParse(stored, NumberStyles.Float, CultureInfo.InvariantCulture, out var thickness)
+            ? thickness
+            : PenThickness.Default;
+    }
+
+    /// <summary>
+    /// Turns a point of the ink document into a point of the radial menu. The document is a square of
+    /// <see cref="InkDocument.Size"/> units drawn as the note, which sits centred in the cell it is
+    /// measured in and inside the frame around it; the menu covers the whole page. Both views hang
+    /// under the same grid, so the only thing left to take off is where the menu itself sits.
+    /// </summary>
+    private Point DocumentToMenu(double x, double y)
+    {
+        var scale = NoteSide / InkDocument.Size;
+        var padding = NoteFrame.Padding;
+        var originX = NoteArea.X + ((NoteArea.Width - NoteSide - padding.HorizontalThickness) / 2) + padding.Left;
+        var originY = NoteArea.Y + ((NoteArea.Height - NoteSide - padding.VerticalThickness) / 2) + padding.Top;
+
+        return new Point(
+            originX + (x * scale) - RadialMenu.X,
+            originY + (y * scale) - RadialMenu.Y);
     }
 
     /// <summary>

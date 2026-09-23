@@ -10,40 +10,67 @@
     <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="16" RowSpacing="12">
 
         <!-- Drawing tools: switch between pen/eraser, undo and redo the last edit and turn finger
-             drawing on or off. Horizontally scrollable because five buttons do not fit a phone in
-             portrait. -->
-        <ScrollView Grid.Row="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+             drawing on or off. Each button carries the glyph of the same tool that the radial menu
+             draws on its ring, and the words that used to be on them are what a screen reader reads
+             out. The font size is set here rather than left to the two styles so a button that
+             changes between them does not change the size of its glyph with it. Horizontally
+             scrollable because six buttons do not fit a phone in portrait. -->
+        <ScrollView x:Name="ToolBar" Grid.Row="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
             <HorizontalStackLayout Spacing="8">
+                <!-- Pen = U+E8D8, eraser = U+E5E5, undo = U+F19A, redo = U+F16F, finger = U+E6D8,
+                     radial menu = U+F07A5. -->
                 <Button x:Name="PenButton"
-                        Text="{markup:Translate Pen}"
-                        Style="{StaticResource PrimaryButton}"
-                        Clicked="OnPenClicked" />
+                        Text="&#xe8d8;"
+                        FontSize="20"
+                        Style="{StaticResource AccentIconButton}"
+                        Clicked="OnPenClicked"
+                        SemanticProperties.Description="{markup:Translate Pen}" />
                 <Button x:Name="EraserButton"
-                        Text="{markup:Translate Eraser}"
-                        Style="{StaticResource GhostButton}"
-                        Clicked="OnEraserClicked" />
+                        Text="&#xe5e5;"
+                        FontSize="20"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnEraserClicked"
+                        SemanticProperties.Description="{markup:Translate Eraser}" />
                 <Button x:Name="UndoButton"
-                        Text="{markup:Translate Undo}"
-                        Style="{StaticResource GhostButton}"
-                        Clicked="OnUndoClicked" />
+                        Text="&#xf19a;"
+                        FontSize="20"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnUndoClicked"
+                        SemanticProperties.Description="{markup:Translate Undo}" />
                 <!-- Undo and redo are also on two- and three-finger taps, so the buttons are the
                      visible half of the same feature. -->
                 <Button x:Name="RedoButton"
-                        Text="{markup:Translate Redo}"
-                        Style="{StaticResource GhostButton}"
-                        Clicked="OnRedoClicked" />
+                        Text="&#xf16f;"
+                        FontSize="20"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnRedoClicked"
+                        SemanticProperties.Description="{markup:Translate Redo}" />
                 <!-- Same preference as the settings page: a resting hand is noticed mid-sentence,
                      so the toggle belongs next to the pen. -->
                 <Button x:Name="FingerButton"
-                        Text="{markup:Translate FingerDrawing}"
-                        Style="{StaticResource PrimaryButton}"
-                        Clicked="OnFingerClicked" />
+                        Text="&#xe6d8;"
+                        FontSize="20"
+                        Style="{StaticResource AccentIconButton}"
+                        Clicked="OnFingerClicked"
+                        SemanticProperties.Description="{markup:Translate FingerDrawing}" />
+                <!-- The tool row holds the five tools in the toolbar mode, and in the menu mode it
+                     holds this button alone: it is the way into the ring when the note cannot be
+                     tapped - the finger draws, or there is no right mouse button. Either way it is
+                     one press away, so it is shown in the mode that needs it and not in the other
+                     one. -->
+                <Button x:Name="MenuButton"
+                        Text="&#xf07a5;"
+                        FontSize="20"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnMenuClicked"
+                        SemanticProperties.Description="{markup:Translate RadialMenu}" />
             </HorizontalStackLayout>
         </ScrollView>
 
         <!-- Pen colours, filled in from the palette in the code-behind so a swatch is the ink
-             itself. -->
-        <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+             itself. Goes with the toolbar: the radial menu carries the same palette, so only one of
+             the two rows is shown. -->
+        <ScrollView x:Name="PenColorBar" Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
             <HorizontalStackLayout x:Name="PenColorPicker" Spacing="10" Padding="2" />
         </ScrollView>
 
@@ -79,5 +106,14 @@
                     Style="{StaticResource PrimaryButton}"
                     Clicked="OnDoneClicked" />
         </Grid>
+
+        <!-- The radial menu covers the whole page so a press beside it can be told from one on it:
+             it is transparent and lets touches through until it is opened, and the ring is drawn
+             around the point it was opened at. Last child, so it is above the note it was asked for
+             from. -->
+        <ink:RadialMenuView x:Name="RadialMenu"
+                            Grid.RowSpan="4"
+                            BackgroundColor="Transparent"
+                            InputTransparent="True" />
     </Grid>
 </ContentPage>

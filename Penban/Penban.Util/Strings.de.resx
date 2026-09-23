@@ -226,6 +226,39 @@
   <data name="PenColorGray" xml:space="preserve">
     <value>Grauer Stift</value>
   </data>
+  <data name="PenThicknessTitle" xml:space="preserve">
+    <value>Stiftdicke</value>
+  </data>
+  <data name="PenThicknessFine" xml:space="preserve">
+    <value>Fein</value>
+  </data>
+  <data name="PenThicknessNormal" xml:space="preserve">
+    <value>Normal</value>
+  </data>
+  <data name="PenThicknessMedium" xml:space="preserve">
+    <value>Mittel</value>
+  </data>
+  <data name="PenThicknessBold" xml:space="preserve">
+    <value>Fett</value>
+  </data>
+  <data name="PenThicknessExtraBold" xml:space="preserve">
+    <value>Extra fett</value>
+  </data>
+  <data name="RadialMenu" xml:space="preserve">
+    <value>Menü</value>
+  </data>
+  <data name="RadialMenuColors" xml:space="preserve">
+    <value>Farbe</value>
+  </data>
+  <data name="InkToolUi" xml:space="preserve">
+    <value>Zeichenwerkzeuge</value>
+  </data>
+  <data name="InkToolUiRadialMenu" xml:space="preserve">
+    <value>Radialmenü</value>
+  </data>
+  <data name="InkToolUiToolBar" xml:space="preserve">
+    <value>Werkzeugleiste</value>
+  </data>
   <data name="SettingsGesturesSection" xml:space="preserve">
     <value>Gesten</value>
   </data>

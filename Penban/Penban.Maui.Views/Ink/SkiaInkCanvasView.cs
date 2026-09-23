@@ -51,6 +51,13 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// </summary>
     private const float SwipeSlop = 12f;
 
+    /// <summary>
+    /// How far a finger may travel and still count as the tap that asks for the menu, in document
+    /// units. The same distance the swipe is judged at, because it answers the same question: has this
+    /// finger moved, or has it only been put down and taken up again?
+    /// </summary>
+    private const float MenuTapSlop = SwipeSlop;
+
     private readonly SKCanvasView canvasView;
     private readonly InkCommandStack commands;
 
@@ -117,6 +124,12 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// <summary>Whether that finger is still a candidate for closing the card.</summary>
     private bool isCloseSwipeTracking;
 
+    /// <summary>The finger that may still turn out to be the tap that asks for the menu, if there is one.</summary>
+    private long menuTapId;
+
+    /// <summary>Where that finger went down, in document units.</summary>
+    private SKPoint menuTapOrigin;
+
     public SkiaInkCanvasView()
     {
         canvasView = new SKCanvasView { EnableTouchEvents = true };
@@ -145,6 +158,16 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// </summary>
     public event EventHandler? CloseSwipeEnded;
 
+    /// <summary>
+    /// Raised when the menu is asked for from the note itself: a finger was tapped on it while only
+    /// the pen draws, or the right mouse button was pressed on it - see
+    /// <see cref="RadialMenuEnabled"/>. Where the ask came from is in <see cref="InkDocument"/> units,
+    /// so the page can put its menu around that very point. The surface opens nothing itself: what
+    /// such a menu holds and where it may stand are the page's, and only the page can put it up over
+    /// the note.
+    /// </summary>
+    public event EventHandler<MenuRequest>? MenuRequested;
+
     public string StrokeColor { get; set; } = "#000000";
 
     /// <summary>Width of new strokes, in document units.</summary>
@@ -165,6 +188,15 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// that can be left by such a swipe knows what the swipe is for.
     /// </summary>
     public bool CloseOnSwipeDown { get; set; }
+
+    /// <summary>
+    /// Whether the menu can be asked for from the note itself - see <see cref="MenuRequested"/>. Where
+    /// only the pen draws, a finger has nothing else to do there, so a tap of it asks for the menu;
+    /// where there is a mouse, the right button does. A surface that draws with the finger is left
+    /// alone: there the tap is a stroke. Not a preference, because only a page that has such a menu
+    /// can want this, and it is the page that says so.
+    /// </summary>
+    public bool RadialMenuEnabled { get; set; }
 
     /// <summary>
     /// Whether the line width follows the pressure reported per point. Off means one width for the
@@ -219,11 +251,20 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             isMultiTouchGesture = false;
         }
 
-        if (fingerContacts.Remove(contactId) && closeSwipeId == contactId)
+        if (fingerContacts.Remove(contactId))
         {
-            // The contact that was being followed as a finger turns out to be the pen, so the card
-            // goes back: a hand that is writing must not drag it out of the editor.
-            EndCloseSwipe();
+            // The contact that was being followed as a finger turns out to be the pen, so it is no
+            // candidate for the menu either - a tap of it is the beginning of a word.
+            if (menuTapId == contactId)
+            {
+                menuTapId = 0;
+            }
+
+            if (closeSwipeId == contactId)
+            {
+                // A hand that is writing must not drag the card out of the editor.
+                EndCloseSwipe();
+            }
         }
 
         if (currentStroke is not null && currentStrokeContactId == contactId)
@@ -333,6 +374,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         // A card that was being dragged down goes back to where it rests: the finger that was holding
         // it is gone with the strokes it belonged to.
         fingerContacts.Clear();
+        menuTapId = 0;
         EndCloseSwipe();
 
         // A press that was held back belongs to the stroke set that has just been replaced, so it goes
@@ -344,6 +386,20 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     private void OnTouch(object? sender, SKTouchEventArgs e)
     {
         var isStylus = IsStylusContact(e);
+
+        // A drawing surface has nothing else to do with the right mouse button, so on a desktop that
+        // is how the menu is asked for: there is no finger to tap with and the pen is drawing.
+        if (e.DeviceType == SKTouchDeviceType.Mouse && e.MouseButton == SKMouseButton.Right)
+        {
+            if (RadialMenuEnabled && e.ActionType == SKTouchAction.Pressed)
+            {
+                var asked = ToDocument(e.Location);
+                MenuRequested?.Invoke(this, new MenuRequest(asked.X, asked.Y));
+            }
+
+            e.Handled = true;
+            return;
+        }
 
         if (IsLeftToTheScroll(e))
         {
@@ -364,9 +420,10 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             }
 
             // A finger that has nothing to draw is followed for the gestures the page wants from it -
-            // see CloseOnSwipeDown. On Apple a contact that turns out to be the pen is taken out of
-            // this again by SetStylusContact, so writing cannot drag the card out.
+            // see CloseOnSwipeDown and RadialMenuEnabled. On Apple a contact that turns out to be the
+            // pen is taken out of this again by SetStylusContact, so writing cannot drag the card out.
             TrackFingerGestures(e);
+            TrackMenuTap(e);
             e.Handled = true;
             return;
         }
@@ -444,11 +501,12 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// touch alone cannot answer that, so nothing is left to the scroll there and the canvas waits for
     /// the platform's answer instead - see <see cref="PlatformNamesStylusContacts"/>. A surface whose
     /// page wants the finger for a gesture of its own keeps it as well - see
-    /// <see cref="CloseOnSwipeDown"/> - because a touch that has been handed to the scroll is gone for
-    /// good and could never be read as a swipe.
+    /// <see cref="CloseOnSwipeDown"/> and <see cref="RadialMenuEnabled"/> - because a touch that has
+    /// been handed to the scroll is gone for good and could never be read as a swipe or a tap.
     /// </summary>
     private bool IsLeftToTheScroll(SKTouchEventArgs e) =>
-        !AllowFingerDrawing && !IsStylusContact(e) && !PlatformNamesStylusContacts && !CloseOnSwipeDown;
+        !AllowFingerDrawing && !IsStylusContact(e) && !PlatformNamesStylusContacts && !CloseOnSwipeDown
+        && !RadialMenuEnabled;
 
     /// <summary>
     /// Keeps the press of a contact that only draws once it turns out to be the pen, until the
@@ -530,6 +588,64 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
                 break;
         }
+    }
+
+    /// <summary>
+    /// Reads the tap that asks for the menu off a finger of a surface that does not draw with it - see
+    /// <see cref="RadialMenuEnabled"/>. A tap is a press that comes back up where it went down, so the
+    /// contact is only remembered here and the question is settled when it is lifted: a finger that
+    /// travels is the swipe out of the editor instead, and a second finger is the two-finger tap that
+    /// is read as undo elsewhere. Nothing is settled at the press, because on Apple a contact is not
+    /// known to be the pen until after it has arrived.
+    /// </summary>
+    private void TrackMenuTap(SKTouchEventArgs e)
+    {
+        if (!RadialMenuEnabled || AllowFingerDrawing)
+        {
+            return;
+        }
+
+        switch (e.ActionType)
+        {
+            case SKTouchAction.Pressed:
+                // The only finger down, or no candidate at all: two fingers are a gesture.
+                menuTapId = fingerContacts.Count == 1 ? e.Id : 0;
+                menuTapOrigin = ToDocument(e.Location);
+                break;
+
+            case SKTouchAction.Released:
+            {
+                var isTap = menuTapId == e.Id && !HasLeftMenuTap(e);
+                menuTapId = 0;
+
+                if (isTap)
+                {
+                    var asked = ToDocument(e.Location);
+                    MenuRequested?.Invoke(this, new MenuRequest(asked.X, asked.Y));
+                }
+
+                break;
+            }
+
+            // A contact that was taken away instead of lifted - or that was dragged off the note and
+            // never came back to it - asks for nothing.
+            case SKTouchAction.Cancelled:
+                if (menuTapId == e.Id)
+                {
+                    menuTapId = 0;
+                }
+
+                break;
+        }
+    }
+
+    /// <summary>Whether a finger has moved too far from where it went down to still be a tap.</summary>
+    private bool HasLeftMenuTap(SKTouchEventArgs e)
+    {
+        var point = ToDocument(e.Location);
+        var dx = point.X - menuTapOrigin.X;
+        var dy = point.Y - menuTapOrigin.Y;
+        return Math.Sqrt((dx * dx) + (dy * dy)) > MenuTapSlop;
     }
 
     /// <summary>
