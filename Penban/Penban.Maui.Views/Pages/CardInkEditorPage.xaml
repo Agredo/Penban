@@ -7,14 +7,15 @@
              x:Class="Penban.Maui.Views.Pages.CardInkEditorPage"
              Title="Card"
              Style="{StaticResource AppPage}">
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="16" RowSpacing="12">
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16" RowSpacing="12">
 
         <!-- Drawing tools: switch between pen/eraser, undo and redo the last edit and turn finger
-             drawing on or off. Each button carries the glyph of the same tool that the radial menu
-             draws on its ring, and the words that used to be on them are what a screen reader reads
-             out. The font size is set here rather than left to the two styles so a button that
-             changes between them does not change the size of its glyph with it. Horizontally
-             scrollable because six buttons do not fit a phone in portrait. -->
+             drawing on or off, followed by the pen colours, so everything that goes with the ink sits
+             in one row. Each button carries the glyph of the same tool that the radial menu draws on
+             its ring, and the words that used to be on them are what a screen reader reads out. The
+             font size is set here rather than left to the two styles so a button that changes between
+             them does not change the size of its glyph with it. Horizontally scrollable, because the
+             six buttons and ten colours together are wider than any phone held upright. -->
         <ScrollView x:Name="ToolBar" Grid.Row="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
             <HorizontalStackLayout Spacing="8">
                 <!-- Pen = U+E8D8, eraser = U+E5E5, undo = U+F19A, redo = U+F16F, finger = U+E6D8,
@@ -64,14 +65,18 @@
                         Style="{StaticResource GhostIconButton}"
                         Clicked="OnMenuClicked"
                         SemanticProperties.Description="{markup:Translate RadialMenu}" />
+                <!-- A hairline, so the colours read as the other half of the same row rather than as
+                     more tools. -->
+                <BoxView x:Name="PenColorSeparator"
+                         WidthRequest="1"
+                         HeightRequest="24"
+                         VerticalOptions="Center"
+                         Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+                <!-- Pen colours, filled in from the palette in the code-behind so a swatch is the ink
+                     itself. They belong to the toolbar: the radial menu carries the same palette on
+                     its ring, so only one of the two is shown. -->
+                <HorizontalStackLayout x:Name="PenColorPicker" Spacing="10" Padding="2" VerticalOptions="Center" />
             </HorizontalStackLayout>
-        </ScrollView>
-
-        <!-- Pen colours, filled in from the palette in the code-behind so a swatch is the ink
-             itself. Goes with the toolbar: the radial menu carries the same palette, so only one of
-             the two rows is shown. -->
-        <ScrollView x:Name="PenColorBar" Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
-            <HorizontalStackLayout x:Name="PenColorPicker" Spacing="10" Padding="2" />
         </ScrollView>
 
         <!-- The writing surface is the very note that sits on the board, in its own paper colour
@@ -112,7 +117,7 @@
              around the point it was opened at. Last child, so it is above the note it was asked for
              from. -->
         <ink:RadialMenuView x:Name="RadialMenu"
-                            Grid.RowSpan="4"
+                            Grid.RowSpan="3"
                             BackgroundColor="Transparent"
                             InputTransparent="True" />
     </Grid>

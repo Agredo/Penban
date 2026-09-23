@@ -764,7 +764,8 @@ public partial class CardInkEditorPage : ContentPage
         UndoButton.IsVisible = isToolBar;
         RedoButton.IsVisible = isToolBar;
         FingerButton.IsVisible = isToolBar;
-        PenColorBar.IsVisible = isToolBar;
+        PenColorSeparator.IsVisible = isToolBar;
+        PenColorPicker.IsVisible = isToolBar;
 
         MenuButton.IsVisible = !isToolBar;
         InkHost.RadialMenuEnabled = !isToolBar;
