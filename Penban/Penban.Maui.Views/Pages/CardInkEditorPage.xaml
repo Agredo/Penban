@@ -83,7 +83,7 @@
              (set from the view model in the constructor). Strokes are stored dark-on-light.
              NoteArea is only a measuring cell: it reports the free space so the note can be kept
              square without the note ever feeding its own size back into the layout. -->
-        <Grid Grid.Row="2" x:Name="NoteArea">
+        <Grid Grid.Row="1" x:Name="NoteArea">
             <Border x:Name="NoteFrame"
                     Padding="10"
                     HorizontalOptions="Center"
@@ -95,7 +95,7 @@
             </Border>
         </Grid>
 
-        <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
             <Button Grid.Column="0"
                     Text="{markup:Translate Delete}"
                     Style="{StaticResource DangerGhostButton}"
