@@ -46,13 +46,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- App Icon: the Penban logo tile carries the brand on every platform, but the iOS icon must
-         not contain transparency (App Store rule), so it gets a dark background there. Windows
-         shows the same logo without any background. -->
+    <!-- App Icon: the Penban logo tile carries the brand on every platform. Apple icons must not
+         contain transparency (App Store rule), so iOS and Mac Catalyst get the variant with the
+         dark background; Windows and Android show the same logo without any background. -->
     <MauiIcon Include="Resources\AppIcon\appicon_ios.svg"
-              Condition="$(TargetFramework.Contains('-ios'))" />
+              Condition="$(TargetFramework.Contains('-ios')) Or $(TargetFramework.Contains('-maccatalyst'))" />
     <MauiIcon Include="Resources\AppIcon\appicon.svg"
-              Condition="!$(TargetFramework.Contains('-ios'))" />
+              Condition="!$(TargetFramework.Contains('-ios')) And !$(TargetFramework.Contains('-maccatalyst'))" />
 
     <!-- Splash Screen: dark, so the indigo logo tile stays visible on it. -->
     <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0F1115" BaseSize="128,128" />
