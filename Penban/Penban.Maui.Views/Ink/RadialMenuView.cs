@@ -195,6 +195,11 @@ public sealed class RadialMenuView : SKCanvasView
         EnableTouchEvents = true;
         Touch += OnTouch;
         _ = LoadIconTypefaceAsync();
+
+        // The menu starts down, so the canvas has to start out of the way of the page underneath it.
+        // It is asked for again once the view is in the window, because SkiaSharp's own touch wiring
+        // runs after this and switches user interaction back on - see ApplyInteraction.
+        Loaded += (_, _) => ApplyInteraction();
     }
 
     /// <summary>
@@ -283,6 +288,31 @@ public sealed class RadialMenuView : SKCanvasView
     public bool IsOpen { get; private set; }
 
     /// <summary>
+    /// Says whether the canvas is part of hit testing: it is only while the ring is up. A menu that is
+    /// down covers the whole page and must let every touch through to what is underneath - the note,
+    /// the row of tools, the buttons that leave the card - so it is kept transparent to input.
+    /// </summary>
+    /// <remarks>
+    /// Being transparent is not enough on iOS. There a touch belongs to the top-most view that takes
+    /// part in hit testing, and a canvas is always such a view while SkiaSharp's own touch reader is
+    /// attached - the reader is what the rings, their taps and the presses beside them arrive
+    /// through. It also turns user interaction back on when touch events are enabled, whichever value
+    /// the page had given the canvas, so the flag is put on the platform view here instead: an
+    /// inert view is skipped by hit testing and every touch reaches the page below.
+    /// </remarks>
+    private void ApplyInteraction()
+    {
+        InputTransparent = !IsOpen;
+
+#if IOS
+        if (Handler?.PlatformView is UIKit.UIView platformView)
+        {
+            platformView.UserInteractionEnabled = IsOpen;
+        }
+#endif
+    }
+
+    /// <summary>
     /// Puts the menu up around <paramref name="x"/>,<paramref name="y"/>, which are in the same units
     /// as the space the view fills. The point is pulled inwards when it is too close to an edge for
     /// the whole ring to fit, so a menu opened near the bottom of the note is still complete.
@@ -309,7 +339,7 @@ public sealed class RadialMenuView : SKCanvasView
         highlightedGroup = -1;
         highlightedIndex = -1;
         IsOpen = groups.Count > 0;
-        InputTransparent = !IsOpen;
+        ApplyInteraction();
 
         var width = ViewWidth;
         var height = ViewHeight;
@@ -409,7 +439,7 @@ public sealed class RadialMenuView : SKCanvasView
     public void Close()
     {
         IsOpen = false;
-        InputTransparent = true;
+        ApplyInteraction();
         detailGroup = -1;
         highlightedGroup = -1;
         highlightedIndex = -1;
