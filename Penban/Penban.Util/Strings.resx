@@ -226,6 +226,39 @@
   <data name="PenColorGray" xml:space="preserve">
     <value>Gray pen</value>
   </data>
+  <data name="PenThicknessTitle" xml:space="preserve">
+    <value>Pen thickness</value>
+  </data>
+  <data name="PenThicknessFine" xml:space="preserve">
+    <value>Fine</value>
+  </data>
+  <data name="PenThicknessNormal" xml:space="preserve">
+    <value>Normal</value>
+  </data>
+  <data name="PenThicknessMedium" xml:space="preserve">
+    <value>Medium</value>
+  </data>
+  <data name="PenThicknessBold" xml:space="preserve">
+    <value>Bold</value>
+  </data>
+  <data name="PenThicknessExtraBold" xml:space="preserve">
+    <value>Extra bold</value>
+  </data>
+  <data name="RadialMenu" xml:space="preserve">
+    <value>Menu</value>
+  </data>
+  <data name="RadialMenuColors" xml:space="preserve">
+    <value>Colour</value>
+  </data>
+  <data name="InkToolUi" xml:space="preserve">
+    <value>Drawing tools</value>
+  </data>
+  <data name="InkToolUiRadialMenu" xml:space="preserve">
+    <value>Radial menu</value>
+  </data>
+  <data name="InkToolUiToolBar" xml:space="preserve">
+    <value>Toolbar</value>
+  </data>
   <data name="SettingsGesturesSection" xml:space="preserve">
     <value>Gestures</value>
   </data>
@@ -291,5 +324,68 @@
   </data>
   <data name="ImportCardsInto" xml:space="preserve">
     <value>Import cards into …</value>
+  </data>
+  <data name="SettingsSupportSection" xml:space="preserve">
+    <value>Support</value>
+  </data>
+  <data name="FeedbackTitle" xml:space="preserve">
+    <value>Send feedback</value>
+  </data>
+  <data name="FeedbackSubtitle" xml:space="preserve">
+    <value>Ideas or problems? Send them to us via BugBear.</value>
+  </data>
+  <data name="FeedbackCategory" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="FeedbackCategoryUi" xml:space="preserve">
+    <value>UI</value>
+  </data>
+  <data name="FeedbackCategoryUx" xml:space="preserve">
+    <value>UX</value>
+  </data>
+  <data name="FeedbackCategoryFeatureWish" xml:space="preserve">
+    <value>Feature wish</value>
+  </data>
+  <data name="FeedbackCategoryGeneral" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="FeedbackDescription" xml:space="preserve">
+    <value>Description *</value>
+  </data>
+  <data name="FeedbackDescriptionPlaceholder" xml:space="preserve">
+    <value>What would you like to tell us?</value>
+  </data>
+  <data name="FeedbackEmail" xml:space="preserve">
+    <value>Email (optional)</value>
+  </data>
+  <data name="FeedbackEmailPlaceholder" xml:space="preserve">
+    <value>you@example.com</value>
+  </data>
+  <data name="FeedbackEmailHint" xml:space="preserve">
+    <value>Only if we may contact you about it.</value>
+  </data>
+  <data name="FeedbackSubmit" xml:space="preserve">
+    <value>Send feedback</value>
+  </data>
+  <data name="FeedbackMissingDescription" xml:space="preserve">
+    <value>Please write a few words about what you want to tell us.</value>
+  </data>
+  <data name="FeedbackThanksTitle" xml:space="preserve">
+    <value>Thank you!</value>
+  </data>
+  <data name="FeedbackThanksMessage" xml:space="preserve">
+    <value>Your feedback has been sent.</value>
+  </data>
+  <data name="FeedbackErrorTitle" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="FeedbackErrorMessage" xml:space="preserve">
+    <value>The feedback could not be sent. Please try again later.</value>
+  </data>
+  <data name="FeedbackConnectionMessage" xml:space="preserve">
+    <value>Something went wrong. Please check your internet connection.</value>
+  </data>
+  <data name="FeedbackPoweredBy" xml:space="preserve">
+    <value>Powered by BugBear</value>
   </data>
 </root>

@@ -9,11 +9,13 @@ namespace Penban.Maui.Views.Pages;
 public partial class SettingsPage : ContentPage
 {
     private readonly SettingsViewModel viewModel;
+    private readonly FeedbackViewModel feedbackViewModel;
 
-    public SettingsPage(SettingsViewModel viewModel)
+    public SettingsPage(SettingsViewModel viewModel, FeedbackViewModel feedbackViewModel)
     {
         InitializeComponent();
         this.viewModel = viewModel;
+        this.feedbackViewModel = feedbackViewModel;
         BindingContext = viewModel;
 
         // Only Windows reports which end of the pen is against the surface, so the row would be a
@@ -32,5 +34,10 @@ public partial class SettingsPage : ContentPage
     private async void OnBackClicked(object? sender, EventArgs e)
     {
         await Navigation.PopAsync();
+    }
+
+    private async void OnFeedbackClicked(object? sender, TappedEventArgs e)
+    {
+        await Navigation.PushAsync(new FeedbackPage(feedbackViewModel));
     }
 }

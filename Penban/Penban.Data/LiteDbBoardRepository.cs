@@ -15,30 +15,28 @@ public class LiteDbBoardRepository : IBoardRepository
     }
 
     public Task<List<Board>> GetAllAsync()
-        => Task.FromResult(boards.Find(b => !b.IsDeleted).ToList());
+        => DatabaseWork.RunAsync(() => boards.Find(b => !b.IsDeleted).ToList());
 
-    public Task SaveAsync(Board board)
+    public Task SaveAsync(Board board) => DatabaseWork.RunAsync(() =>
     {
         board.UpdatedAtUtc = DateTimeOffset.UtcNow;
         boards.Upsert(board);
-        return Task.CompletedTask;
-    }
+    });
 
-    public Task DeleteAsync(Guid boardId)
+    public Task DeleteAsync(Guid boardId) => DatabaseWork.RunAsync(() =>
     {
         var board = boards.FindById(boardId);
         if (board is null)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         board.IsDeleted = true;
         board.UpdatedAtUtc = DateTimeOffset.UtcNow;
         boards.Update(board);
-        return Task.CompletedTask;
-    }
+    });
 
-    public Task SaveAllAsync(IReadOnlyList<Board> imported)
+    public Task SaveAllAsync(IReadOnlyList<Board> imported) => DatabaseWork.RunAsync(() =>
     {
         // Upsert rather than Insert: it writes what it is given without touching it, and it does not
         // abort the whole import when a file happens to name the same board twice.
@@ -46,13 +44,10 @@ public class LiteDbBoardRepository : IBoardRepository
         {
             boards.Upsert(imported);
         }
+    });
 
-        return Task.CompletedTask;
-    }
-
-    public Task ClearAsync()
+    public Task ClearAsync() => DatabaseWork.RunAsync(() =>
     {
         boards.DeleteAll();
-        return Task.CompletedTask;
-    }
+    });
 }

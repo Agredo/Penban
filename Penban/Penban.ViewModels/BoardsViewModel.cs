@@ -31,10 +31,22 @@ public partial class BoardsViewModel : ObservableObject
     private async Task LoadBoardsAsync()
     {
         var boards = await boardService.GetBoardsAsync();
-        Boards.Clear();
+
+        // Every row is complete before the first of them is shown. Reading a board's summary no longer
+        // blocks, so a row added up front would sit there with an empty summary until its own load
+        // came round - and the list would build itself up in visible steps.
+        var loaded = new List<BoardViewModel>(boards.Count);
         foreach (var board in boards)
         {
-            await AddBoardViewModelAsync(board);
+            var viewModel = new BoardViewModel(board, boardService, cardService, dialogService);
+            await viewModel.LoadSummaryAsync();
+            loaded.Add(viewModel);
+        }
+
+        Boards.Clear();
+        foreach (var viewModel in loaded)
+        {
+            Boards.Add(viewModel);
         }
 
         // Raised once at the end: the empty state must not flash while the rows are still loading.
@@ -44,9 +56,8 @@ public partial class BoardsViewModel : ObservableObject
     private async Task AddBoardViewModelAsync(Board board)
     {
         var viewModel = new BoardViewModel(board, boardService, cardService, dialogService);
-        Boards.Add(viewModel);
-
         await viewModel.LoadSummaryAsync();
+        Boards.Add(viewModel);
     }
 
     [RelayCommand]

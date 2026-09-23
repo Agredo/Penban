@@ -10,13 +10,15 @@ public partial class BoardsPage : ContentPage
 {
     private readonly IPreferences preferences;
     private readonly SettingsViewModel settingsViewModel;
+    private readonly FeedbackViewModel feedbackViewModel;
     private readonly TransferCoordinator transferCoordinator;
     private bool isOpeningBoard;
 
-    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, IPreferences preferences, TransferCoordinator transferCoordinator)
+    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, TransferCoordinator transferCoordinator)
     {
         InitializeComponent();
         this.settingsViewModel = settingsViewModel;
+        this.feedbackViewModel = feedbackViewModel;
         this.preferences = preferences;
         this.transferCoordinator = transferCoordinator;
         BindingContext = viewModel;
@@ -58,7 +60,7 @@ public partial class BoardsPage : ContentPage
 
     private async void OnSettingsClicked(object? sender, EventArgs e)
     {
-        await Navigation.PushAsync(new SettingsPage(settingsViewModel));
+        await Navigation.PushAsync(new SettingsPage(settingsViewModel, feedbackViewModel));
     }
 
     private async void OnTransferClicked(object? sender, EventArgs e)
