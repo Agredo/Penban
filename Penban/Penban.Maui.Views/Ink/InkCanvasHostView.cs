@@ -15,6 +15,7 @@ public class InkCanvasHostView : ContentView
     private IInkCanvasView activeRenderer;
     private InkRenderer renderer;
     private bool platformNamesStylusContacts;
+    private bool closeOnSwipeDown;
 
     public InkCanvasHostView()
     {
@@ -73,6 +74,71 @@ public class InkCanvasHostView : ContentView
     {
         add => activeRenderer.StrokeCompleted += value;
         remove => activeRenderer.StrokeCompleted -= value;
+    }
+
+    /// <summary>
+    /// Raised while a finger drags the card down, with where that finger is on the note - see
+    /// <see cref="CloseSwipeMove"/>. Raised by the Skia renderer only: the toolkit renderer has no
+    /// touch hook of its own that sees individual fingers.
+    /// </summary>
+    public event EventHandler<CloseSwipeMove>? CloseSwipeMoved
+    {
+        add
+        {
+            if (activeRenderer is SkiaInkCanvasView skia)
+            {
+                skia.CloseSwipeMoved += value;
+            }
+        }
+        remove
+        {
+            if (activeRenderer is SkiaInkCanvasView skia)
+            {
+                skia.CloseSwipeMoved -= value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Raised when the finger of such a drag is gone again - see <see cref="CloseSwipeMoved"/> for
+    /// why the toolkit renderer never raises this.
+    /// </summary>
+    public event EventHandler? CloseSwipeEnded
+    {
+        add
+        {
+            if (activeRenderer is SkiaInkCanvasView skia)
+            {
+                skia.CloseSwipeEnded += value;
+            }
+        }
+        remove
+        {
+            if (activeRenderer is SkiaInkCanvasView skia)
+            {
+                skia.CloseSwipeEnded -= value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether a finger swiped down drags the card out of the page - see
+    /// <see cref="CloseSwipeMoved"/>. Asked for by the page that can be left that way, so it is not a
+    /// preference and not something the renderer reads for itself; it is remembered here because a
+    /// renderer swapped in later has to be told again.
+    /// </summary>
+    public bool CloseOnSwipeDown
+    {
+        get => closeOnSwipeDown;
+        set
+        {
+            closeOnSwipeDown = value;
+
+            if (activeRenderer is SkiaInkCanvasView skia)
+            {
+                skia.CloseOnSwipeDown = value;
+            }
+        }
     }
 
     public InkRenderer Renderer
@@ -254,6 +320,9 @@ public class InkCanvasHostView : ContentView
             // The renderer that is being swapped in has to be told this again as well: it is not a
             // setting but something a platform behavior asked for.
             skia.PlatformNamesStylusContacts = platformNamesStylusContacts;
+
+            // Nor is this a setting: the page the surface is on asks for it.
+            skia.CloseOnSwipeDown = closeOnSwipeDown;
         }
     }
 

@@ -38,6 +38,19 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// <summary>Upper bound on nib stamps per segment, to keep long strokes cheap to redraw.</summary>
     private const int MaxNibStampsPerSegment = 12;
 
+    /// <summary>
+    /// How far a swipe may drift sideways before it counts as something else (a pan, a pinch) and is
+    /// given up on.
+    /// </summary>
+    private const float MaxSwipeSkew = 0.6f;
+
+    /// <summary>
+    /// How far a finger has to travel before the swipe it started is judged at all, in document
+    /// units. Below that the finger is still settling, and a pixel of noise to the side would give
+    /// the swipe up before it had started.
+    /// </summary>
+    private const float SwipeSlop = 12f;
+
     private readonly SKCanvasView canvasView;
     private readonly InkCommandStack commands;
 
@@ -87,6 +100,23 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// </summary>
     private bool isPenTailErasing;
 
+    /// <summary>
+    /// The contacts that are down on a surface that does not draw with them, in document units. Kept
+    /// apart from <see cref="activeFingers"/>, which counts the contacts of a drawing surface: here
+    /// the finger has no stroke to draw and is followed for the page's own gesture instead - see
+    /// <see cref="CloseOnSwipeDown"/>.
+    /// </summary>
+    private readonly Dictionary<long, SKPoint> fingerContacts = new();
+
+    /// <summary>The finger that started a downward swipe in pen-only mode, if there is one.</summary>
+    private long? closeSwipeId;
+
+    /// <summary>Where that finger touched down, in document units.</summary>
+    private SKPoint closeSwipeStart;
+
+    /// <summary>Whether that finger is still a candidate for closing the card.</summary>
+    private bool isCloseSwipeTracking;
+
     public SkiaInkCanvasView()
     {
         canvasView = new SKCanvasView { EnableTouchEvents = true };
@@ -100,6 +130,21 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     public event EventHandler? StrokeCompleted;
 
+    /// <summary>
+    /// Raised while a finger drags the card down, with where that finger is on the note - see
+    /// <see cref="CloseSwipeMove"/>. The surface does not decide what that means: how far the finger
+    /// has to go before letting go closes the editor is a property of the page the card is drawn on,
+    /// so the page is told where the finger is and answers with the drag.
+    /// </summary>
+    public event EventHandler<CloseSwipeMove>? CloseSwipeMoved;
+
+    /// <summary>
+    /// Raised when the finger of that drag is gone again - lifted, joined by a second finger, or
+    /// given up on because it turned sideways. The page uses it to put the card back where it was,
+    /// or to let it finish leaving.
+    /// </summary>
+    public event EventHandler? CloseSwipeEnded;
+
     public string StrokeColor { get; set; } = "#000000";
 
     /// <summary>Width of new strokes, in document units.</summary>
@@ -112,6 +157,14 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// hand rests on the screen while writing.
     /// </summary>
     public bool AllowFingerDrawing { get; set; } = true;
+
+    /// <summary>
+    /// Whether a finger swiped down drags the card out of the editor - see
+    /// <see cref="CloseSwipeMoved"/>. Only ever tracks with <see cref="AllowFingerDrawing"/> off: a
+    /// finger that draws means the stroke, not the card. It is off by default, because only the page
+    /// that can be left by such a swipe knows what the swipe is for.
+    /// </summary>
+    public bool CloseOnSwipeDown { get; set; }
 
     /// <summary>
     /// Whether the line width follows the pressure reported per point. Off means one width for the
@@ -164,6 +217,13 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             // A pen coming down is not a finger joining in, and a hand resting next to it must not be
             // read as a two-finger tap either.
             isMultiTouchGesture = false;
+        }
+
+        if (fingerContacts.Remove(contactId) && closeSwipeId == contactId)
+        {
+            // The contact that was being followed as a finger turns out to be the pen, so the card
+            // goes back: a hand that is writing must not drag it out of the editor.
+            EndCloseSwipe();
         }
 
         if (currentStroke is not null && currentStrokeContactId == contactId)
@@ -270,6 +330,11 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         activeStylusCount = 0;
         isMultiTouchGesture = false;
 
+        // A card that was being dragged down goes back to where it rests: the finger that was holding
+        // it is gone with the strokes it belonged to.
+        fingerContacts.Clear();
+        EndCloseSwipe();
+
         // A press that was held back belongs to the stroke set that has just been replaced, so it goes
         // with it. The named contacts are not dropped: those are contacts that are still down, and
         // only the platform's own end report can say otherwise.
@@ -293,7 +358,15 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             // named it, which can be after the press arrived. The press is kept until then, and the
             // contact stays handled meanwhile, because on Apple a touch that is left unhandled is
             // dropped for good - taking the pencil's whole stroke with it.
-            HoldBack(e);
+            if (PlatformNamesStylusContacts)
+            {
+                HoldBack(e);
+            }
+
+            // A finger that has nothing to draw is followed for the gestures the page wants from it -
+            // see CloseOnSwipeDown. On Apple a contact that turns out to be the pen is taken out of
+            // this again by SetStylusContact, so writing cannot drag the card out.
+            TrackFingerGestures(e);
             e.Handled = true;
             return;
         }
@@ -369,10 +442,13 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// Whether the touch has to be left to the surrounding scroll/pan instead of being drawn with,
     /// which is what a finger gets while only the pen draws. Where the platform names the pen, the
     /// touch alone cannot answer that, so nothing is left to the scroll there and the canvas waits for
-    /// the platform's answer instead - see <see cref="PlatformNamesStylusContacts"/>.
+    /// the platform's answer instead - see <see cref="PlatformNamesStylusContacts"/>. A surface whose
+    /// page wants the finger for a gesture of its own keeps it as well - see
+    /// <see cref="CloseOnSwipeDown"/> - because a touch that has been handed to the scroll is gone for
+    /// good and could never be read as a swipe.
     /// </summary>
     private bool IsLeftToTheScroll(SKTouchEventArgs e) =>
-        !AllowFingerDrawing && !IsStylusContact(e) && !PlatformNamesStylusContacts;
+        !AllowFingerDrawing && !IsStylusContact(e) && !PlatformNamesStylusContacts && !CloseOnSwipeDown;
 
     /// <summary>
     /// Keeps the press of a contact that only draws once it turns out to be the pen, until the
@@ -393,6 +469,161 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                 unnamedPresses.Remove(e.Id);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Follows the fingers of a surface that does not draw with them, and reads the swipe out of the
+    /// editor off them - see <see cref="CloseOnSwipeDown"/>. Nothing else is asked of the finger here:
+    /// the page decides what its position means.
+    /// <para>
+    /// A contact is given up on once the finger is really gone: lifted or cancelled. A finger that
+    /// leaves the note while it is still down is still the finger of the gesture that was following
+    /// it, and the gesture has to see it arrive below the note to be measured there at all. Only a
+    /// contact that is gone without being released is dropped on the way out, which is what is left
+    /// of a surface that does not keep the touch.
+    /// </para>
+    /// </summary>
+    private void TrackFingerGestures(SKTouchEventArgs e)
+    {
+        switch (e.ActionType)
+        {
+            case SKTouchAction.Pressed:
+            {
+                var pressed = ToDocument(e.Location);
+                fingerContacts[e.Id] = pressed;
+                BeginCloseSwipe(e.Id, pressed);
+                break;
+            }
+
+            // A finger that was dragged off the note and back is still down, and this surface is the
+            // only one that sees it return.
+            case SKTouchAction.Entered:
+                if (e.InContact)
+                {
+                    fingerContacts[e.Id] = ToDocument(e.Location);
+                }
+
+                break;
+
+            case SKTouchAction.Moved:
+                if (e.InContact)
+                {
+                    var moved = ToDocument(e.Location);
+                    fingerContacts[e.Id] = moved;
+                    TrackCloseSwipe(e.Id, moved);
+                }
+
+                break;
+
+            case SKTouchAction.Released:
+            case SKTouchAction.Cancelled:
+                ForgetFinger(e.Id);
+                break;
+
+            // Leaving the note is not letting go: a finger that is still down has its release ahead
+            // of it, and the gesture keeps following it until then.
+            case SKTouchAction.Exited:
+                if (!e.InContact)
+                {
+                    ForgetFinger(e.Id);
+                }
+
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Gives up on a contact of a surface that does not draw with it - whether it was lifted,
+    /// cancelled or merely dragged off the note - and ends the swipe that was following it, so a card
+    /// that was being dragged goes back to where it was.
+    /// </summary>
+    private void ForgetFinger(long id)
+    {
+        fingerContacts.Remove(id);
+
+        if (closeSwipeId == id)
+        {
+            EndCloseSwipe();
+        }
+    }
+
+    /// <summary>
+    /// Starts following a finger for the swipe that drags the card out of the editor. Only a single
+    /// finger that is the first one down qualifies: a second finger means a gesture (a tap, a pinch),
+    /// not a swipe out of the editor.
+    /// </summary>
+    private void BeginCloseSwipe(long id, SKPoint location)
+    {
+        if (!CloseOnSwipeDown || fingerContacts.Count > 1)
+        {
+            EndCloseSwipe();
+            return;
+        }
+
+        closeSwipeId = id;
+        closeSwipeStart = location;
+        isCloseSwipeTracking = true;
+    }
+
+    /// <summary>
+    /// Follows the finger of a downward swipe and reports where it is - see
+    /// <see cref="CloseSwipeMoved"/>. Nothing is asked of the card here: the page turns the finger's
+    /// position into the drag the finger sees and decides when letting go closes the editor.
+    /// <para>
+    /// The swipe has to stay roughly vertical, and no pen may be on the surface, so writing with the
+    /// pen cannot drag the card away by accident. A swipe that drifts sideways is given up on rather
+    /// than followed, which tells the page to put the card back.
+    /// </para>
+    /// </summary>
+    private void TrackCloseSwipe(long id, SKPoint location)
+    {
+        if (!isCloseSwipeTracking || closeSwipeId != id)
+        {
+            return;
+        }
+
+        if (fingerContacts.Count != 1 || IsStylusDown)
+        {
+            EndCloseSwipe();
+            return;
+        }
+
+        var travelX = location.X - closeSwipeStart.X;
+        var travelY = location.Y - closeSwipeStart.Y;
+
+        // A finger that has barely moved is still arriving rather than swiping, and reporting it
+        // would nudge the card for a touch that was only ever meant to be a touch.
+        if (Math.Abs(travelY) <= SwipeSlop)
+        {
+            return;
+        }
+
+        // Judged only once the finger has actually travelled: before that it is still settling, and
+        // a pixel of noise to the side would give the swipe up before it started.
+        if (Math.Abs(travelX) > Math.Abs(travelY) * MaxSwipeSkew)
+        {
+            EndCloseSwipe();
+            return;
+        }
+
+        CloseSwipeMoved?.Invoke(this, new CloseSwipeMove(travelY, closeSwipeStart.Y));
+    }
+
+    /// <summary>
+    /// Gives up on the finger of a swipe out of the editor and tells the page, so a card that was
+    /// being dragged can go back to where it was. Called whenever the finger lifts, a second contact
+    /// arrives, or the drag turns out to be something else.
+    /// </summary>
+    private void EndCloseSwipe()
+    {
+        if (!isCloseSwipeTracking)
+        {
+            return;
+        }
+
+        isCloseSwipeTracking = false;
+        closeSwipeId = null;
+        CloseSwipeEnded?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
