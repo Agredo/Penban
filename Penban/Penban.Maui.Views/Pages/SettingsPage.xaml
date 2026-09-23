@@ -204,6 +204,27 @@
                     </VerticalStackLayout>
                 </Border>
 
+                <Label Text="{markup:Translate SettingsSupportSection}"
+                       Style="{StaticResource CaptionLabel}"
+                       Margin="0,6,0,0" />
+
+                <!-- The form itself lives on its own page, so this row is a plain navigation row. -->
+                <Border Style="{StaticResource CardBorder}" Padding="16,6">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnFeedbackClicked" />
+                        </Grid.GestureRecognizers>
+                        <Label Grid.Column="0"
+                               Text="{markup:Translate FeedbackTitle}"
+                               Style="{StaticResource BodyLabel}"
+                               VerticalOptions="Center" />
+                        <Label Grid.Column="1"
+                               Text="&#xf2b1;"
+                               Style="{StaticResource IconLabel}"
+                               VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+
             </VerticalStackLayout>
         </ScrollView>
     </Grid>

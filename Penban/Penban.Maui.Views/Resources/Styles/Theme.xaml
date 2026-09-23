@@ -77,6 +77,11 @@
         <Setter Property="VerticalTextAlignment" Value="Center" />
     </Style>
 
+    <!-- Caption of a form field, sitting above its input. -->
+    <Style x:Key="FieldLabel" TargetType="Label" BasedOn="{StaticResource CaptionLabel}">
+        <Setter Property="FontFamily" Value="OpenSansSemibold" />
+    </Style>
+
     <!-- ============ Surfaces ============ -->
     <!-- Elevated card: surface fill, hairline border, soft shadow. -->
     <Style x:Key="CardBorder" TargetType="Border">
@@ -93,6 +98,14 @@
                         Offset="0,2" />
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- Filled surface behind an input control (Entry/Editor/Picker), inset from the card it sits in. -->
+    <Style x:Key="InputSurface" TargetType="Border">
+        <Setter Property="Background"
+                Value="{AppThemeBinding Light={StaticResource SurfaceSecondaryLight}, Dark={StaticResource SurfaceSecondaryDark}}" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 10" />
     </Style>
 
     <!-- ============ Buttons ============ -->

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             x:Class="Penban.Maui.Views.Pages.FeedbackPage"
+             Title="{markup:Translate FeedbackTitle}"
+             Shell.NavBarIsVisible="False"
+             Style="{StaticResource AppPage}">
+    <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
+
+        <!-- Own header instead of the Shell nav bar, like every other page in the app. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+            <Button Grid.Column="0"
+                    Text="&#xf15c;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnBackClicked"
+                    SemanticProperties.Description="{markup:Translate FeedbackTitle}" />
+            <Label Grid.Column="1"
+                   Text="{markup:Translate FeedbackTitle}"
+                   Style="{StaticResource TitleLabel}"
+                   VerticalOptions="Center" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="16">
+
+                <Label Text="{markup:Translate FeedbackSubtitle}"
+                       Style="{StaticResource CaptionLabel}" />
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="16">
+
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="{markup:Translate FeedbackCategory}"
+                                   Style="{StaticResource FieldLabel}" />
+                            <Border Style="{StaticResource InputSurface}" Padding="12,2">
+                                <Picker ItemsSource="{Binding Categories}"
+                                        ItemDisplayBinding="{Binding DisplayName}"
+                                        SelectedItem="{Binding SelectedCategory}" />
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="{markup:Translate FeedbackDescription}"
+                                   Style="{StaticResource FieldLabel}" />
+                            <Border Style="{StaticResource InputSurface}" Padding="12,8">
+                                <Editor Text="{Binding Description}"
+                                        Placeholder="{markup:Translate FeedbackDescriptionPlaceholder}"
+                                        PlaceholderColor="{AppThemeBinding Light={StaticResource TextTertiaryLight}, Dark={StaticResource TextTertiaryDark}}"
+                                        TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}"
+                                        AutoSize="TextChanges"
+                                        MinimumHeightRequest="100" />
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="{markup:Translate FeedbackEmail}"
+                                   Style="{StaticResource FieldLabel}" />
+                            <Border Style="{StaticResource InputSurface}" Padding="12,2">
+                                <Entry Text="{Binding Email}"
+                                       Keyboard="Email"
+                                       Placeholder="{markup:Translate FeedbackEmailPlaceholder}"
+                                       PlaceholderColor="{AppThemeBinding Light={StaticResource TextTertiaryLight}, Dark={StaticResource TextTertiaryDark}}"
+                                       TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                            </Border>
+                            <Label Text="{markup:Translate FeedbackEmailHint}"
+                                   Style="{StaticResource CaptionLabel}" />
+                        </VerticalStackLayout>
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Not bound to the command but handled in code-behind: the page has to wait for
+                     the submit to finish before it knows whether it may close itself. -->
+                <Button Text="{markup:Translate FeedbackSubmit}"
+                        Style="{StaticResource PrimaryButton}"
+                        Clicked="OnSubmitClicked"
+                        IsEnabled="{Binding IsNotBusy}"
+                        HorizontalOptions="Fill" />
+
+                <ActivityIndicator HorizontalOptions="Center"
+                                   IsRunning="{Binding IsBusy}"
+                                   IsVisible="{Binding IsBusy}" />
+
+                <!-- BugBear is the service behind the form, so it gets the credit and a link. -->
+                <VerticalStackLayout Margin="0,4,0,0" HorizontalOptions="Center" Spacing="6">
+                    <Image Source="bugbear_logo.png"
+                           HeightRequest="40"
+                           HorizontalOptions="Center" />
+                    <Label Text="{markup:Translate FeedbackPoweredBy}"
+                           Style="{StaticResource CaptionLabel}"
+                           TextColor="{AppThemeBinding Light={StaticResource AccentLight}, Dark={StaticResource AccentDark}}"
+                           TextDecorations="Underline">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnBugBearLinkTapped" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>
