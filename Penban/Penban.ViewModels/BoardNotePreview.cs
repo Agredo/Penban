@@ -33,14 +33,24 @@ public sealed class BoardNotePreview
     private const double FanLift = 3;
 
     public BoardNotePreview(Card card, int index, int count)
+        : this(card.Id, card.Strokes, card.NoteColorIndex, index, count)
     {
-        Strokes = card.Strokes;
-        NoteColorIndex = card.NoteColorIndex ?? NoteStyle.PaperIndexFor(card.Id);
+    }
+
+    /// <summary>
+    /// One note of the fan that is not a card: the board's own note, which stands for the whole
+    /// board and therefore has no card behind it. It is placed by the same rules, so it keeps its
+    /// own paper colour and its own hand-placed tilt and only takes its place in the fan from here.
+    /// </summary>
+    public BoardNotePreview(Guid id, IReadOnlyList<InkStroke> strokes, int? colorIndex, int index, int count)
+    {
+        Strokes = strokes;
+        NoteColorIndex = colorIndex ?? NoteStyle.PaperIndexFor(id);
 
         var slots = Slots[Math.Clamp(count, 1, Slots.Length) - 1];
         var slot = slots[Math.Clamp(index, 0, slots.Length - 1)];
 
-        Tilt = NoteStyle.TiltFor(card.Id) + (slot * FanAngle);
+        Tilt = NoteStyle.TiltFor(id) + (slot * FanAngle);
         OffsetX = slot * FanSpacing;
         OffsetY = slot == 0 ? 0 : -FanLift;
     }

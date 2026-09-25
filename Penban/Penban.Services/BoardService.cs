@@ -64,6 +64,23 @@ public class BoardService : IBoardService
     }
 
     /// <summary>
+    /// Stores the board's own note. The strokes are copied so the caller can keep drawing into its
+    /// own list, and a note without strokes is removed rather than kept as an empty one.
+    /// </summary>
+    public async Task SaveBoardNoteAsync(Guid boardId, IReadOnlyList<InkStroke> strokes, int? colorIndex)
+    {
+        var board = await FindBoardAsync(boardId);
+        if (board is null)
+        {
+            return;
+        }
+
+        board.NoteStrokes = strokes.Count == 0 ? [] : strokes.ToList();
+        board.NoteColorIndex = strokes.Count == 0 ? null : colorIndex;
+        await repository.SaveAsync(board);
+    }
+
+    /// <summary>
     /// Deletes the board together with every card in it. The cards are removed outright rather than
     /// flagged: they are only reachable through the columns of this board, so once the board is gone
     /// nothing could ever open them again.

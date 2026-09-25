@@ -11,7 +11,7 @@ namespace Penban.ViewModels;
 /// Represents a single card. Card content is exclusively the handwritten ink strokes held
 /// by <see cref="InkCanvas"/>; there is no typed-text content.
 /// </summary>
-public partial class CardViewModel : ObservableObject
+public partial class CardViewModel : ObservableObject, INoteEditorTarget
 {
     private readonly ICardService cardService;
     private readonly IDialogService dialogService;

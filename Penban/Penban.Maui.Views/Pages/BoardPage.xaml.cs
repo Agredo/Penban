@@ -119,6 +119,10 @@ public partial class BoardPage : ContentPage
             return;
         }
 
+        // Whether the board carries a note is the one thing the header shows about it, and it
+        // changes in the editor - so it is re-read before either branch below.
+        UpdateBoardNoteButton();
+
         if (isLoaded)
         {
             // Coming back from the ink editor. The card the editor worked on is the very instance
@@ -511,6 +515,33 @@ public partial class BoardPage : ContentPage
         {
             RebuildKanbanCards();
         }
+    }
+
+    /// <summary>
+    /// Opens the ink editor for the board's own note - the note that stands for the whole board and
+    /// shows up on the overview and on the home screen. There is no separate "create" step: a board
+    /// that has no note gets one by writing on it, and a note that is erased again is dropped.
+    /// </summary>
+    private async void OnBoardNoteClicked(object? sender, EventArgs e)
+    {
+        if (viewModel is null)
+        {
+            return;
+        }
+
+        await Navigation.PushModalAsync(new CardInkEditorPage(viewModel.CreateNoteEditor(), preferences));
+        UpdateBoardNoteButton();
+    }
+
+    /// <summary>
+    /// Lights the note button while the board carries a note, so the header says whether there is
+    /// one without the note having to be opened.
+    /// </summary>
+    private void UpdateBoardNoteButton()
+    {
+        var resources = Application.Current!.Resources;
+        var hasNote = viewModel?.HasNote ?? false;
+        BoardNoteButton.Style = (Style)resources[hasNote ? "AccentIconButton" : "GhostIconButton"];
     }
 
     private async void OnCardTapped(object? sender, TappedEventArgs e)

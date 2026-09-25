@@ -143,6 +143,12 @@ public class DataTransferService : IDataTransferService
                 Id = Guid.NewGuid(),
                 Title = source.Title,
                 UpdatedAtUtc = source.UpdatedAtUtc,
+
+                // The note belongs to the board, so it travels with it: importing a board that had
+                // one must not quietly lose the only note that says what the board is about. The
+                // strokes are handed on by reference, like a card's.
+                NoteStrokes = source.NoteStrokes,
+                NoteColorIndex = source.NoteColorIndex,
             };
 
             foreach (var sourceColumn in source.Columns)
