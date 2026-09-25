@@ -17,8 +17,8 @@
 
     <ApplicationTitle>Penban</ApplicationTitle>
     <ApplicationId>com.agredoapplication.panban</ApplicationId>
-    <ApplicationDisplayVersion>0.3</ApplicationDisplayVersion>
-    <ApplicationVersion>6</ApplicationVersion>
+    <ApplicationDisplayVersion>0.3.1</ApplicationDisplayVersion>
+    <ApplicationVersion>7</ApplicationVersion>
 
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
