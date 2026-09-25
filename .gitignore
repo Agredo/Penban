@@ -25,6 +25,12 @@ project.lock.json
 msbuild.log
 *.received.txt
 
+# Xcode / Widget-Extension
+Penban/Penban.Widget.iOS/build/
+Penban/Penban.Widget.iOS/DerivedData/
+Penban/Penban.Widget.iOS/*.xcodeproj/xcuserdata/
+Penban/Penban.Widget.iOS/*.xcodeproj/project.xcworkspace/
+
 # OS
 Thumbs.db
 Desktop.ini

@@ -42,6 +42,13 @@
     <WindowsPackageType Condition="$(TargetFramework.Contains('-windows'))">None</WindowsPackageType>
   </PropertyGroup>
 
+  <!-- The home screen widget: the app and the extension share the App Group container declared
+       here, so both sides have to claim it. Without the file the container is never handed out and
+       the widget stays empty. -->
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+    <CodesignEntitlements>Platforms\iOS\Entitlements.plist</CodesignEntitlements>
+  </PropertyGroup>
+
   <!-- iOS Release builds crash on launch (fatal allocation failure in the native UIKit/Observation
        startup path) when Mono AOT-compiled code is used. Running the assemblies with the Mono
        interpreter instead of AOT avoids it. `RunAOTCompilation=false` alone has no effect - only
@@ -94,5 +101,42 @@
     <ProjectReference Include="..\Penban.Services\Penban.Services.csproj" />
     <ProjectReference Include="..\Penban.Data\Penban.Data.csproj" />
   </ItemGroup>
+
+  <!-- Where the Xcode project leaves the built extension: scripts/ios-widget.sh writes the .appex
+       into build/<Configuration>-iphoneos, one folder per configuration the way Xcode does it. -->
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+    <WidgetExtensionDir>$(MSBuildProjectDirectory)/../Penban.Widget.iOS/build</WidgetExtensionDir>
+    <WidgetExtensionOutput>$(Configuration)-iphoneos</WidgetExtensionOutput>
+    <WidgetExtensionPath>$(WidgetExtensionDir)/$(WidgetExtensionOutput)/PenbanWidget.appex</WidgetExtensionPath>
+  </PropertyGroup>
+
+  <!-- The built widget extension is embedded into the app bundle from here. It is a separate Xcode
+       project (Penban/Penban.Widget.iOS) because only Xcode can build one, so the app build only
+       picks up the .appex that project leaves behind - which is why this is guarded by Exists: on a
+       machine without Xcode (this one) the app still builds, just without a widget.
+
+       AdditionalAppExtensions takes the extension's folder and appends BuildOutput to find the
+       .appex, so the two together have to name the folder the bundle sits in.
+
+       The entitlements have to be named as well: embedding copies the .appex into the app bundle and
+       deletes the signature Xcode put on it, so the appex is signed again here - without the App
+       Group it would be signed without access to the folder the app writes the snapshot to, and the
+       widget would stay empty however often the app refreshes it. -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And Exists('$(WidgetExtensionPath)')">
+    <AdditionalAppExtensions Include="$(WidgetExtensionDir)">
+      <Name>PenbanWidget</Name>
+      <BuildOutput>$(WidgetExtensionOutput)</BuildOutput>
+      <CodesignEntitlements>$(MSBuildProjectDirectory)/../Penban.Widget.iOS/Resources/PenbanWidget.entitlements</CodesignEntitlements>
+    </AdditionalAppExtensions>
+  </ItemGroup>
+
+  <!-- Skipping the extension above is silent, and an app that ships without its widget is only
+       noticed on the home screen - so the omission is named. A warning, not an error: without Xcode
+       the app still builds, it just has no widget. -->
+  <Target Name="WarnMissingWidgetExtension"
+          BeforeTargets="Build"
+          Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And !Exists('$(WidgetExtensionPath)')">
+    <Warning Text="No widget extension at Penban.Widget.iOS/build/$(WidgetExtensionOutput)/PenbanWidget.appex - this build has no home screen widget. Build the extension with scripts/ios-widget.sh build." />
+  </Target>
 
 </Project>

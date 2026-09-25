@@ -14,6 +14,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" />
     <PackageReference Include="CommunityToolkit.Maui" />
+    <!-- Draws the board card into a PNG for the home screen widget; the widget shows the image
+         instead of a second renderer of the card. -->
+    <PackageReference Include="Microsoft.Maui.Graphics.Skia" />
     <PackageReference Include="SkiaSharp.Views.Maui.Controls" />
     <PackageReference Include="Syncfusion.Maui.Kanban" />
   </ItemGroup>

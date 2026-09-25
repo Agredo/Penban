@@ -1,4 +1,5 @@
 using Penban.Maui.Views.Services;
+using Penban.Maui.Views.Widget;
 using Penban.Services.Abstractions;
 using Penban.ViewModels;
 using IPreferences = Penban.Services.Abstractions.IPreferences;
@@ -12,6 +13,7 @@ public partial class BoardsPage : ContentPage
     private readonly SettingsViewModel settingsViewModel;
     private readonly FeedbackViewModel feedbackViewModel;
     private readonly TransferCoordinator transferCoordinator;
+    private WidgetSnapshotTrigger? widget;
     private bool isOpeningBoard;
 
     public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, TransferCoordinator transferCoordinator)
@@ -24,13 +26,31 @@ public partial class BoardsPage : ContentPage
         BindingContext = viewModel;
     }
 
-    protected override void OnAppearing()
+    protected override async void OnAppearing()
     {
         base.OnAppearing();
-        if (BindingContext is BoardsViewModel viewModel)
+        if (BindingContext is not BoardsViewModel viewModel)
         {
-            viewModel.LoadBoardsCommand.Execute(null);
+            return;
         }
+
+        // The home screen widget shows a copy of this list, and the overview is the one place that
+        // knows the list is complete again: on every visit, whether the app was just started or a
+        // board was closed with a new note on it.
+        widget ??= new WidgetSnapshotTrigger(viewModel);
+
+        await viewModel.LoadBoardsCommand.ExecuteAsync(null);
+        await widget.RefreshAsync();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+
+        // A page is made per navigation, so the trigger goes with it instead of staying subscribed
+        // to a list that outlives it.
+        widget?.Dispose();
+        widget = null;
     }
 
     /// <summary>

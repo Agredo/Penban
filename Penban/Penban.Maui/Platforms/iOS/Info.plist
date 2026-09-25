@@ -26,6 +26,16 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- The bundled faces, declared so CoreText knows them from launch. MAUI registers the fonts
+	     it is asked for by name, but the widget previews are drawn through SkiaSharp, which resolves
+	     a family against the fonts the system already knows - without this list "Open Sans" falls
+	     back to the system face and the previews no longer match the app. -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>OpenSans-Regular.ttf</string>
+		<string>OpenSans-Semibold.ttf</string>
+		<string>FluentSystemIcons-Regular.ttf</string>
+	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
 	<!-- TestFlight/App Store: the app uses no non-exempt encryption (only standard
