@@ -13,8 +13,10 @@
         <!-- Own header instead of the Shell nav bar: the Windows Shell nav bar renders no back
              button, so the app draws its own and every platform gets the same way back.
              Adding a column belongs here rather than under the board: it acts on the board, not on
-             a single column, and it keeps the whole height of the board free for the notes. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
+             a single column, and it keeps the whole height of the board free for the notes.
+             The note button sits beside it for the same reason: the note belongs to the board, not
+             to a column, and it is what the board shows on the overview and on the home screen. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="6">
             <Button Grid.Column="0"
                     Text="&#xf15c;"
                     Style="{StaticResource GhostIconButton}"
@@ -30,7 +32,15 @@
                     Style="{StaticResource GhostIconButton}"
                     Clicked="OnShareClicked"
                     SemanticProperties.Description="{markup:Translate ShareBoard}" />
-            <Button Grid.Column="3"
+            <!-- Note = U+F56C. Accent while the board carries a note, so the header says at a glance
+                 whether there is one without the button having to be pressed. -->
+            <Button x:Name="BoardNoteButton"
+                    Grid.Column="3"
+                    Text="&#xf56c;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnBoardNoteClicked"
+                    SemanticProperties.Description="{markup:Translate BoardNote}" />
+            <Button Grid.Column="4"
                     Text="&#xf2fd;"
                     Style="{StaticResource AccentIconButton}"
                     Command="{Binding AddColumnCommand}"

@@ -11,12 +11,14 @@ namespace Penban.ViewModels;
 /// <summary>Represents a single board, including its ordered columns.</summary>
 public partial class BoardViewModel : ObservableObject
 {
+    private readonly Board board;
     private readonly IBoardService boardService;
     private readonly ICardService cardService;
     private readonly IDialogService dialogService;
 
     public BoardViewModel(Board board, IBoardService boardService, ICardService cardService, IDialogService dialogService)
     {
+        this.board = board;
         Id = board.Id;
         title = board.Title;
         LastEditedUtc = board.UpdatedAtUtc;
@@ -37,6 +39,18 @@ public partial class BoardViewModel : ObservableObject
 
     /// <summary>Tilt of this board's note in degrees.</summary>
     public double NoteTilt => NoteStyle.TiltFor(Id);
+
+    /// <summary>
+    /// Whether the board carries a note of its own. This is the board's single note - the one shown
+    /// on the board card and on the home screen - not one of the cards on it.
+    /// </summary>
+    public bool HasNote => board.NoteStrokes.Count > 0;
+
+    /// <summary>
+    /// A fresh editing session for the board's own note. It works on the very board this view model
+    /// was built from, so the note it writes is the one the overview row reads when it comes back.
+    /// </summary>
+    public BoardNoteViewModel CreateNoteEditor() => new(board, boardService, dialogService);
 
     [ObservableProperty]
     private string title;
@@ -81,6 +95,11 @@ public partial class BoardViewModel : ObservableObject
     /// </summary>
     public async Task LoadSummaryAsync()
     {
+        // The board's own note leads the stack of the board card, so it takes one of the few places
+        // the overview fans out and the written cards fill the rest.
+        var hasNote = HasNote;
+        var cardLimit = hasNote ? PreviewNoteLimit - 1 : PreviewNoteLimit;
+
         var count = 0;
         var lastEdited = LastEditedUtc;
         var previews = new List<Card>();
@@ -97,7 +116,7 @@ public partial class BoardViewModel : ObservableObject
                 lastEdited = card.UpdatedAtUtc > lastEdited ? card.UpdatedAtUtc : lastEdited;
 
                 // Only notes that were actually written on say something about the board.
-                if (card.Strokes.Count > 0 && previews.Count < PreviewNoteLimit)
+                if (card.Strokes.Count > 0 && previews.Count < cardLimit)
                 {
                     previews.Add(card);
                 }
@@ -106,7 +125,7 @@ public partial class BoardViewModel : ObservableObject
 
         LastEditedUtc = lastEdited;
 
-        if (previews.Count == 0)
+        if (previews.Count == 0 && !hasNote)
         {
             // A board nobody has written on still gets a note to look at: blank, but in the paper
             // colour and tilt of the board itself, since both are derived from the id.
@@ -114,9 +133,18 @@ public partial class BoardViewModel : ObservableObject
         }
 
         PreviewNotes.Clear();
+
+        var total = previews.Count + (hasNote ? 1 : 0);
         for (var index = 0; index < previews.Count; index++)
         {
-            PreviewNotes.Add(new BoardNotePreview(previews[index], index, previews.Count));
+            PreviewNotes.Add(new BoardNotePreview(previews[index], index, total));
+        }
+
+        if (hasNote)
+        {
+            // Added last, because the last place of the fan is the one drawn on top: the note that
+            // stands for the whole board belongs in front of the cards underneath it.
+            PreviewNotes.Add(new BoardNotePreview(Id, board.NoteStrokes, board.NoteColorIndex, total - 1, total));
         }
 
         CardCount = count;

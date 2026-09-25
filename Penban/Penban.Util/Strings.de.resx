@@ -388,4 +388,10 @@
   <data name="FeedbackPoweredBy" xml:space="preserve">
     <value>Powered by BugBear</value>
   </data>
+  <data name="BoardNote" xml:space="preserve">
+    <value>Board-Notiz</value>
+  </data>
+  <data name="DeleteBoardNoteConfirmation" xml:space="preserve">
+    <value>Die Notiz dieses Boards löschen?</value>
+  </data>
 </root>

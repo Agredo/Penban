@@ -11,6 +11,12 @@ public interface IBoardService
 
     Task RenameBoardAsync(Guid boardId, string title);
 
+    /// <summary>
+    /// Stores the board's own note. Passing no strokes deletes the note, so a board the user cleared
+    /// falls back to the plain board card instead of showing an empty note.
+    /// </summary>
+    Task SaveBoardNoteAsync(Guid boardId, IReadOnlyList<InkStroke> strokes, int? colorIndex);
+
     /// <summary>Deletes the board and removes every card it contained from the database.</summary>
     Task DeleteBoardAsync(Guid boardId);
 

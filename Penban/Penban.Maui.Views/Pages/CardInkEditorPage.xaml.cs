@@ -11,7 +11,10 @@ using IPreferences = Penban.Services.Abstractions.IPreferences;
 namespace Penban.Maui.Views.Pages;
 
 /// <summary>
-/// Dedicated ink editor for one card, opened from the board to keep Kanban card templates lightweight.
+/// Dedicated ink editor for one note, opened from the board to keep Kanban card templates
+/// lightweight. The note is either a card of the board or the board's own note - both are written
+/// the same way, and only the target behind <see cref="INoteEditorTarget"/> says which of the two
+/// the ink is written back to.
 /// </summary>
 public partial class CardInkEditorPage : ContentPage
 {
@@ -121,7 +124,7 @@ public partial class CardInkEditorPage : ContentPage
         Strings.PenThicknessExtraBold,
     ];
 
-    private readonly CardViewModel cardViewModel;
+    private readonly INoteEditorTarget noteTarget;
     private readonly IPreferences preferences;
     private readonly List<StickyNoteBorder> swatches = [];
     private readonly List<Border> penSwatches = [];
@@ -152,16 +155,16 @@ public partial class CardInkEditorPage : ContentPage
     /// </summary>
     private Point? radialMenuOrigin;
 
-    public CardInkEditorPage(CardViewModel cardViewModel, IPreferences preferences)
+    public CardInkEditorPage(INoteEditorTarget noteTarget, IPreferences preferences)
     {
         InitializeComponent();
-        this.cardViewModel = cardViewModel;
+        this.noteTarget = noteTarget;
         this.preferences = preferences;
 
         // Attaching the store also restores the renderer and the drawing settings, so it has to
         // happen before anything is loaded into the host.
         InkHost.Preferences = preferences;
-        InkHost.LoadStrokes(cardViewModel.InkCanvas.Strokes);
+        InkHost.LoadStrokes(noteTarget.InkCanvas.Strokes);
         InkHost.StrokeCompleted += OnStrokeCompleted;
         InkHost.IsEraserModeChanged += OnEraserModeChanged;
 
@@ -179,7 +182,7 @@ public partial class CardInkEditorPage : ContentPage
         InkHost.MenuRequested += OnMenuRequested;
         RadialMenu.ChoiceRequested += OnRadialMenuChoiceRequested;
 
-        NoteSurface.NoteColorIndex = cardViewModel.NoteColorIndex;
+        NoteSurface.NoteColorIndex = noteTarget.NoteColorIndex;
         NoteArea.SizeChanged += OnNoteAreaSizeChanged;
         BuildColorPicker();
         BuildPenColorPicker();
@@ -275,12 +278,12 @@ public partial class CardInkEditorPage : ContentPage
         // card already happened to have it.
         preferences.Set(PreferenceKeys.NoteLastColorIndex, index.ToString());
 
-        if (cardViewModel.NoteColorIndex == index)
+        if (noteTarget.NoteColorIndex == index)
         {
             return;
         }
 
-        cardViewModel.NoteColorIndex = index;
+        noteTarget.NoteColorIndex = index;
         NoteSurface.NoteColorIndex = index;
         UpdateColorPicker();
 
@@ -291,7 +294,7 @@ public partial class CardInkEditorPage : ContentPage
     /// <summary>Marks the active colour: the chosen note is raised and outlined, like a picked-up slip.</summary>
     private void UpdateColorPicker()
     {
-        var chosen = cardViewModel.NoteColorIndex;
+        var chosen = noteTarget.NoteColorIndex;
         for (var index = 0; index < swatches.Count; index++)
         {
             var isChosen = index == chosen;
@@ -370,10 +373,10 @@ public partial class CardInkEditorPage : ContentPage
 
     private void OnStrokeCompleted(object? sender, EventArgs e)
     {
-        cardViewModel.InkCanvas.Clear();
+        noteTarget.InkCanvas.Clear();
         foreach (var stroke in InkHost.GetStrokes())
         {
-            cardViewModel.InkCanvas.AddStroke(stroke);
+            noteTarget.InkCanvas.AddStroke(stroke);
         }
 
         UpdateToolButtons();
@@ -409,12 +412,12 @@ public partial class CardInkEditorPage : ContentPage
         saveVersion++;
 
         // A deleted card must never be written again: doing so would clear its soft-delete flag.
-        if (cardViewModel.IsDeleted)
+        if (noteTarget.IsDeleted)
         {
             return;
         }
 
-        await cardViewModel.SaveCommand.ExecuteAsync(null);
+        await noteTarget.SaveCommand.ExecuteAsync(null);
     }
 
     protected override void OnDisappearing()
@@ -478,8 +481,8 @@ public partial class CardInkEditorPage : ContentPage
 
     private async void OnDeleteClicked(object? sender, EventArgs e)
     {
-        await cardViewModel.DeleteCommand.ExecuteAsync(null);
-        if (cardViewModel.IsDeleted)
+        await noteTarget.DeleteCommand.ExecuteAsync(null);
+        if (noteTarget.IsDeleted)
         {
             await Navigation.PopModalAsync();
         }
