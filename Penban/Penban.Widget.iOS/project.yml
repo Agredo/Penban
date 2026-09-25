@@ -1,0 +1,53 @@
+# XcodeGen-Definition der Widget-Extension. Erzeugt aus den Dateien in diesem Ordner das
+# Xcode-Projekt:
+#
+#   brew install xcodegen
+#   cd Penban/Penban.Widget.iOS
+#   xcodegen generate
+#
+# Die Extension ist ein eigenes Xcode-Projekt, weil nur Xcode eine .appex bauen kann. Der
+# MAUI-Build bettet das fertige Bundle über `AdditionalAppExtensions` in die App ein - siehe
+# Penban/Penban.Maui/Penban.Maui.csproj. Wer XcodeGen nicht benutzen will, legt das Ziel von Hand
+# an; die Schritt-für-Schritt-Anleitung steht in README.md.
+name: PenbanWidget
+
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    # Muss das Team sein, mit dem die App signiert wird - eine Extension aus einem fremden Team
+    # lässt sich nicht in das App-Bundle einbetten.
+    DEVELOPMENT_TEAM: NTMYS336K2
+
+targets:
+  PenbanWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Resources/Localizable.xcstrings
+    settings:
+      base:
+        PRODUCT_NAME: PenbanWidget
+        PRODUCT_BUNDLE_IDENTIFIER: com.agredoapplication.panban.WidgetExtension
+        INFOPLIST_FILE: Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Resources/PenbanWidget.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        # Muss zu ApplicationDisplayVersion / ApplicationVersion in Penban.Maui.csproj passen;
+        # App Store Connect weist eine Extension mit abweichender Version zurück.
+        MARKETING_VERSION: "0.3"
+        CURRENT_PROJECT_VERSION: "6"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: YES
+        SWIFT_EMIT_LOC_STRINGS: YES
+        LD_RUNPATH_SEARCH_PATHS:
+          - $(inherited)
+          - "@executable_path/Frameworks"
+          - "@executable_path/../../Frameworks"

@@ -1,0 +1,54 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "A board from Penban, without the buttons of the overview." : {
+      "comment" : "Description of the widget in the widget gallery.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Board aus Penban, ohne die Knöpfe der Übersicht."
+          }
+        }
+      }
+    },
+    "No boards yet." : {
+      "comment" : "Shown in the widget when the app has written a snapshot that holds no board.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Boards."
+          }
+        }
+      }
+    },
+    "Open Penban to fill this widget." : {
+      "comment" : "Shown in the widget until the app has written its first snapshot.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffne Penban, um das Widget zu füllen."
+          }
+        }
+      }
+    },
+    "The board the widget shows." : {
+      "comment" : "Description of the board choice in the widget's configuration sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Board, das im Widget erscheint."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

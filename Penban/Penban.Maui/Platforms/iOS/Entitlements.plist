@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The home screen widget runs in its own process and reaches none of the app's own folders,
+	     so the two meet in an App Group container: the app writes the snapshot and the previews
+	     there, the widget reads them.
+
+	     The group has to be registered in the Apple Developer Portal and claimed by both the app
+	     and the widget extension; a provisioning profile without it does not match this file and
+	     signing fails. Identifier mirrors WidgetSharedStorage.GroupId. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.agredoapplication.panban</string>
+	</array>
+</dict>
+</plist>
