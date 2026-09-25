@@ -113,7 +113,7 @@ Provisioning Profile.
 3. Die vom Assistenten erzeugten Dateien löschen und die Dateien aus `Sources/` sowie
    `Resources/Localizable.xcstrings` ins Ziel ziehen.
 4. Ziel-Einstellungen → General: Bundle Identifier `com.agredoapplication.panban.WidgetExtension`,
-   Version `0.3`, Build `6`, Minimum Deployments **iOS 17.0** (nötig für
+   Version `0.3.1`, Build `7`, Minimum Deployments **iOS 17.0** (nötig für
    `containerBackground(for: .widget)`), Signing Team `NTMYS336K2`.
 5. Signing & Capabilities → **+ Capability** → App Groups → `group.com.agredoapplication.panban`.
 6. Build Settings: `INFOPLIST_FILE` = `Resources/Info.plist`, `GENERATE_INFOPLIST_FILE` = No,
