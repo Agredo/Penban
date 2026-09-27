@@ -17,6 +17,13 @@ public sealed class InkPreviewView : GraphicsView, IDrawable
         default(IEnumerable<InkStroke>),
         propertyChanged: OnStrokesSourceChanged);
 
+    public static readonly BindableProperty SourceRectProperty = BindableProperty.Create(
+        nameof(SourceRect),
+        typeof(RectF?),
+        typeof(InkPreviewView),
+        default(RectF?),
+        propertyChanged: (bindable, _, _) => ((InkPreviewView)bindable).Invalidate());
+
     private INotifyCollectionChanged? observedCollection;
 
     public InkPreviewView()
@@ -30,7 +37,18 @@ public sealed class InkPreviewView : GraphicsView, IDrawable
         set => SetValue(StrokesSourceProperty, value);
     }
 
-    public void Draw(ICanvas canvas, RectF dirtyRect) => InkRenderer.Draw(canvas, StrokesSource, dirtyRect);
+    /// <summary>
+    /// Part of the ink document to show, in document units. The whole document by default; a note that
+    /// follows its content hands in the part its ink uses, so the drawing fills the note.
+    /// </summary>
+    public RectF? SourceRect
+    {
+        get => (RectF?)GetValue(SourceRectProperty);
+        set => SetValue(SourceRectProperty, value);
+    }
+
+    public void Draw(ICanvas canvas, RectF dirtyRect) =>
+        InkRenderer.Draw(canvas, StrokesSource, dirtyRect, SourceRect);
 
     private static void OnStrokesSourceChanged(BindableObject bindable, object? oldValue, object? newValue)
     {

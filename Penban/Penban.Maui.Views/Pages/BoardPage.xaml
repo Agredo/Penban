@@ -104,20 +104,22 @@
                          is about 7pt wider than the note - without the margin the corners get
                          clipped at the cell edge.
                          Centre on both axes: the fixed note size only wins over a stretching parent
-                         when the alignment is not Fill, which is what keeps the note square while
-                         it is dragged (the drag overlay hands the card a much taller cell than the
-                         column does).
+                         when the alignment is not Fill, which is what keeps the note at its own size
+                         while it is dragged (the drag overlay hands the card a much taller cell than
+                         the column does).
                          Both sizes come from the card, which is as wide as its column unless the
-                         notes are set to follow their content in the settings. -->
-                    <Grid HeightRequest="{Binding CellSize}"
-                          WidthRequest="{Binding CellSize}"
+                         notes are set to follow their content in the settings - then the note keeps
+                         its usual width but is cut down to the height its ink needs, so it only
+                         takes up the room that needs. -->
+                    <Grid HeightRequest="{Binding CellHeight}"
+                          WidthRequest="{Binding CellWidth}"
                           HorizontalOptions="Center"
                           VerticalOptions="Center">
                         <controls:StickyNoteBorder NoteColorIndex="{Binding Card.NoteColorIndex}"
                                                    NoteTilt="{Binding Card.NoteTilt}"
                                                    Padding="7"
-                                                   HeightRequest="{Binding NoteSize}"
-                                                   WidthRequest="{Binding NoteSize}"
+                                                   HeightRequest="{Binding NoteHeight}"
+                                                   WidthRequest="{Binding NoteWidth}"
                                                    HorizontalOptions="Center"
                                                    VerticalOptions="Center">
                             <controls:StickyNoteBorder.GestureRecognizers>
@@ -126,6 +128,7 @@
                             <controls:InkPreviewView HorizontalOptions="Fill"
                                                      VerticalOptions="Fill"
                                                      BackgroundColor="Transparent"
+                                                     SourceRect="{Binding NoteSource}"
                                                      StrokesSource="{Binding Card.InkCanvas.Strokes}" />
                         </controls:StickyNoteBorder>
                     </Grid>

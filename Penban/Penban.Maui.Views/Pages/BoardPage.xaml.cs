@@ -42,6 +42,18 @@ public partial class BoardPage : ContentPage
     private const double MinNoteSize = 100;
 
     /// <summary>
+    /// Paper the note keeps around its ink. Mirrors the note's padding in BoardPage.xaml, so the ink
+    /// inside a note is laid out in the same box whether the note follows its content or not.
+    /// </summary>
+    private const double NoteInset = 7;
+
+    /// <summary>
+    /// Space a content-driven note keeps around its ink, in document units. Strokes are measured by
+    /// their centre line, so half of the thickest one is added on top of this to keep it inside.
+    /// </summary>
+    private const float InkCropMargin = 24f;
+
+    /// <summary>
     /// Transparent margin the cell keeps around the note, so its rotation and its shadow stay
     /// inside the cell at every note size.
     /// </summary>
@@ -323,7 +335,7 @@ public partial class BoardPage : ContentPage
                     Card = card,
                     Category = column.Id.ToString(),
                     Title = card.Id.ToString()[..8],
-                    NoteSize = NoteSizeFor(card),
+                    Layout = NoteLayoutFor(card),
                 });
             }
         }
@@ -343,24 +355,62 @@ public partial class BoardPage : ContentPage
         Math.Max(MinNoteSize, BoardKanban.ColumnWidth * NoteColumnFill);
 
     /// <summary>
-    /// Side length for one note: a share of the column width, unless the notes are meant to follow
-    /// their content, in which case a note shrinks until the ink on it fills the note.
+    /// Scale the ink is drawn with on a note. This is the scale a full note uses, so a note that only
+    /// takes up the height its ink needs shows that ink at the size it has everywhere else instead of
+    /// shrinking it along with the note.
     /// </summary>
-    private double NoteSizeFor(CardViewModel card)
+    private double InkScale =>
+        Math.Max(1, NoteBaseSize - (2 * NoteInset)) / InkDocument.Size;
+
+    /// <summary>
+    /// Size of one note and the part of the sheet it shows. Unless the notes follow their content,
+    /// that is the whole sheet at the usual note size. With it, the note keeps the width it always
+    /// had - a share of the column - but only as much height as its ink needs: the sheet is cut above
+    /// and below the drawing, so a note with little on it stops carrying a block of blank paper.
+    /// Horizontally nothing moves, so the ink stays the size and in the place it always had.
+    /// </summary>
+    private NoteLayout NoteLayoutFor(CardViewModel card)
     {
         var baseSize = NoteBaseSize;
+        var wholeSheet = new NoteLayout(
+            baseSize,
+            baseSize,
+            new RectF(0f, 0f, InkDocument.Size, InkDocument.Size));
+
         if (!autoSizeCards
             || card.InkCanvas.Strokes.Count == 0
             || !InkDocument.TryGetBounds(card.InkCanvas.Strokes, out var bounds)
             || bounds.MaxExtent <= 0)
         {
-            return baseSize;
+            return wholeSheet;
         }
 
-        // The strokes live on a fixed square sheet; the note is the same sheet at a different size,
-        // so the share of the sheet the ink uses is the share of the note it may fill.
-        var share = Math.Min(1, bounds.MaxExtent / InkDocument.Size);
-        return Math.Clamp(baseSize * share, MinNoteSize, baseSize);
+        var scale = InkScale;
+
+        // Cut above and below the ink, keeping the room the strokes themselves need: they are
+        // measured along their centre line, so half of the thickest one is added to the margin.
+        var margin = InkCropMargin + (ThickestStroke(card) / 2f);
+        var top = Math.Max(0f, bounds.MinY - margin);
+        var bottom = Math.Min(InkDocument.Size, bounds.MaxY + margin);
+        var cropHeight = Math.Max(bottom - top, 1f);
+
+        // The full width of the sheet stays in view, so the ink lands where it always did.
+        return new NoteLayout(
+            baseSize,
+            (cropHeight * scale) + (2 * NoteInset),
+            new RectF(0f, top, InkDocument.Size, cropHeight));
+    }
+
+    /// <summary>Width of the thickest stroke on the card, in document units.</summary>
+    private static float ThickestStroke(CardViewModel card)
+    {
+        var thickness = 0f;
+        foreach (var stroke in card.InkCanvas.Strokes)
+        {
+            thickness = MathF.Max(thickness, stroke.Thickness);
+        }
+
+        return thickness;
     }
 
     /// <summary>
@@ -384,10 +434,10 @@ public partial class BoardPage : ContentPage
 
         foreach (var card in viewModel.Columns.SelectMany(column => column.Cards))
         {
-            var size = NoteSizeFor(card);
-            if (shown.TryGetValue(card.Id, out var item) && Math.Abs(item.NoteSize - size) >= 0.5)
+            var layout = NoteLayoutFor(card);
+            if (shown.TryGetValue(card.Id, out var item) && item.Layout != layout)
             {
-                item.NoteSize = size;
+                item.Layout = layout;
                 changed = true;
             }
         }
@@ -616,7 +666,10 @@ public partial class BoardPage : ContentPage
 
     public sealed class BoardKanbanCard : INotifyPropertyChanged
     {
-        private double noteSize = DefaultNoteSize;
+        private NoteLayout layout = new(
+            DefaultNoteSize,
+            DefaultNoteSize,
+            new RectF(0f, 0f, InkDocument.Size, InkDocument.Size));
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -628,30 +681,57 @@ public partial class BoardPage : ContentPage
 
         public string Title { get; init; } = string.Empty;
 
-        /// <summary>Side length of the note, and of the transparent cell that holds it.</summary>
-        public double NoteSize
+        /// <summary>
+        /// Size of the note and the part of the sheet it shows. Comes from the ink the card carries,
+        /// see <see cref="NoteLayoutFor"/>.
+        /// </summary>
+        public NoteLayout Layout
         {
-            get => noteSize;
+            get => layout;
             set
             {
-                if (Math.Abs(noteSize - value) < 0.5)
+                if (layout == value)
                 {
                     return;
                 }
 
-                noteSize = value;
-                Raise(nameof(NoteSize));
-                Raise(nameof(CellSize));
+                layout = value;
+                Raise(nameof(NoteWidth));
+                Raise(nameof(NoteHeight));
+                Raise(nameof(NoteSource));
+                Raise(nameof(CellWidth));
+                Raise(nameof(CellHeight));
             }
         }
+
+        /// <summary>Width of the note.</summary>
+        public double NoteWidth => layout.Width;
+
+        /// <summary>Height of the note.</summary>
+        public double NoteHeight => layout.Height;
+
+        /// <summary>Part of the ink document the note shows.</summary>
+        public RectF NoteSource => layout.Source;
 
         /// <summary>
         /// The note plus the margin its rotation and its shadow need, so the corners are never cut
         /// off at the cell edge.
         /// </summary>
-        public double CellSize => NoteSize + (2 * NoteCellPadding);
+        public double CellWidth => NoteWidth + (2 * NoteCellPadding);
+
+        /// <summary>See <see cref="CellWidth"/>.</summary>
+        public double CellHeight => NoteHeight + (2 * NoteCellPadding);
 
         private void Raise(string propertyName) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }
+
+/// <summary>
+/// How one note on the board is drawn: the size of its paper and the part of the ink document it
+/// shows. Unless the notes follow their content, the paper is the whole sheet at the usual note size.
+/// </summary>
+/// <param name="Width">Width of the paper, in the units the note's views are laid out in.</param>
+/// <param name="Height">Height of the paper.</param>
+/// <param name="Source">Part of the ink document the note shows, in document units.</param>
+public readonly record struct NoteLayout(double Width, double Height, RectF Source);
