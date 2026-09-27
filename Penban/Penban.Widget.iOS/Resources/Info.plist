@@ -4,6 +4,11 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>Penban</string>
+	<!-- The build does not generate the plist (GENERATE_INFOPLIST_FILE is NO), so the name of the
+	     executable has to be named here as well - without it the app bundle cannot be installed at
+	     all: "PenbanWidget.appex has missing or invalid CFBundleExecutable in its Info.plist". -->
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleName</key>

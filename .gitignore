@@ -41,3 +41,6 @@ Desktop.ini
 *.db-shm
 *.db-wal
 *.log
+
+# Aus project.yml erzeugt (xcodegen generate)
+Penban/Penban.Widget.iOS/PenbanWidget.xcodeproj/
