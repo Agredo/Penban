@@ -28,10 +28,18 @@ public partial class CardInkEditorPage : ContentPage
     private const double PenSwatchSize = 26;
 
     /// <summary>
-    /// Where the finger has to arrive before letting go leaves the editor: four fifths of the way
-    /// down the cell the card is drawn in, the bottom fifth of the screen. Measured from the screen
-    /// rather than from the note, so the same swipe means the same thing however large the note is
-    /// drawn - and far enough down that a hand merely crossing the note cannot reach it.
+    /// How far a drag has to go before letting go leaves the editor, as a share of the note's own
+    /// height. Measured on the note rather than from where the finger landed, so a swipe from the
+    /// upper half of the note is asked for the same drag as one from the lower half - and so a
+    /// larger note asks for a larger drag, the way putting a larger sheet away does.
+    /// </summary>
+    private const double CloseSwipeTravelShare = 0.35;
+
+    /// <summary>
+    /// Where the finger has to arrive at the latest: four fifths of the way down the cell the card
+    /// is drawn in, the bottom fifth of the screen. It caps what a drag can be asked for, because a
+    /// finger that landed low has only that much of the screen left to cross, and it is far enough
+    /// down that a hand merely crossing the note cannot reach it.
     /// </summary>
     private const double CloseSwipeBottomShare = 0.8;
 
@@ -65,8 +73,10 @@ public partial class CardInkEditorPage : ContentPage
 
     /// <summary>
     /// How long the card takes to spring back when the drag did not go far enough. Longer than
-    /// leaving, and with an easing that overshoots, so a drag that was called off reads as the card
-    /// being let go rather than as it stopping dead halfway.
+    /// leaving, so a drag that was called off reads as the card being let go rather than as it
+    /// stopping dead halfway. Only growing back springs: an easing that overshot would carry the
+    /// card past the place it rests and over the row above it, by as much of the drag as was
+    /// carried out, which reads as the card being thrown rather than let go.
     /// </summary>
     private const uint CloseSwipeReturnMilliseconds = 280;
 
@@ -639,8 +649,9 @@ public partial class CardInkEditorPage : ContentPage
 
     /// <summary>
     /// A finger dragging the card down. The card follows the finger and shrinks on the way, the way
-    /// a sheet that is being put away does, and how far it has come is read off where the finger is
-    /// on the screen - so the same swipe means the same thing however the window is shaped.
+    /// a sheet that is being put away does, and how far it has come is measured against a drag of
+    /// its own - a share of the note's height, capped by what is left of the screen below the finger
+    /// - so the same swipe means the same thing wherever on the note it began.
     /// </summary>
     private void OnCloseSwipeMoved(object? sender, CloseSwipeMove move)
     {
@@ -668,12 +679,19 @@ public partial class CardInkEditorPage : ContentPage
         var travelled = Math.Max(0, move.Travel * scale);
         var startY = noteTop + (move.StartY * scale);
 
-        // The finger has to reach the bottom fifth of the screen. A finger that was already there
-        // when the swipe began has nothing left to cross, so the drag still has to be a deliberate
-        // one of its own.
+        // The drag has to be a deliberate one, and the same one wherever on the note the finger
+        // landed: a share of the note's own height. A finger that landed low has less of the screen
+        // left to cross than that, so the bottom fifth caps the drag there - a shorter way to close,
+        // never a longer one. A finger that landed inside the bottom fifth has nothing left to cross
+        // at all, and there the least a drag has to move stands in, as far as the cell still reaches.
+        var line = CloseSwipeBottomShare * NoteArea.Height;
+        var room = Math.Max(NoteArea.Height - startY, 0);
         var limit = Math.Max(
-            (CloseSwipeBottomShare * NoteArea.Height) - startY,
-            CloseSwipeMinimumTravel * NoteArea.Height);
+            Math.Min(CloseSwipeTravelShare * NoteSide, Math.Max(line - startY, 0)),
+            Math.Min(CloseSwipeMinimumTravel * NoteArea.Height, room));
+
+        // Never zero: it is what the drag is measured against.
+        limit = Math.Max(limit, 1);
 
         // Unclamped, so the card can keep giving and shrinking past the limit instead of stopping
         // the moment it is far enough to leave.
@@ -708,7 +726,7 @@ public partial class CardInkEditorPage : ContentPage
 
         if (!leaving)
         {
-            await MoveCardAsync(0, 1, CloseSwipeReturnMilliseconds, Easing.SpringOut);
+            await MoveCardAsync(0, 1, CloseSwipeReturnMilliseconds, Easing.CubicOut, Easing.SpringOut);
             return;
         }
 
@@ -729,11 +747,21 @@ public partial class CardInkEditorPage : ContentPage
     /// Moves the card to where a drag has taken it. The note frame carries the movement rather than
     /// the note itself: the note is a square centred in that cell, so moving it inside a cell of its
     /// own size would have it cut off at the edges on the way.
+    /// <para>
+    /// Growing back can be given an easing of its own: the way back into place must not overshoot,
+    /// or the card would be carried past the place it rests, while growing back may - that is what
+    /// the spring is for.
+    /// </para>
     /// </summary>
-    private Task MoveCardAsync(double translationY, double scale, uint milliseconds, Easing easing) =>
+    private Task MoveCardAsync(
+        double translationY,
+        double scale,
+        uint milliseconds,
+        Easing easing,
+        Easing? scaleEasing = null) =>
         Task.WhenAll(
             NoteFrame.TranslateToAsync(0, translationY, milliseconds, easing),
-            NoteFrame.ScaleToAsync(scale, milliseconds, easing));
+            NoteFrame.ScaleToAsync(scale, milliseconds, scaleEasing ?? easing));
 
     /// <summary>Puts the card back where it rests when it is not being dragged.</summary>
     private void ResetCard()
