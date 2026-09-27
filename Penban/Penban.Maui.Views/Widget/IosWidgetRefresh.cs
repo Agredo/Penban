@@ -14,12 +14,14 @@ namespace Penban.Maui.Views.Widget;
 /// </summary>
 public static class IosWidgetRefresh
 {
+#if IOS
     // The Objective-C runtime is called by hand because WidgetKit has no .NET binding.
     [DllImport(ObjCRuntime.Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
     private static extern IntPtr IntPtr_objc_msgSend(IntPtr receiver, IntPtr selector);
 
     [DllImport(ObjCRuntime.Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
     private static extern void void_objc_msgSend(IntPtr receiver, IntPtr selector);
+#endif
 
     public static void ReloadAllTimelines()
     {
