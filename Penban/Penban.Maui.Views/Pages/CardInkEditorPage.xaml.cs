@@ -84,6 +84,15 @@ public partial class CardInkEditorPage : ContentPage
     private const double ThicknessDotMaxSize = 26;
 
     /// <summary>
+    /// Edge length of one rung of the width ladder that hangs under the width button, and the gap
+    /// between two of them. A rung draws the width itself as a dot, so the rungs are of very different
+    /// sizes, and this is the target they all sit in - wide enough to be pressed with a finger or the
+    /// pencil, like the buttons in the row above.
+    /// </summary>
+    private const double ThicknessRungSize = 44;
+    private const double ThicknessRungSpacing = 4;
+
+    /// <summary>
     /// The blocks of the radial menu, in the order they sit on the ring from the top clockwise: the
     /// two that hold choices, then the three that act the moment they are taken.
     /// </summary>
@@ -128,6 +137,7 @@ public partial class CardInkEditorPage : ContentPage
     private readonly IPreferences preferences;
     private readonly List<StickyNoteBorder> swatches = [];
     private readonly List<Border> penSwatches = [];
+    private readonly List<Border> thicknessRungs = [];
     private int selectedPenColorIndex;
     private int selectedThicknessIndex;
     private int saveVersion;
@@ -186,16 +196,17 @@ public partial class CardInkEditorPage : ContentPage
         NoteArea.SizeChanged += OnNoteAreaSizeChanged;
         BuildColorPicker();
         BuildPenColorPicker();
+        BuildThicknessLadder();
         ApplyToolUi();
         ApplyThickness(PenThickness.NearestIndex(ReadStoredThickness()));
         UpdateToolButtons();
 
 #if IOS
         // Apple Pencil double-tap switches to the eraser, and the pencil's tilt feeds the
-        // calligraphy effect. Only iOS exposes the double-tap; Android's S Pen button has no
-        // equivalent.
+        // calligraphy effect while how hard it is pressed feeds the line width. Only iOS exposes the
+        // double-tap; Android's S Pen button has no equivalent.
         InkHost.Behaviors.Add(new PencilTapBehavior(preferences));
-        InkHost.Behaviors.Add(new PenTiltBehavior(preferences));
+        InkHost.Behaviors.Add(new PenInputBehavior(preferences));
 
         // Two-finger tap undoes, three-finger tap redoes.
         InkHost.Behaviors.Add(new MultiFingerTapBehavior());
@@ -204,10 +215,10 @@ public partial class CardInkEditorPage : ContentPage
 #if WINDOWS
         // The eraser end of a Surface Pen erases while it is held against the surface, and writes
         // again as soon as it is lifted. Two-finger tap undoes, three-finger tap redoes, and the
-        // pen's tilt feeds the calligraphy effect.
+        // pen's tilt and pressure feed the calligraphy effect and the line width.
         InkHost.Behaviors.Add(new PenTailEraserBehavior(preferences));
         InkHost.Behaviors.Add(new MultiFingerTapBehavior());
-        InkHost.Behaviors.Add(new PenTiltBehavior(preferences));
+        InkHost.Behaviors.Add(new PenInputBehavior(preferences));
 #endif
 
         // Android needs nothing here: its tilt and its two- and three-finger taps are read out of
@@ -222,6 +233,10 @@ public partial class CardInkEditorPage : ContentPage
     /// </summary>
     private void OnNoteAreaSizeChanged(object? sender, EventArgs e)
     {
+        // The ladder is placed against the cell it hangs in, so a cell that changed size puts it
+        // somewhere the width button no longer is.
+        CloseThicknessFlyout();
+
         var padding = NoteFrame.Padding;
         var side = Math.Floor(Math.Min(NoteArea.Width - padding.HorizontalThickness, NoteArea.Height - padding.VerticalThickness));
         if (side <= 0 || Math.Abs(NoteSurface.WidthRequest - side) < 1)
@@ -348,6 +363,72 @@ public partial class CardInkEditorPage : ContentPage
             penSwatches[i].StrokeThickness = isChosen ? 3 : 0;
             penSwatches[i].Scale = isChosen ? 1.18 : 1;
         }
+    }
+
+    /// <summary>
+    /// Fills the ladder that hangs under the width button with one rung per width, drawn at the width
+    /// itself and named for a screen reader, so the choice is made on the width rather than on a word
+    /// for it - the same five rungs the ring's width block draws. The rungs are all of the same size
+    /// whatever is drawn inside them, so the width of the ladder is known before it is ever put up and
+    /// it can be placed without having to ask the layout where it ended up first.
+    /// </summary>
+    private void BuildThicknessLadder()
+    {
+        ThicknessLadder.Spacing = ThicknessRungSpacing;
+
+        for (var index = 0; index < PenThickness.Count; index++)
+        {
+            var diameter = ThicknessDotDiameter(index);
+
+            var rung = new Border
+            {
+                Style = (Style)Resources["ThicknessRung"],
+                WidthRequest = ThicknessRungSize,
+                HeightRequest = ThicknessRungSize,
+                Content = new Border
+                {
+                    BackgroundColor = Color.FromArgb(InkColor),
+                    StrokeShape = new Ellipse(),
+                    WidthRequest = diameter,
+                    HeightRequest = diameter,
+                    HorizontalOptions = LayoutOptions.Center,
+                    VerticalOptions = LayoutOptions.Center,
+                },
+            };
+            SemanticProperties.SetDescription(rung, ThicknessNames[index]);
+
+            var chosen = index;
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (_, _) => ApplyThickness(chosen);
+            rung.GestureRecognizers.Add(tap);
+
+            thicknessRungs.Add(rung);
+            ThicknessLadder.Add(rung);
+        }
+
+        ThicknessFlyout.WidthRequest =
+            ThicknessFlyout.Padding.HorizontalThickness
+            + (PenThickness.Count * ThicknessRungSize)
+            + ((PenThickness.Count - 1) * ThicknessRungSpacing);
+    }
+
+    /// <summary>
+    /// Marks the rung of the ladder that is set, the way the ring marks the width block it took, and
+    /// says which width that is on the button that opens the ladder - the glyph on that button is the
+    /// same one for all five, so it is the only thing that tells a reader which is in use.
+    /// </summary>
+    private void UpdateThicknessLadder()
+    {
+        for (var index = 0; index < thicknessRungs.Count; index++)
+        {
+            var isChosen = index == selectedThicknessIndex;
+            thicknessRungs[index].Stroke = isChosen ? new SolidColorBrush(Color.FromArgb(InkColor)) : null;
+            thicknessRungs[index].StrokeThickness = isChosen ? 2 : 0;
+        }
+
+        SemanticProperties.SetDescription(
+            ThicknessButton,
+            string.Format(CultureInfo.CurrentCulture, Strings.PenThicknessFormat, ThicknessNames[selectedThicknessIndex]));
     }
 
     /// <summary>Keeps the tool buttons showing which mode is active and what can be undone.</summary>
@@ -477,6 +558,72 @@ public partial class CardInkEditorPage : ContentPage
     {
         InkHost.Redo();
         UpdateToolButtons();
+    }
+
+    /// <summary>
+    /// Opens the ladder of pen widths under the button, or puts it away again when it is already out -
+    /// so the same button opens and closes it, and there is nothing else to press to get rid of it.
+    /// </summary>
+    private void OnThicknessClicked(object? sender, EventArgs e)
+    {
+        if (ThicknessFlyout.IsVisible)
+        {
+            CloseThicknessFlyout();
+            return;
+        }
+
+        ShowThicknessFlyout();
+    }
+
+    /// <summary>
+    /// Puts the ladder up under the width button. It hangs from the top of the note's cell, which is
+    /// exactly where the row of buttons above it ends, so only the sideways move is left to do. Both
+    /// edges of the cell are respected, so a row scrolled to one end still leaves the ladder within
+    /// the page rather than half outside it. The button is lit while the ladder is out, the way the
+    /// row lights whichever tool is the one drawing.
+    /// </summary>
+    private void ShowThicknessFlyout()
+    {
+        var width = ThicknessFlyout.WidthRequest;
+        var centre = XInNoteArea(ThicknessButton) + (ThicknessButton.Width / 2);
+
+        ThicknessFlyout.TranslationX = Math.Clamp(centre - (width / 2), 0, Math.Max(0, NoteArea.Width - width));
+        ThicknessFlyout.IsVisible = true;
+        ThicknessButton.Style = (Style)Application.Current!.Resources["AccentIconButton"];
+    }
+
+    /// <summary>
+    /// Puts the ladder away and takes the light off the button. The width that was taken stays set and
+    /// the ladder stays where it was, so asking for it again opens it in the same place.
+    /// </summary>
+    private void CloseThicknessFlyout()
+    {
+        ThicknessFlyout.IsVisible = false;
+        ThicknessButton.Style = (Style)Application.Current!.Resources["GhostIconButton"];
+    }
+
+    /// <summary>
+    /// How far a view of the row above the note sits from the left edge of the note's cell. The width
+    /// button hangs in the scrolling row, so its own position is measured from the stack of buttons it
+    /// is in and not from anything the page can use as it stands: the offsets of the views it hangs
+    /// under are added up, the scroll of the row is taken off on the way - scrolling moves the buttons
+    /// without moving the stack that holds them - and the cell, which begins to the right of the page's
+    /// own padding, is taken off at the end.
+    /// </summary>
+    private double XInNoteArea(VisualElement view)
+    {
+        double x = 0;
+        for (Element? node = view; node is VisualElement element && element != NoteArea; node = element.Parent)
+        {
+            x += element.X;
+
+            if (element is ScrollView scroll)
+            {
+                x -= scroll.ScrollX;
+            }
+        }
+
+        return x - NoteArea.X;
     }
 
     private async void OnDeleteClicked(object? sender, EventArgs e)
@@ -783,14 +930,17 @@ public partial class CardInkEditorPage : ContentPage
 
         if (isToolBar)
         {
-            // A ring that is up would be left there without a way of being asked for again.
+            // A ring that is up would be left there without a way of being asked for again, and the
+            // ladder hangs under a button that is about to go away with the rest of the row.
             CloseRadialMenu();
+            CloseThicknessFlyout();
         }
     }
 
     /// <summary>
     /// Colours new strokes with the chosen pen width and remembers it for the next card. Strokes that
-    /// have already been drawn keep the width they were drawn with.
+    /// have already been drawn keep the width they were drawn with. The ladder marks the rung that was
+    /// taken, whichever of the two ways into it the width came from.
     /// </summary>
     private void ApplyThickness(int index)
     {
@@ -798,6 +948,7 @@ public partial class CardInkEditorPage : ContentPage
         var thickness = PenThickness.ValueAt(selectedThicknessIndex);
         InkHost.StrokeThickness = thickness;
         preferences.Set(PreferenceKeys.PenThickness, thickness.ToString(CultureInfo.InvariantCulture));
+        UpdateThicknessLadder();
     }
 
     /// <summary>

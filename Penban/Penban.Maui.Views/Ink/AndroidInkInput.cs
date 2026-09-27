@@ -18,7 +18,7 @@ namespace Penban.Maui.Views.Ink;
 /// Only one ink surface exists at a time; it is held weakly and dropped when its handler goes away,
 /// so a closed editor cannot be woken up by a tap on another page. The tilt setting is re-read on
 /// every contact, so turning it off takes effect on the next stroke. Android only - the Windows and
-/// iOS counterparts are <c>PenTiltBehavior</c> and <c>MultiFingerTapBehavior</c>.
+/// iOS counterparts are <c>PenInputBehavior</c> and <c>MultiFingerTapBehavior</c>.
 /// </para>
 /// </summary>
 public static class AndroidInkInput
