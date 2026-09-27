@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using Penban.ViewModels;
+using IPreferences = Penban.Services.Abstractions.IPreferences;
 
 namespace Penban.Maui.Views.Widget;
 
@@ -29,6 +30,7 @@ public sealed class WidgetSnapshotTrigger : IDisposable
 
     private readonly BoardsViewModel boards;
     private readonly string? folder;
+    private readonly IPreferences? preferences;
     private readonly TimeSpan settle;
     private readonly HashSet<BoardViewModel> watched = [];
     private readonly object gate = new();
@@ -38,7 +40,7 @@ public sealed class WidgetSnapshotTrigger : IDisposable
     private bool disposed;
 
     /// <summary>Watches the overview and writes into the shared folder.</summary>
-    public WidgetSnapshotTrigger(BoardsViewModel boards) : this(boards, null)
+    public WidgetSnapshotTrigger(BoardsViewModel boards, IPreferences? preferences = null) : this(boards, WidgetSharedStorage.Directory, preferences)
     {
     }
 
@@ -46,10 +48,11 @@ public sealed class WidgetSnapshotTrigger : IDisposable
     /// The same against an explicit folder: the shared one in the app, any folder in the checks - and
     /// none at all, which keeps the bookkeeping but writes nothing.
     /// </summary>
-    public WidgetSnapshotTrigger(BoardsViewModel boards, string? folder, TimeSpan? settle = null)
+    public WidgetSnapshotTrigger(BoardsViewModel boards, string? folder, IPreferences? preferences = null, TimeSpan? settle = null)
     {
         this.boards = boards;
         this.folder = folder;
+        this.preferences = preferences;
         this.settle = settle ?? DefaultSettle;
 
         boards.Boards.CollectionChanged += OnBoardsChanged;
@@ -145,7 +148,7 @@ public sealed class WidgetSnapshotTrigger : IDisposable
         }
     }
 
-    private Task WriteAsync() => WidgetSnapshotWriter.UpdateAsync(boards.Boards, folder);
+    private Task WriteAsync() => WidgetSnapshotWriter.UpdateAsync(boards.Boards, folder, WidgetPreferredBoard.Get(preferences));
 
     private bool IsCurrent(long mine)
     {

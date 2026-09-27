@@ -43,11 +43,19 @@ require_macos() {
 }
 
 cmd_generate() {
+  # project.yml ist die Quelle der Wahrheit. Ist XcodeGen vorhanden, wird das Projekt bei jedem
+  # Lauf neu erzeugt: sonst bliebe eine Änderung an project.yml - etwa die Version, die zur App
+  # passen muss - in einem schon vorhandenen Projekt liegen und der Build führe still die alten
+  # Werte mit.
+  if command -v xcodegen >/dev/null 2>&1; then
+    log "Erzeuge PenbanWidget.xcodeproj aus project.yml"
+    (cd "$WIDGET_DIR" && xcodegen generate)
+    return 0
+  fi
+
   [ -d "$PROJECT" ] && return 0
-  command -v xcodegen >/dev/null 2>&1 || die "XcodeGen fehlt. Installieren mit 'brew install xcodegen',
+  die "XcodeGen fehlt. Installieren mit 'brew install xcodegen',
     oder das Xcode-Ziel einmalig von Hand anlegen (siehe Penban/Penban.Widget.iOS/README.md)."
-  log "Erzeuge PenbanWidget.xcodeproj aus project.yml"
-  (cd "$WIDGET_DIR" && xcodegen generate)
 }
 
 # Prüft, ob die gebaute Extension überhaupt das ist, was die App erwartet. Ein falsches

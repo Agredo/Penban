@@ -26,6 +26,11 @@ struct WidgetSnapshot: Decodable, Sendable {
     /// Fingerprint of the board data this was captured from.
     let signature: String
 
+    /// The board a widget should start on, as picked by holding a board card in the overview - the
+    /// one the configuration sheet pre-selects. Absent in documents from before that gesture and
+    /// when no board was picked.
+    let preferredBoardId: String?
+
     /// All boards, in overview order. The widget picks one of them.
     let boards: [WidgetBoard]
 }

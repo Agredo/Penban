@@ -1,6 +1,8 @@
+using System.Globalization;
 using Penban.Maui.Views.Services;
 using Penban.Maui.Views.Widget;
 using Penban.Services.Abstractions;
+using Penban.Util;
 using Penban.ViewModels;
 using IPreferences = Penban.Services.Abstractions.IPreferences;
 
@@ -10,18 +12,20 @@ namespace Penban.Maui.Views.Pages;
 public partial class BoardsPage : ContentPage
 {
     private readonly IPreferences preferences;
+    private readonly IDialogService dialogService;
     private readonly SettingsViewModel settingsViewModel;
     private readonly FeedbackViewModel feedbackViewModel;
     private readonly TransferCoordinator transferCoordinator;
     private WidgetSnapshotTrigger? widget;
     private bool isOpeningBoard;
 
-    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, TransferCoordinator transferCoordinator)
+    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, IDialogService dialogService, TransferCoordinator transferCoordinator)
     {
         InitializeComponent();
         this.settingsViewModel = settingsViewModel;
         this.feedbackViewModel = feedbackViewModel;
         this.preferences = preferences;
+        this.dialogService = dialogService;
         this.transferCoordinator = transferCoordinator;
         BindingContext = viewModel;
     }
@@ -37,7 +41,7 @@ public partial class BoardsPage : ContentPage
         // The home screen widget shows a copy of this list, and the overview is the one place that
         // knows the list is complete again: on every visit, whether the app was just started or a
         // board was closed with a new note on it.
-        widget ??= new WidgetSnapshotTrigger(viewModel);
+        widget ??= new WidgetSnapshotTrigger(viewModel, preferences);
 
         await viewModel.LoadBoardsCommand.ExecuteAsync(null);
         await widget.RefreshAsync();
@@ -99,5 +103,29 @@ public partial class BoardsPage : ContentPage
         {
             await transferCoordinator.ShowBoardExportMenuAsync(board.Id);
         }
+    }
+
+    /// <summary>
+    /// Asks for a widget showing the given board, on behalf of a card held down on this page (see
+    /// <see cref="BoardWidgetHoldBehavior"/>, which is what the cards in the list carry). iOS places a
+    /// widget for the person using the phone and offers an app no way to do it, so nothing can be
+    /// created here: the board is noted - the widget then starts on it - and the rest of the way is
+    /// explained.
+    /// </summary>
+    internal async void RequestWidgetForBoard(BoardViewModel board)
+    {
+        WidgetPreferredBoard.Set(preferences, board.Id);
+
+        // The wish is part of what the widget reads, so it has to be written now rather than on the
+        // next visit: whoever stands on the home screen with the menu just closed cannot wait.
+        if (widget is not null)
+        {
+            await widget.RefreshAsync();
+        }
+
+        await dialogService.DisplayAlertAsync(
+            Strings.WidgetForBoard,
+            string.Format(CultureInfo.CurrentCulture, Strings.WidgetForBoardHelpFormat, board.Title),
+            Strings.Done);
     }
 }

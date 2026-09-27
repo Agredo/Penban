@@ -21,8 +21,13 @@ public static class WidgetSnapshotWriter
     /// <summary>
     /// The same against an explicit folder: the shared one where the app calls this, any folder where
     /// the snapshot is written without a device - and none at all, which does nothing.
+    /// <para>
+    /// The board a widget should start on is passed in rather than read here: it is the app's own
+    /// setting, and the writer stays what it is - the thing that turns a board list into the document
+    /// the widget reads.
+    /// </para>
     /// </summary>
-    public static async Task UpdateAsync(IReadOnlyList<BoardViewModel> boards, string? folder)
+    public static async Task UpdateAsync(IReadOnlyList<BoardViewModel> boards, string? folder, Guid? preferredBoardId = null)
     {
         try
         {
@@ -31,7 +36,7 @@ public static class WidgetSnapshotWriter
                 return;
             }
 
-            var snapshot = WidgetSnapshotFactory.Create(boards);
+            var snapshot = WidgetSnapshotFactory.Create(boards, preferredBoardId);
             var document = Path.Combine(folder, WidgetSnapshot.FileName);
 
             // The signature says whether the boards changed; the previews say whether the widget can

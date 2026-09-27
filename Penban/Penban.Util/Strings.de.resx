@@ -397,4 +397,10 @@
   <data name="DeleteBoardNoteConfirmation" xml:space="preserve">
     <value>Die Notiz dieses Boards löschen?</value>
   </data>
+  <data name="WidgetForBoard" xml:space="preserve">
+    <value>Widget für dieses Board</value>
+  </data>
+  <data name="WidgetForBoardHelpFormat" xml:space="preserve">
+    <value>&quot;{0}&quot; ist für das nächste Widget gemerkt.&#10;&#10;iOS legt ein Widget selber ab, niemals eine App:&#10;&#10;1. Eine leere Stelle des Home-Bildschirms lange drücken&#10;2. Auf &quot;+&quot; tippen und nach &quot;Penban&quot; suchen&#10;3. Eine Grösse wählen und das Widget hinzufügen&#10;4. Das Widget weiterhin drücken und unter &quot;Widget bearbeiten&quot; &quot;{0}&quot; wählen</value>
+  </data>
 </root>
