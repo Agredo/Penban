@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace Penban.Maui.Views.Widget;
 
@@ -13,6 +14,13 @@ namespace Penban.Maui.Views.Widget;
 /// </summary>
 public static class IosWidgetRefresh
 {
+    // The Objective-C runtime is called by hand because WidgetKit has no .NET binding.
+    [DllImport(ObjCRuntime.Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
+    private static extern IntPtr IntPtr_objc_msgSend(IntPtr receiver, IntPtr selector);
+
+    [DllImport(ObjCRuntime.Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
+    private static extern void void_objc_msgSend(IntPtr receiver, IntPtr selector);
+
     public static void ReloadAllTimelines()
     {
 #if IOS
@@ -28,13 +36,13 @@ public static class IosWidgetRefresh
                     return;
                 }
 
-                var shared = ObjCRuntime.Messaging.IntPtr_objc_msgSend(widgetCenter, ObjCRuntime.Selector.GetHandle("sharedCenter"));
+                var shared = IntPtr_objc_msgSend(widgetCenter, ObjCRuntime.Selector.GetHandle("sharedCenter"));
                 if (shared == IntPtr.Zero)
                 {
                     return;
                 }
 
-                ObjCRuntime.Messaging.void_objc_msgSend(shared, ObjCRuntime.Selector.GetHandle("reloadAllTimelines"));
+                void_objc_msgSend(shared, ObjCRuntime.Selector.GetHandle("reloadAllTimelines"));
             }
             catch (Exception exception)
             {
