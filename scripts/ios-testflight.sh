@@ -135,6 +135,9 @@ profile_name=""
 profile_uuid=""
 
 # Sucht ein Nicht-Development-Profil für die Bundle-ID (exakter Treffer vor Wildcard).
+# Liefert genau einen Treffer als "<uuid>|<name>": Sobald Name und UUID aus verschiedenen
+# Profilen stammen, signiert der Build mit einem Profil, das gar nicht zur App gehört -
+# die Suche muss also beim ersten Treffer stehen bleiben und nicht weitersammeln.
 find_distribution_profile() {
   local dir profile decoded appid taskallow all_devices name uuid exact="" wildcard=""
   for dir in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" \
@@ -151,14 +154,16 @@ find_distribution_profile() {
       [ "$all_devices" = "true" ] && continue        # Enterprise-Profil
       uuid="$(plutil -extract UUID raw -o - "$decoded" 2>/dev/null || true)"
       name="$(plutil -extract Name raw -o - "$decoded" 2>/dev/null || true)"
+      # Die Anführungszeichen nur um die Variable: ein quotiertes Muster wäre in "case"
+      # literal, das Sternchen muss Platzhalter bleiben.
       case "$appid" in
-        "*.$BUNDLE_ID") exact="$uuid|$name";;
-        *) wildcard="$wildcard$uuid|$name;";;
+        *."$BUNDLE_ID") [ -n "$exact" ] || exact="$uuid|$name";;
+        *) [ -n "$wildcard" ] || wildcard="$uuid|$name";;
       esac
     done
   done
   if [ -n "$exact" ]; then printf '%s' "$exact"; return 0; fi
-  [ -n "$wildcard" ] && { printf '%s' "${wildcard%;}"; return 0; }
+  if [ -n "$wildcard" ]; then printf '%s' "$wildcard"; return 0; fi
   return 1
 }
 
