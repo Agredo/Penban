@@ -12,12 +12,13 @@ namespace Penban.Maui.Views.Widget;
 public static class WidgetSnapshotFactory
 {
     /// <summary>Builds the snapshot, including the fingerprint of the data it was built from.</summary>
-    public static WidgetSnapshot Create(IReadOnlyList<BoardViewModel> boards)
+    public static WidgetSnapshot Create(IReadOnlyList<BoardViewModel> boards, Guid? preferredBoardId = null)
     {
         var snapshot = new WidgetSnapshot
         {
             UpdatedAtUtc = DateTimeOffset.UtcNow,
-            Signature = Fingerprint(boards),
+            PreferredBoardId = preferredBoardId,
+            Signature = Fingerprint(boards, preferredBoardId),
         };
 
         foreach (var board in boards)
@@ -103,10 +104,17 @@ public static class WidgetSnapshotFactory
     /// Everything that ends up in the picture: the texts, the lanes with their fill, and the ink of
     /// every note of the stack. Compared only against documents written by this same app on the same
     /// device, so a fingerprint - not a canonical hash - is enough.
+    /// <para>
+    /// The board a widget should start on is part of it although it changes nothing about the
+    /// picture: a document carrying the same boards is only rewritten - and the widget only asked to
+    /// draw again - when the fingerprint moves.
+    /// </para>
     /// </summary>
-    private static string Fingerprint(IReadOnlyList<BoardViewModel> boards)
+    private static string Fingerprint(IReadOnlyList<BoardViewModel> boards, Guid? preferredBoardId)
     {
         var text = new StringBuilder();
+
+        text.Append(preferredBoardId?.ToString("N") ?? "none").Append('\n');
 
         foreach (var board in boards)
         {

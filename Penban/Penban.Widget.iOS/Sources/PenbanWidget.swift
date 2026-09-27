@@ -48,16 +48,22 @@ struct PenbanProvider: AppIntentTimelineProvider {
         Timeline(entries: [entry(for: configuration)], policy: .after(Date().addingTimeInterval(3600)))
     }
 
-    /// Resolves the board the widget shows: the chosen one, or the first of the overview when none
-    /// was chosen or the chosen one is gone.
+    /// Resolves the board the widget shows: the chosen one, else the board that was held down in the
+    /// overview, else the first of the overview - and the first of the overview again when the chosen
+    /// one was deleted since. A widget that was placed without confirming its configuration starts on
+    /// the board whose card started it.
     private func entry(for configuration: PenbanBoardIntent?) -> PenbanEntry {
         let snapshot = WidgetStore.loadSnapshot()
+
+        let preferred = snapshot?.preferredBoardId.flatMap { wanted in
+            snapshot?.boards.first { $0.id == wanted }
+        }
 
         let chosen = configuration?.board.flatMap { wanted in
             snapshot?.boards.first { $0.id == wanted.id }
         }
 
-        return PenbanEntry(date: Date(), board: chosen ?? snapshot?.boards.first, hasSnapshot: snapshot != nil)
+        return PenbanEntry(date: Date(), board: chosen ?? preferred ?? snapshot?.boards.first, hasSnapshot: snapshot != nil)
     }
 }
 

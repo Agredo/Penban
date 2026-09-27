@@ -31,6 +31,13 @@ public sealed class WidgetSnapshot
     public DateTimeOffset UpdatedAtUtc { get; set; }
 
     /// <summary>
+    /// The board a widget placed from the overview should start on, as picked by holding down a board
+    /// card - null when none was picked. Part of the fingerprint: the widget has to be asked to draw
+    /// again when the wish changes, even though no board did.
+    /// </summary>
+    public Guid? PreferredBoardId { get; set; }
+
+    /// <summary>
     /// Fingerprint of the board data this was captured from. Rendering six images per board is far too
     /// much work to repeat on every visit to the overview, so a capture carrying the fingerprint of
     /// the document already on disk is not rendered again.

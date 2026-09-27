@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
              xmlns:controls="clr-namespace:Penban.Maui.Views.Controls"
+             xmlns:pages="clr-namespace:Penban.Maui.Views.Pages"
              xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:Class="Penban.Maui.Views.Pages.BoardsPage"
              x:Name="ThisPage"
@@ -68,6 +69,16 @@
                         <Border.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnBoardTapped" />
                         </Border.GestureRecognizers>
+
+                        <!-- Holding a card is how a widget for it is asked for: iOS places a widget
+                             for the user and never for the app, so the most this can do is note which
+                             board is wanted and explain the rest of the way. The hold is read on the
+                             card itself, because the context flyout it was meant to open never
+                             reached this list. -->
+                        <Border.Behaviors>
+                            <pages:BoardWidgetHoldBehavior />
+                        </Border.Behaviors>
+
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="20">
 
                             <!-- Thumbnail: this board's own notes, fanned out like a hand of them.

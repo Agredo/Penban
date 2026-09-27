@@ -57,4 +57,11 @@ public static class PreferenceKeys
 
     /// <summary>Whether a three-finger tap on the writing surface puts the last edit back.</summary>
     public const string ThreeFingerTapRedoEnabled = "Gesture.ThreeFingerTapRedoEnabled";
+
+    /// <summary>
+    /// The board a widget placed from the overview should start on, as written by holding down a
+    /// board card. Only a wish: iOS places a widget for the user, never for the app, so this is what
+    /// the configuration sheet pre-selects rather than something that puts a widget anywhere.
+    /// </summary>
+    public const string WidgetBoard = "Widget.PreferredBoard";
 }
