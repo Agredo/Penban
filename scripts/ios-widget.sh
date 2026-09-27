@@ -54,8 +54,19 @@ cmd_generate() {
 # Bundle-ID-Präfix oder eine fehlende App Group fällt sonst erst auf dem Gerät auf: die
 # Extension erscheint dann einfach nicht in der Widget-Galerie.
 verify_appex() { # <pfad/zur/PenbanWidget.appex>
-  local appex="$1" bundle_id entitlements
+  local appex="$1" bundle_id entitlements executable
   plutil -lint "$appex/Info.plist" >/dev/null || die "$appex/Info.plist ist keine gültige plist."
+
+  # Ohne CFBundleExecutable nimmt das Gerät das Bundle gar nicht erst an ("has missing or invalid
+  # CFBundleExecutable in its Info.plist"). Der Build erzeugt die plist nicht selbst, also muss der
+  # Name in Resources/Info.plist stehen - und der Build muss ihn auch eingesetzt haben.
+  executable="$(plutil -extract CFBundleExecutable raw -o - "$appex/Info.plist" 2>/dev/null || true)"
+  [ -n "$executable" ] \
+    || die "$appex/Info.plist nennt kein CFBundleExecutable. Resources/Info.plist muss
+    'CFBundleExecutable' = '\$(EXECUTABLE_NAME)' enthalten."
+  [ -x "$appex/$executable" ] \
+    || die "$appex enthält keine ausführbare Datei '$executable'. PRODUCT_NAME und
+    CFBundleExecutable passen nicht zusammen."
 
   bundle_id="$(plutil -extract CFBundleIdentifier raw -o - "$appex/Info.plist" 2>/dev/null || true)"
   [ "$bundle_id" = "$EXTENSION_BUNDLE_ID" ] \
