@@ -7,38 +7,41 @@ using IPreferences = Penban.Services.Abstractions.IPreferences;
 namespace Penban.Maui.Views.Ink;
 
 /// <summary>
-/// Reads which contact the pencil is and how it is leaning, and hands both to the ink canvas.
+/// Reads which contact the pencil is, how it is leaning and how hard it is pressed, and hands all of
+/// it to the ink canvas.
 /// <para>
-/// SkiaSharp's Apple backend reads neither out of a touch: it calls every contact a finger and
-/// reports no pressure, so both have to come from UIKit. They are read from a gesture recogniser that
-/// never recognises anything: a recogniser is handed the touches on their way to the view below it,
-/// and while a touch is available its <c>Type</c> says whether it is the pencil, and its
-/// <c>AltitudeAngle</c> and <c>AzimuthAngle</c> say how it is held. The recogniser does not cancel the
-/// touches, so drawing is untouched.
+/// SkiaSharp's Apple backend reads none of it out of a touch: it calls every contact a finger and fills
+/// in a pressure of <c>1</c>, so all of it has to come from UIKit. It is read from a gesture
+/// recogniser that never recognises anything: a recogniser is handed the touches on their way to the
+/// view below it, and while a touch is available its <c>Type</c> says whether it is the pencil, its
+/// <c>AltitudeAngle</c> and <c>AzimuthAngle</c> say how it is held, and its <c>Force</c> says how hard
+/// it is pressed. The recogniser does not cancel the touches, so drawing is untouched.
 /// </para>
 /// <para>
 /// The altitude is the angle above the surface - upright is π/2, flat is 0 - while the canvas stores
 /// the lean away from upright, so it is the complement that is handed over. The azimuth is already
 /// measured in the view's own coordinates from the positive x-axis towards the positive y-axis, which
-/// is exactly the direction of the lean the canvas expects.
+/// is exactly the direction of the lean the canvas expects. The force is handed over as a share of
+/// <c>MaximumPossibleForce</c>, because that is the number the canvas draws with.
 /// </para>
 /// <para>
-/// iOS only; the Windows counterpart is <c>PenTiltBehavior</c> (WinUI's pointer tilt) and the
-/// Android one lives in <c>AndroidInkInput</c> (the activity's motion events). Whether a tilt is
-/// reported is the setting's business alone - it is re-read on every contact, so turning
+/// iOS only; the Windows counterpart is <c>PenInputBehavior</c> (WinUI's pointer tilt and pressure)
+/// and the Android one lives in <c>AndroidInkInput</c> (the activity's motion events). Whether a tilt
+/// is reported is the setting's business alone - it is re-read on every contact, so turning
 /// <see cref="PreferenceKeys.TiltDetectionEnabled"/> off takes effect on the next stroke. Naming the
-/// pen is not: it happens whatever the setting says, because drawing has to know which contact the
-/// pen is either way.
+/// pen is not, and neither is the pressure: both happen whatever the setting says, because drawing has
+/// to know which contact the pen is either way, and because whether a stroke varies its width with the
+/// pressure is decided by the renderer rather than here.
 /// </para>
 /// </summary>
-public class PenTiltBehavior : PlatformBehavior<View, UIView>
+public class PenInputBehavior : PlatformBehavior<View, UIView>
 {
     private const float HalfPi = MathF.PI / 2f;
 
     private readonly IPreferences? preferences;
     private TouchObserver? observer;
 
-    public PenTiltBehavior(IPreferences? preferences = null) => this.preferences = preferences;
+    public PenInputBehavior(IPreferences? preferences = null) => this.preferences = preferences;
 
     protected override void OnAttachedTo(View view, UIView platformView)
     {
@@ -116,6 +119,7 @@ public class PenTiltBehavior : PlatformBehavior<View, UIView>
 
             var isTiltEnabled = IsEnabled();
             var sawPencil = false;
+            var pressure = 0f;
 
             // Every touch is looked at, not just the first one: the pencil and a resting hand can be
             // reported together, and which of them comes first is not something to rely on.
@@ -134,11 +138,20 @@ public class PenTiltBehavior : PlatformBehavior<View, UIView>
                 // press is still named in time for the stroke that press belongs to.
                 surface.SetStylusContact(ContactId(touch));
 
+                // The hardest press of the touches reported together is the one the pencil is making:
+                // the pencil is the only contact here that can press at all, and a value of 0 is left
+                // for a pencil whose force is not reported - see Force.
+                pressure = MathF.Max(pressure, Pressure(touch));
+
                 if (isTiltEnabled)
                 {
                     surface.SetStylusTilt(HalfPi - (float)touch.AltitudeAngle, (float)touch.GetAzimuthAngle(View));
                 }
             }
+
+            // Not the setting's business: whether a stroke varies its width with the press is decided
+            // by the renderer, so this is handed over even while the tilt is off.
+            surface.SetStylusPressure(sawPencil ? pressure : 0f);
 
             if (!isTiltEnabled || !sawPencil)
             {
@@ -164,7 +177,24 @@ public class PenTiltBehavior : PlatformBehavior<View, UIView>
 
                 surface.EndStylusContact(ContactId(touch));
                 surface.SetStylusTilt(0f, 0f);
+                surface.SetStylusPressure(0f);
             }
+        }
+
+        /// <summary>
+        /// How hard the pencil is pressed, as a share of the hardest press it can report, which is what
+        /// the canvas draws its line width from.
+        /// <para>
+        /// Zero means the press is unknown rather than absent, and the canvas then leaves the stroke at
+        /// the width the ladder says. That is what a pencil without a force sensor produces - Apple
+        /// Pencil (USB-C) has none, while the first and second generation and the Pro do - and it is
+        /// also what a device that reports no <c>MaximumPossibleForce</c> at all would divide by.
+        /// </para>
+        /// </summary>
+        private static float Pressure(UITouch touch)
+        {
+            var maximum = (float)touch.MaximumPossibleForce;
+            return maximum > 0f ? Math.Clamp((float)touch.Force / maximum, 0f, 1f) : 0f;
         }
 
         /// <summary>

@@ -239,9 +239,24 @@ public class InkCanvasHostView : ContentView
     }
 
     /// <summary>
+    /// Hands the pressure reported by a platform input handler down to the renderer, <c>0</c> to
+    /// <c>1</c>; <c>0</c> means the platform has nothing to add and the renderer falls back on what
+    /// came with the touch event. Only the Skia renderer draws a width from it - see
+    /// <see cref="SkiaInkCanvasView.SetStylusPressure"/> for why the value has to be handed in at all -
+    /// and the toolkit renderer has one width for the whole stroke and ignores this.
+    /// </summary>
+    public void SetStylusPressure(float pressure)
+    {
+        if (activeRenderer is SkiaInkCanvasView skia)
+        {
+            skia.SetStylusPressure(pressure);
+        }
+    }
+
+    /// <summary>
     /// Whether the platform names the contacts that come from the pen, through
     /// <see cref="SetStylusContact"/>. Set by the behavior that reads those contacts - see
-    /// <see cref="PenTiltBehavior"/> - and only on Apple, where SkiaSharp's touch events call every
+    /// <see cref="PenInputBehavior"/> - and only on Apple, where SkiaSharp's touch events call every
     /// contact a finger and the pencil therefore cannot be told from a hand without being named. While
     /// it is on, the canvas waits for a press to be named before it decides what to do with it.
     /// </summary>

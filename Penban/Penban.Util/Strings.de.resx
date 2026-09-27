@@ -244,6 +244,9 @@
   <data name="PenThicknessExtraBold" xml:space="preserve">
     <value>Extra fett</value>
   </data>
+  <data name="PenThicknessFormat" xml:space="preserve">
+    <value>Stiftdicke: {0}</value>
+  </data>
   <data name="RadialMenu" xml:space="preserve">
     <value>Menü</value>
   </data>

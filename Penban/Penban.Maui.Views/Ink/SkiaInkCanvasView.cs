@@ -80,6 +80,14 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     private float penTilt;
     private float penAzimuth;
 
+    /// <summary>
+    /// How hard the pen is pressed right now, <c>0</c> to <c>1</c>, fed in by the platform input
+    /// handler; <c>0</c> means "unknown". Only Apple and Windows need it: SkiaSharp's own touch events
+    /// carry a pressure of their own there but always fill it with <c>1</c>, so the value the platform
+    /// knows would otherwise never arrive - see <see cref="SetStylusPressure"/>.
+    /// </summary>
+    private float penPressure;
+
     /// <summary>Whether the stroke being drawn came from a finger rather than from a pen or mouse.</summary>
     private bool currentStrokeIsFinger;
 
@@ -199,8 +207,9 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     public bool RadialMenuEnabled { get; set; }
 
     /// <summary>
-    /// Whether the line width follows the pressure reported per point. Off means one width for the
-    /// whole stroke, which is also what a device that reports no pressure produces.
+    /// Whether the line width follows the pressure recorded per point. Off means one width for the
+    /// whole stroke, which is also what a device that reports no pressure produces - see
+    /// <see cref="SetStylusPressure"/> for which devices those are.
     /// </summary>
     public bool PressureSensitiveWidth { get; set; } = true;
 
@@ -221,6 +230,19 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         penTilt = tilt;
         penAzimuth = azimuth;
     }
+
+    /// <summary>
+    /// How hard the stylus is pressed, <c>0</c> to <c>1</c>, fed in by the platform input handler.
+    /// <c>0</c> - or never calling this at all - means the platform has nothing to add and the value
+    /// SkiaSharp reports is used instead.
+    /// <para>
+    /// It has to be fed in on Apple and on Windows: SkiaSharp 4.150.1 calls its own touch event with a
+    /// constructor that hard-codes the pressure to <c>1</c> on both of them, so every point would be
+    /// recorded at full width however lightly the pen was pressed. Android is the one platform whose
+    /// backend reads the real pressure out of the touch stream, so there this is never called.
+    /// </para>
+    /// </summary>
+    public void SetStylusPressure(float pressure) => penPressure = pressure;
 
     /// <summary>
     /// Whether the platform names the contacts that come from the pen, through
@@ -977,7 +999,12 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         {
             X = point.X,
             Y = point.Y,
-            Pressure = e.Pressure > 0 ? e.Pressure : 1f,
+
+            // What the platform reported wins over what came with the touch event, because on Apple
+            // and on Windows the latter is a constant 1 - see SetStylusPressure. A device that has
+            // neither - a finger, a mouse, a pen with no force sensor - leaves the point at full
+            // width rather than at nothing, so the stroke is drawn as wide as the ladder says.
+            Pressure = penPressure > 0 ? penPressure : e.Pressure > 0 ? e.Pressure : 1f,
             Tilt = penTilt,
             Azimuth = penAzimuth,
             TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
