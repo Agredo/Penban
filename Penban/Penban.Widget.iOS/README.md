@@ -9,10 +9,17 @@ bettet nur ein fertiges Bundle ein. Deshalb ist die Arbeit geteilt:
 ```mermaid
 flowchart LR
     subgraph App["Penban.Maui (MAUI)"]
-        A[BoardsPage] --> B[WidgetSnapshotTrigger]
+        A[BoardsPage]
+        L["MauiProgram<br/>OnActivated · DidEnterBackground · OpenUrl"]
+        A --> B[WidgetSnapshotTrigger]
+        L --> B
+        L --> U[WidgetBoardLink]
+        U --> A
         B --> C[WidgetCardDrawable]
         C --> D[WidgetImageRenderer]
         D --> E[WidgetSnapshotWriter]
+        E --> R[IosWidgetRefresh]
+        R --> S["PenbanWidgetReloader.swift<br/>WidgetCenter.shared"]
     end
     subgraph Group["App Group group.com.agredoapplication.panban"]
         F[widget.json]
@@ -25,6 +32,7 @@ flowchart LR
     E --> G
     F --> H
     G --> H
+    I -->|"penban://board/&lt;id&gt;"| L
 ```
 
 Die App zeichnet die Karte **einmal pro Board, Größe und Erscheinungsbild** als PNG und legt sie
@@ -32,6 +40,42 @@ zusammen mit einer kleinen JSON-Beschreibung im geteilten Ordner ab. Das Widget 
 passende Bild. Damit gibt es genau einen Zeichner der Karte – `WidgetCardDrawable` in
 `Penban.Maui.Views/Widget` – und die Schriften und die Tinte der Notizen müssen hier nicht ein
 zweites Mal nachgebaut werden.
+
+## Wann geschrieben wird
+
+`WidgetSnapshotTrigger` ist ein **Singleton der App**, nicht der Übersichtsseite. Er hält die
+Übersicht, die gerade sichtbar ist (`Attach`), und schreibt aus ihr:
+
+| Auslöser | Wann |
+| --- | --- |
+| `BoardsPage.OnAppearing` → `RefreshAsync` | Die Übersicht ist vollständig (Neustart, Rückkehr von einem Board) |
+| Boardliste geändert / Board-Eigenschaft geändert | Nach ~2 s Ruhe: Anlegen, Umbenennen, Löschen, neu gelesene Zeilen |
+| `MauiProgram` → `DidEnterBackground` | Beim Verlassen der App – der Moment, in dem der Nutzer zum Home-Screen und damit zum Widget geht |
+
+Vor jedem Schreiben liest der Trigger die Zeilen über `LoadSummaryAsync` neu: ein Board wird nicht
+neu gebaut, wenn auf ihm etwas passiert ist, und ohne dieses Nachlesen hätte die Karte die alten
+Zahlen – und der Schreiber würde die Datei nicht einmal anfassen, weil sich für ihn nichts geändert
+hat. Die eigene Ankündigung des Nachlesens wird dabei unterdrückt, sonst schriebe jede Zeile erneut.
+
+`WidgetSnapshotWriter` schreibt nur, wenn sich die Signatur geändert hat oder Bilder fehlen;
+danach ruft er `IosWidgetRefresh.ReloadAllTimelines()`.
+
+## Aktualisieren und Öffnen
+
+Beides läuft über die Extension hinaus und braucht Wege, die C# allein nicht hat:
+
+- **Neuzeichnen.** WidgetKit zeichnet nur auf Anforderung neu, und `WidgetCenter` ist
+  **Swift-only** – es gibt keine Objective-C-Klasse dieses Namens (`objc_getClass("WidgetCenter")`
+  ist `nil`). `Platforms/iOS/PenbanWidgetReloader.swift` ist deshalb
+  `@objc(PenbanWidgetReloader)`, wird vom Target `LinkWidgetReloader` in `Penban.Maui.csproj` mit
+  `xcrun swiftc` übersetzt und per `-Wl,-force_load` in die App gelinkt (das Objekt wird sonst
+  weggelassen, weil niemand es über ein Symbol referenziert). `IosWidgetRefresh` ruft die Methode
+  über `objc_msgSend` auf.
+- **Öffnen.** Die Ansicht trägt `.widgetURL(penban://board/<id>)`; `Info.plist` der App meldet das
+  Schema unter `CFBundleURLTypes` an. Der Tap landet im Lebenszyklus (`OpenUrl`), und weil die App
+  dabei noch im Hintergrund ist – und nach einem Kaltstart noch gar keine Übersicht existiert –
+  merkt sich `WidgetBoardLink` nur das Board. Wer zuerst bereit ist, öffnet es: `OnActivated` oder
+  `BoardsPage.OnAppearing`.
 
 ## Inhalt
 
@@ -88,7 +132,7 @@ den Ordner plus den Unterordner:
 <AdditionalAppExtensions Include="…/Penban.Widget.iOS/build">
   <Name>PenbanWidget</Name>
   <BuildOutput>Release-iphoneos</BuildOutput>
-  <CodesignEntitlements>…/Penban.Widget.iOS/Resources/PenbanWidget.entitlements</CodesignEntitlements>
+  <CodesignEntitlements>…/Penban.Widget.iOS/build/PenbanWidget.entitlements</CodesignEntitlements>
 </AdditionalAppExtensions>
 ```
 
@@ -98,9 +142,11 @@ existiert genau deshalb, weil Xcode Simulator- und Gerätebuilds in getrennte Or
 Die `CodesignEntitlements` sind **nicht optional**: die Extension wird beim Einbetten in
 `Penban.app/PlugIns/` kopiert und dabei wird die Signatur, die Xcode gemacht hat, gelöscht. Die
 `.appex` wird danach neu signiert – ohne diese Angabe ohne App Group, und ein Widget ohne App Group
-sieht den geteilten Ordner nicht und bleibt leer. Die Datei enthält nur die App Group;
-`application-identifier` und `keychain-access-groups` zieht .NET for iOS beim Signieren aus dem
-Provisioning Profile.
+sieht den geteilten Ordner nicht und bleibt leer. Die Datei ist **nicht** die unter
+`Resources/PenbanWidget.entitlements`: `scripts/ios-widget.sh` zieht die Entitlements der fertig
+signierten `.appex` nach `build/PenbanWidget.entitlements`, und nur die enthalten auch
+`application-identifier` und `beta-reports-active`, die `codesign` hier sonst nicht setzt (App Store
+Connect lehnt ein Paket ohne sie ab, 90075).
 
 ### Ohne XcodeGen
 
@@ -113,8 +159,10 @@ Provisioning Profile.
 3. Die vom Assistenten erzeugten Dateien löschen und die Dateien aus `Sources/` sowie
    `Resources/Localizable.xcstrings` ins Ziel ziehen.
 4. Ziel-Einstellungen → General: Bundle Identifier `com.agredoapplication.panban.WidgetExtension`,
-   Version `0.3.1`, Build `7`, Minimum Deployments **iOS 17.0** (nötig für
-   `containerBackground(for: .widget)`), Signing Team `NTMYS336K2`.
+   Minimum Deployments **iOS 17.0** (nötig für `containerBackground(for: .widget)`), Signing Team
+   `NTMYS336K2`. Version und Build (`MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`) müssen zu
+   `ApplicationDisplayVersion`/`ApplicationVersion` in `Penban.Maui.csproj` passen; die Werte stehen
+   in `project.yml`.
 5. Signing & Capabilities → **+ Capability** → App Groups → `group.com.agredoapplication.panban`.
 6. Build Settings: `INFOPLIST_FILE` = `Resources/Info.plist`, `GENERATE_INFOPLIST_FILE` = No,
    `CODE_SIGN_ENTITLEMENTS` = `Resources/PenbanWidget.entitlements`, `SKIP_INSTALL` = Yes.
@@ -128,7 +176,13 @@ Provisioning Profile.
 3. Größen: klein und mittel zeigen zusätzlich den Notizstapel, groß zusätzlich die Spaltenleiste.
    Dunkelmodus wird über ein zweites Bild abgedeckt.
 4. Änderungen an Titel, Notizen oder Karten erscheinen nach kurzer Verzögerung (der Auslöser wartet
-   ~2 s, bis die Änderungen sich beruhigt haben) – ein Aktualisieren erzwingt es sofort.
+   ~2 s, bis die Änderungen sich beruhigt haben) – die Übersicht zu öffnen oder die App zu verlassen
+   erzwingt es sofort.
+5. Ein Tipp auf das Widget öffnet **das Board**, das es zeigt (nicht nur die Übersicht).
+6. Gegenprobe am Binary, wenn etwas davon nicht passiert:
+   `nm -a Penban.Maui.app/Penban.Maui | grep PenbanWidgetReloader` (Objekt gelinkt?) und
+   `otool -L Penban.Maui.app/Penban.Maui | grep WidgetKit`; für den Link
+   `strings -a PenbanWidget.appex/PenbanWidget.debug.dylib | grep penban://board/`.
 
 ## Wenn nichts erscheint
 
@@ -139,6 +193,8 @@ Provisioning Profile.
 | Widget erscheint nicht in der Galerie | Bundle-ID-Präfix, App Group oder Version stimmen nicht; `scripts/ios-widget.sh build` prüft die ersten beiden |
 | Karte fehlt, Kachel bleibt leer | Das PNG zum Board fehlt – die Dateinamen in `widget.json` müssen zu den Bildern im Ordner passen (`w-<boardId>-<größe>-<hell\|dunkel>.png`) |
 | Änderungen kommen nicht an | Signatur unverändert, deshalb kein Neuschreiben; die App stößt `reloadAllTimelines` an, das System drosselt es aber |
+| Änderungen kommen nie an, auch nach Minuten nicht | `PenbanWidgetReloader` fehlt im App-Binary (Target `LinkWidgetReloader` nicht gelaufen) – siehe die `nm`-Gegenprobe unter „Prüfen"; Symptom ist ein stilles Nichts, weil `IosWidgetRefresh` ohne die Klasse nichts tut |
+| Ein Tipp öffnet nur die Übersicht | `CFBundleURLTypes` fehlt in `Penban/Platforms/iOS/Info.plist`, oder `.widgetURL` fehlt in `PenbanWidget.swift`, oder die eingebettete `.appex` ist älter als die Änderung (Extension neu bauen) |
 | Widget da, aber dauerhaft „Öffne Penban…", obwohl der Snapshot existiert | Die `.appex` wurde ohne App Group signiert – `CodesignEntitlements` in `Penban.Maui.csproj` prüfen und auf dem Gerät mit `codesign -d --entitlements :- Penban.app/PlugIns/PenbanWidget.appex` nachsehen |
 
 Der geteilte Ordner lässt sich auf dem Mac einsehen, wenn das Gerät per Kabel verbunden ist:

@@ -61,16 +61,21 @@ public static class WidgetSnapshotFactory
 
     private static WidgetBoard ToWidgetBoard(BoardViewModel board)
     {
+        // The version of the board moves the names of its previews on, so they have to be known before
+        // the previews are named - and the drawer then writes into the very names the snapshot carries.
+        var version = BoardFingerprint(board);
+
         var widget = new WidgetBoard
         {
             Id = board.Id,
+            Version = version,
             Title = board.Title,
             Summary = board.SummaryText,
             CardCount = board.CardCount,
             HasNote = board.HasNote,
             NoteColorIndex = board.NoteColorIndex,
             LastEditedUtc = board.LastEditedUtc,
-            Images = WidgetImages.For(board.Id),
+            Images = WidgetImages.For(board.Id, version),
         };
 
         foreach (var column in board.ColumnSummary)
@@ -118,42 +123,54 @@ public static class WidgetSnapshotFactory
 
         foreach (var board in boards)
         {
-            text.Append(board.Id).Append('|')
-                .Append(board.Title).Append('|')
-                .Append(board.SummaryText).Append('|')
-                .Append(board.CardCount).Append('|')
-                .Append(board.HasNote).Append('|')
-                .Append(board.NoteColorIndex).Append('|')
-                .Append(board.LastEditedUtc.ToUniversalTime().Ticks).Append('|');
-
-            foreach (var column in board.ColumnSummary)
-            {
-                text.Append(column.Title).Append(':').Append(column.CardCount).Append(':').Append(column.NoteColorIndex).Append(';');
-            }
-
-            foreach (var note in board.PreviewNotes)
-            {
-                text.Append('{').Append(note.NoteColorIndex).Append(',')
-                    .Append(note.Tilt).Append(',')
-                    .Append(note.OffsetX).Append(',')
-                    .Append(note.OffsetY);
-
-                foreach (var stroke in note.Strokes)
-                {
-                    text.Append('|').Append(stroke.Color).Append('/').Append(stroke.Thickness);
-
-                    foreach (var point in stroke.Points)
-                    {
-                        text.Append(',').Append(point.X).Append(',').Append(point.Y);
-                    }
-                }
-
-                text.Append('}');
-            }
-
-            text.Append('\n');
+            text.Append(board.Id).Append('|').Append(BoardFingerprint(board)).Append('\n');
         }
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
+    }
+
+    /// <summary>
+    /// Fingerprint of one board: everything of it that ends up in the picture. Carried by the board and
+    /// by the names of its previews, so a board that looks different is read afresh by the widget.
+    /// </summary>
+    private static string BoardFingerprint(BoardViewModel board)
+    {
+        var text = new StringBuilder();
+
+        text.Append(board.Title).Append('|')
+            .Append(board.SummaryText).Append('|')
+            .Append(board.CardCount).Append('|')
+            .Append(board.HasNote).Append('|')
+            .Append(board.NoteColorIndex).Append('|')
+            .Append(board.LastEditedUtc.ToUniversalTime().Ticks).Append('|');
+
+        foreach (var column in board.ColumnSummary)
+        {
+            text.Append(column.Title).Append(':').Append(column.CardCount).Append(':').Append(column.NoteColorIndex).Append(';');
+        }
+
+        foreach (var note in board.PreviewNotes)
+        {
+            text.Append('{').Append(note.NoteColorIndex).Append(',')
+                .Append(note.Tilt).Append(',')
+                .Append(note.OffsetX).Append(',')
+                .Append(note.OffsetY);
+
+            foreach (var stroke in note.Strokes)
+            {
+                text.Append('|').Append(stroke.Color).Append('/').Append(stroke.Thickness);
+
+                foreach (var point in stroke.Points)
+                {
+                    text.Append(',').Append(point.X).Append(',').Append(point.Y);
+                }
+            }
+
+            text.Append('}');
+        }
+
+        // Sixteen bytes are plenty for a name that only has to differ when the board does, and keep the
+        // file name short enough to stay readable in a listing of the shared folder.
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())))[..16].ToLowerInvariant();
     }
 }
