@@ -9,6 +9,12 @@
     <PackageVersion Include="CommunityToolkit.Maui" Version="14.2.2" />
     <PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.90" />
     <PackageVersion Include="Microsoft.Maui.Graphics.Skia" Version="10.0.90" />
+    <!-- ONNX Runtime 1.30.0 matches the onnxruntime used to export the PP-OCRv6 models, so the
+         graph is read by the same version that produced it. The Managed package carries the C# API
+         and comes in as a dependency of the native one, but is listed explicitly so its version is
+         pinned here as well. -->
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.30.0" />
     <PackageVersion Include="LiteDB" Version="5.0.21" />
     <PackageVersion Include="SkiaSharp.Views.Maui.Controls" Version="4.150.1" />
     <PackageVersion Include="Syncfusion.Maui.Kanban" Version="34.1.33" />

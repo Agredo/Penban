@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Plain $(PenbanNetVersion) on purpose: ONNX Runtime only attaches its native binaries to the
+         *application*, not to libraries (its iOS .targets guard on OutputType != Library, its Android
+         .targets on AndroidApplication == true). A platform-specific TFM here would therefore buy
+         nothing - the MAUI head project receives the natives from this same package reference. -->
+    <TargetFramework>$(PenbanNetVersion)</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Penban.Recognition\Penban.Recognition.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The native package; Microsoft.ML.OnnxRuntime.Managed (the C# API) and
+         System.Numerics.Tensors come in transitively and are version-pinned centrally. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Model and catalog ship inside this assembly rather than in the MAUI head project's
+         Resources/Raw: the recognizer then works without MAUI, without FileSystem, and can be
+         exercised from a plain console harness. The logical names are pinned so that moving the
+         files cannot silently change how they are looked up. -->
+    <EmbeddedResource Include="Assets\ppocrv6-small-fp16.onnx">
+      <LogicalName>Penban.Recognition.Onnx.Assets.ppocrv6-small-fp16.onnx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\ppocrv6-catalog.json">
+      <LogicalName>Penban.Recognition.Onnx.Assets.ppocrv6-catalog.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

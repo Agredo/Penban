@@ -4,6 +4,7 @@
   <Project Path="Penban.Maui.Views/Penban.Maui.Views.csproj" />
   <Project Path="Penban.Maui/Penban.Maui.csproj" />
   <Project Path="Penban.Models/Penban.Models.csproj" />
+  <Project Path="Penban.Recognition.Onnx/Penban.Recognition.Onnx.csproj" />
   <Project Path="Penban.Recognition/Penban.Recognition.csproj" />
   <Project Path="Penban.Services.Abstractions/Penban.Services.Abstractions.csproj" />
   <Project Path="Penban.Services/Penban.Services.csproj" />
