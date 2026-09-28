@@ -36,4 +36,36 @@ internal static class DatabaseWork
             Gate.Release();
         }
     }
+
+    /// <summary>
+    /// The same, but abandoning the call while it waits for the gate. Cancellation is only observed
+    /// up to the point the work starts: LiteDB has no way to stop a statement halfway, so a call that
+    /// is already inside finishes and its result is discarded by the caller.
+    /// </summary>
+    public static async Task<T> RunAsync<T>(Func<T> work, CancellationToken cancellationToken)
+    {
+        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(work, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            Gate.Release();
+        }
+    }
+
+    /// <inheritdoc cref="RunAsync{T}(Func{T}, CancellationToken)" />
+    public static async Task RunAsync(Action work, CancellationToken cancellationToken)
+    {
+        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await Task.Run(work, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            Gate.Release();
+        }
+    }
 }
