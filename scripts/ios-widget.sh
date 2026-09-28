@@ -13,9 +13,10 @@
 # also genau dort, wo Penban.Maui.csproj die Extension über AdditionalAppExtensions sucht.
 # Danach baut scripts/ios-testflight.sh build die App samt Widget.
 #
-# Das Xcode-Projekt wird aus project.yml erzeugt (XcodeGen). Ist PenbanWidget.xcodeproj schon
-# vorhanden, wird nichts erzeugt und direkt gebaut; wer XcodeGen nicht installieren will, legt
-# das Ziel einmalig von Hand an – die Anleitung steht in Penban/Penban.Widget.iOS/README.md.
+# Das Xcode-Projekt wird aus project.yml erzeugt (XcodeGen). Ist XcodeGen vorhanden, wird es bei
+# jedem Lauf neu erzeugt – sonst bliebe eine Änderung an project.yml (etwa die Version) in einem
+# alten Projekt liegen. Wer XcodeGen nicht installieren will, legt das Ziel einmalig von Hand an –
+# die Anleitung steht in Penban/Penban.Widget.iOS/README.md.
 #
 #   brew install xcodegen
 #
@@ -94,6 +95,61 @@ verify_appex() { # <pfad/zur/PenbanWidget.appex>
   echo "App Group:  $APP_GROUP"
 }
 
+# Die Datei, mit der der MAUI-Build die eingebettete Extension neu signiert. Xcode setzt beim
+# Signieren mit dem Profil selbst application-identifier, Team-ID und beta-reports-active; die
+# Datei im Repo nennt deshalb nur die App Group. Der MAUI-Build signiert aber mit genau dem, was
+# in seiner Entitlements-Datei steht – die drei Schlüssel fehlen dann, und App Store Connect lehnt
+# das Paket ab (90075 "application-identifier entitlement is missing"). Darum wird diese Datei hier
+# aus der fertig signierten Extension gezogen: sie enthält damit genau das, was das Profil hergibt.
+# Ablageort und Name sind fest (build/PenbanWidget.entitlements) – Penban.Maui.csproj liest sie dort.
+write_entitlements() { # <pfad/zur/PenbanWidget.appex>
+  local appex="$1" file="$WIDGET_DIR/build/PenbanWidget.entitlements" appid
+  mkdir -p "$(dirname "$file")"
+  codesign -d --entitlements - --xml "$appex" >"$file" 2>/dev/null || true
+  plutil -lint "$file" >/dev/null 2>&1 \
+    || die "Die Entitlements von $appex ließen sich nicht auslesen ($file)."
+
+  appid="$(plutil -extract application-identifier raw -o - "$file" 2>/dev/null || true)"
+  [ -n "$appid" ] \
+    || die "Der Extension fehlt 'application-identifier'. Wird sie ohne Provisioning-Profil
+    gebaut? Ein Upload zu App Store Connect scheitert daran (90075)."
+
+  echo "Entitlements: $file"
+  echo "App-ID:     $appid"
+}
+
+# Sucht ein Verteilungsprofil (kein Development-, kein Enterprise-Profil) für die Bundle-ID.
+# Liefert den Namen, den xcodebuild als PROVISIONING_PROFILE_SPECIFIER erwartet.
+find_distribution_profile() { # <bundle-id>
+  local bundle_id="$1" dir profile appid taskallow all_devices scratch
+  scratch="${TMPDIR:-/tmp}/penban-widget-profile.plist"
+  for dir in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" \
+             "$HOME/Library/MobileDevice/Provisioning Profiles"; do
+    [ -d "$dir" ] || continue
+    for profile in "$dir"/*.mobileprovision; do
+      [ -e "$profile" ] || continue
+      security cms -D -i "$profile" >"$scratch" 2>/dev/null || continue
+      appid="$(plutil -extract Entitlements.application-identifier raw -o - "$scratch" 2>/dev/null || true)"
+      taskallow="$(plutil -extract Entitlements.get-task-allow raw -o - "$scratch" 2>/dev/null || true)"
+      all_devices="$(plutil -extract ProvisionsAllDevices raw -o - "$scratch" 2>/dev/null || true)"
+      [ "$taskallow" = "true" ] && continue
+      [ "$all_devices" = "true" ] && continue
+      # Die Anführungszeichen nur um die Variable: ein quotiertes Muster wäre in "case" literal.
+      case "$appid" in *."$bundle_id")
+        plutil -extract Name raw -o - "$scratch" 2>/dev/null || true
+        return 0;;
+      esac
+    done
+  done
+  return 1
+}
+
+# Das Verteilungszertifikat aus dem Schlüsselbund; leer, wenn keines vorhanden ist.
+find_distribution_identity() {
+  security find-identity -v -p codesigning 2>/dev/null \
+    | sed -n 's/.*"\(Apple Distribution[^"]*\)".*/\1/p' | head -1 || true
+}
+
 cmd_build() {
   local configuration="${1:-Release}"
   local out_dir="$WIDGET_DIR/build/$configuration-iphoneos"
@@ -105,6 +161,24 @@ cmd_build() {
 
   cmd_generate
 
+  # Release wird fest mit dem App-Store-Profil signiert. Automatisch signiert wählt Xcode hier
+  # das Development-Profil, und das landet als embedded.mobileprovision im Bundle: der MAUI-Build
+  # signiert die Extension zwar später neu, tauscht das eingebettete Profil aber nicht aus, und
+  # App Store Connect lehnt das Paket dann ab (90161 "Invalid Provisioning Profile").
+  local -a sign=()
+  if [ "$configuration" = "Release" ]; then
+    local identity profile
+    identity="$(find_distribution_identity)"
+    if profile="$(find_distribution_profile "$EXTENSION_BUNDLE_ID")" && [ -n "$identity" ]; then
+      log "Signiere mit Verteilungsprofil: $profile"
+      sign=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$identity" PROVISIONING_PROFILE_SPECIFIER="$profile")
+    else
+      warn "Kein Apple-Distribution-Zertifikat oder App-Store-Profil für $EXTENSION_BUNDLE_ID
+    gefunden – die Extension wird mit dem Development-Profil gebaut. Ein Upload zu App Store
+    Connect scheitert damit (90161 'Invalid Provisioning Profile')."
+    fi
+  fi
+
   log "Baue $SCHEME ($configuration)"
   # CONFIGURATION_BUILD_DIR statt -derivedDataPath: so landet das .appex direkt in dem Ordner,
   # den der MAUI-Build erwartet, ohne Zwischenkopie.
@@ -115,12 +189,14 @@ cmd_build() {
     -destination 'generic/platform=iOS' \
     -allowProvisioningUpdates \
     CONFIGURATION_BUILD_DIR="$out_dir" \
+    ${sign[@]+"${sign[@]}"} \
     build)
 
   [ -d "$appex" ] || die "Build lief durch, aber $appex wurde nicht erzeugt."
 
   log "Prüfe die Extension"
   verify_appex "$appex"
+  write_entitlements "$appex"
 
   # Beim Einbetten in die App löscht der MAUI-Build die Signatur von Xcode und signiert die
   # Extension neu – mit genau dieser Datei (CodesignEntitlements in Penban.Maui.csproj). Fehlt sie

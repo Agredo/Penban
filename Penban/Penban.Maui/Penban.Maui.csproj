@@ -118,15 +118,18 @@
        AdditionalAppExtensions takes the extension's folder and appends BuildOutput to find the
        .appex, so the two together have to name the folder the bundle sits in.
 
-       The entitlements have to be named as well: embedding copies the .appex into the app bundle and
-       deletes the signature Xcode put on it, so the appex is signed again here - without the App
-       Group it would be signed without access to the folder the app writes the snapshot to, and the
-       widget would stay empty however often the app refreshes it. -->
+       The entitlements have to be named as well, and they are the ones Xcode produced, not the file
+       in Penban.Widget.iOS/Resources: embedding copies the .appex into the app bundle, deletes the
+       signature Xcode put on it and signs it again here. Signing only reads what stands in the file
+       handed to it, so the keys Xcode takes from the provisioning profile (application-identifier,
+       team identifier, beta-reports-active) would be missing - App Store Connect rejects such an
+       upload (90075). scripts/ios-widget.sh therefore writes the entitlements of the finished
+       .appex next to it and this path points at that copy. -->
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And Exists('$(WidgetExtensionPath)')">
     <AdditionalAppExtensions Include="$(WidgetExtensionDir)">
       <Name>PenbanWidget</Name>
       <BuildOutput>$(WidgetExtensionOutput)</BuildOutput>
-      <CodesignEntitlements>$(MSBuildProjectDirectory)/../Penban.Widget.iOS/Resources/PenbanWidget.entitlements</CodesignEntitlements>
+      <CodesignEntitlements>$(WidgetExtensionDir)/PenbanWidget.entitlements</CodesignEntitlements>
     </AdditionalAppExtensions>
   </ItemGroup>
 
