@@ -38,11 +38,11 @@ public static class WidgetImageRenderer
         {
             foreach (var kind in Kinds)
             {
-                Render(board, palette, kind, Path.Combine(directory, WidgetImages.FileName(board.Id, kind, palette.IsDark)));
+                Render(board, palette, kind, Path.Combine(directory, WidgetImages.FileName(board.Id, board.Version, kind, palette.IsDark)));
             }
         }
 
-        return WidgetImages.For(board.Id);
+        return WidgetImages.For(board.Id, board.Version);
     }
 
     /// <summary>Draws one preview and writes it to <paramref name="file"/>.</summary>

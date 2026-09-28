@@ -17,8 +17,8 @@
 
     <ApplicationTitle>Penban</ApplicationTitle>
     <ApplicationId>com.agredoapplication.panban</ApplicationId>
-    <ApplicationDisplayVersion>0.4</ApplicationDisplayVersion>
-    <ApplicationVersion>8</ApplicationVersion>
+    <ApplicationDisplayVersion>0.4.1</ApplicationDisplayVersion>
+    <ApplicationVersion>9</ApplicationVersion>
 
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
@@ -56,6 +56,54 @@
   <PropertyGroup Condition="$(TargetFramework.Contains('-ios')) And '$(Configuration)' == 'Release'">
     <UseInterpreter>true</UseInterpreter>
   </PropertyGroup>
+
+  <!-- Compiles Platforms/iOS/PenbanWidgetReloader.swift into the app executable.
+       WidgetKit is a Swift-only framework, so "draw the widget again" - the call that makes a change
+       show up on the home screen without waiting for the widget's own next refresh - cannot be made
+       from managed code at all, and the iOS SDK's build cannot compile Swift. This target runs the
+       toolchain's compiler for the object and links it by hand.
+
+       The object cannot travel as a NativeReference: the SDK expands those before it compiles
+       anything, and it does not expand them on the way to the link at all. And the link flags cannot
+       sit in an ItemGroup above either - only @(LinkerArgument) is read after the SDK has collected
+       its own flags, while @(ExtraLinkerArg) and friends are folded in earlier than this target runs.
+       Linchpin: Penban.Maui.Views/Widget/IosWidgetRefresh.cs, the caller. -->
+  <Target Name="LinkWidgetReloader"
+          BeforeTargets="_ComputeLinkNativeExecutableInputs"
+          DependsOnTargets="_DetectSdkLocations"
+          Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+    <PropertyGroup>
+      <WidgetReloaderSource>$(MSBuildProjectDirectory)/Platforms/iOS/PenbanWidgetReloader.swift</WidgetReloaderSource>
+      <WidgetReloaderObject>$(IntermediateOutputPath)PenbanWidgetReloader.o</WidgetReloaderObject>
+
+      <!-- The object ends up inside the app, so it has to be built for the same platform and
+           architecture: the device, or the simulator on a Mac. The deployment target is the app's own
+           floor - a higher one would let the compiler leave the call out on older iOS. -->
+      <WidgetReloaderSdk>iphoneos</WidgetReloaderSdk>
+      <WidgetReloaderSdk Condition="$(RuntimeIdentifier.Contains('simulator'))">iphonesimulator</WidgetReloaderSdk>
+      <WidgetReloaderArchitecture>arm64</WidgetReloaderArchitecture>
+      <WidgetReloaderArchitecture Condition="$(RuntimeIdentifier.EndsWith('x64'))">x86_64</WidgetReloaderArchitecture>
+      <WidgetReloaderTarget>$(WidgetReloaderArchitecture)-apple-ios$(SupportedOSPlatformVersion)</WidgetReloaderTarget>
+      <WidgetReloaderTarget Condition="'$(WidgetReloaderSdk)' == 'iphonesimulator'">$(WidgetReloaderTarget)-simulator</WidgetReloaderTarget>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <!-- force_load rather than a plain object file: nothing in the app references the class by
+           symbol, it is looked up by name at runtime, and this keeps every member of the object. -->
+      <LinkerArgument Include="-Wl,-force_load,$(WidgetReloaderObject)" />
+      <!-- The object autolinks WidgetKit itself; naming the framework keeps the link independent of
+           that. -->
+      <LinkerArgument Include="-Wl,-framework,WidgetKit" />
+
+      <!-- So that a clean build really starts over. -->
+      <FileWrites Include="$(WidgetReloaderObject)" />
+    </ItemGroup>
+
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(WidgetReloaderObject)'))" />
+    <!-- The freshness test lives in the shell, not in the Condition: MSBuild does not offer a property
+         function that compares two timestamps, and a missing object file makes the source the newer one. -->
+    <Exec Command="if [ ! -f &quot;$(WidgetReloaderObject)&quot; ] || [ &quot;$(WidgetReloaderSource)&quot; -nt &quot;$(WidgetReloaderObject)&quot; ]; then xcrun --sdk $(WidgetReloaderSdk) swiftc -target $(WidgetReloaderTarget) -sdk &quot;$(_SdkRoot)&quot; -parse-as-library -O -c &quot;$(WidgetReloaderSource)&quot; -o &quot;$(WidgetReloaderObject)&quot;; fi" />
+  </Target>
 
   <ItemGroup>
     <!-- App Icon: the Penban logo tile carries the brand on every platform. Apple icons must not

@@ -43,9 +43,11 @@ struct PenbanProvider: AppIntentTimelineProvider {
     }
 
     func timeline(for configuration: PenbanBoardIntent, in context: Context) async -> Timeline<PenbanEntry> {
+        let entry = entry(for: configuration)
+
         // The app asks for a reload whenever the boards change, so this is only a safety net for a
         // widget the system has not been told about - and for the day a date on a card ages.
-        Timeline(entries: [entry(for: configuration)], policy: .after(Date().addingTimeInterval(3600)))
+        return Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(3600)))
     }
 
     /// Resolves the board the widget shows: the chosen one, else the board that was held down in the
@@ -80,6 +82,10 @@ struct PenbanWidgetView: View {
                 // nothing behind it. Only the empty state needs a surface of its own.
                 entry.board == nil ? Color(uiColor: .systemBackground) : Color.clear
             }
+            // A tap opens the board the widget is showing rather than only the app. The address is
+            // built here, declared by the app in its Info.plist (CFBundleURLTypes) and read again in
+            // MauiProgram - all three have to name the same one.
+            .widgetURL(entry.board.flatMap { URL(string: "penban://board/\($0.id)") })
     }
 
     @ViewBuilder

@@ -54,6 +54,14 @@ public sealed class WidgetBoard
     /// <summary>Identity of the board; the widget remembers the chosen one by this.</summary>
     public Guid Id { get; set; }
 
+    /// <summary>
+    /// Fingerprint of what this board looks like, and the version in the names of its previews.
+    /// Deliberately not serialised: the widget takes the names from <see cref="Images"/>, which carry
+    /// the same version, so an older extension is not asked to read a field it does not know.
+    /// </summary>
+    [JsonIgnore]
+    public string Version { get; set; } = string.Empty;
+
     public string Title { get; set; } = string.Empty;
 
     /// <summary>Caption under the title, exactly as the overview words it.</summary>
@@ -120,8 +128,9 @@ public sealed class WidgetNote
 /// the file matching its family and the current appearance instead of drawing the card itself, which
 /// keeps a second renderer of the app's own card out of the extension.
 /// <para>
-/// A preview is named <c>w-{boardId}-{square|wide|tall}-{light|dark}.png</c>; the board id is what
-/// keeps the boards of one shared folder apart.
+/// A preview is named <c>w-{boardId}-{version}-{square|wide|tall}-{light|dark}.png</c>; the board id
+/// keeps the boards of one shared folder apart, the version moves the name on whenever the board looks
+/// different.
 /// </para>
 /// </summary>
 public sealed class WidgetImages
@@ -151,18 +160,28 @@ public sealed class WidgetImages
     ];
 
     /// <summary>The names all six previews of a board get, in the order the renderer writes them.</summary>
-    public static WidgetImages For(Guid boardId) => new()
+    public static WidgetImages For(Guid boardId, string version) => new()
     {
-        SquareLight = FileName(boardId, WidgetCardKind.Square, dark: false),
-        SquareDark = FileName(boardId, WidgetCardKind.Square, dark: true),
-        WideLight = FileName(boardId, WidgetCardKind.Wide, dark: false),
-        WideDark = FileName(boardId, WidgetCardKind.Wide, dark: true),
-        TallLight = FileName(boardId, WidgetCardKind.Tall, dark: false),
-        TallDark = FileName(boardId, WidgetCardKind.Tall, dark: true),
+        SquareLight = FileName(boardId, version, WidgetCardKind.Square, dark: false),
+        SquareDark = FileName(boardId, version, WidgetCardKind.Square, dark: true),
+        WideLight = FileName(boardId, version, WidgetCardKind.Wide, dark: false),
+        WideDark = FileName(boardId, version, WidgetCardKind.Wide, dark: true),
+        TallLight = FileName(boardId, version, WidgetCardKind.Tall, dark: false),
+        TallDark = FileName(boardId, version, WidgetCardKind.Tall, dark: true),
     };
 
-    /// <summary>File name of one preview; the widget asks for exactly this name.</summary>
-    public static string FileName(Guid boardId, WidgetCardKind kind, bool dark)
+    /// <summary>
+    /// File name of one preview; the widget asks for exactly this name. <paramref name="version"/> is
+    /// the fingerprint of the board the file was drawn from.
+    /// <para>
+    /// The name has to move on with the picture. The extension caches the previews it has read by file
+    /// name - a widget is asked for its content several times per refresh and reading a few hundred
+    /// kilobytes each time is work it cannot afford - so a board that kept its file names would be
+    /// served from that cache and the home screen would stay on the old card no matter how often the
+    /// app drew a new one and asked for a reload.
+    /// </para>
+    /// </summary>
+    public static string FileName(Guid boardId, string version, WidgetCardKind kind, bool dark)
     {
         var size = kind switch
         {
@@ -171,7 +190,7 @@ public sealed class WidgetImages
             _ => "tall",
         };
 
-        return $"w-{boardId:N}-{size}-{(dark ? "dark" : "light")}.png";
+        return $"w-{boardId:N}-{version}-{size}-{(dark ? "dark" : "light")}.png";
     }
 }
 

@@ -107,12 +107,20 @@ public static class WidgetSnapshotWriter
                 }
             }
 
+            // A preview that was replaced - the same board, drawn again under a new name - is left for a
+            // moment before it goes. The names carry the version of the board, so a widget that is still
+            // showing the previous one is showing a file whose name is no longer in the document; taking
+            // it away at once would leave that widget with nothing to draw. A later visit clears it.
+            var grace = DateTime.UtcNow - TimeSpan.FromMinutes(15);
+
             foreach (var file in Directory.EnumerateFiles(folder, "w-*.png"))
             {
-                if (!wanted.Contains(Path.GetFileName(file)))
+                if (wanted.Contains(Path.GetFileName(file)) || File.GetLastWriteTimeUtc(file) > grace)
                 {
-                    File.Delete(file);
+                    continue;
                 }
+
+                File.Delete(file);
             }
         }
         catch (Exception exception)

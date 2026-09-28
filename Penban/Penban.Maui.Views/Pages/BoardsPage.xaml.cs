@@ -16,10 +16,11 @@ public partial class BoardsPage : ContentPage
     private readonly SettingsViewModel settingsViewModel;
     private readonly FeedbackViewModel feedbackViewModel;
     private readonly TransferCoordinator transferCoordinator;
-    private WidgetSnapshotTrigger? widget;
+    private readonly WidgetSnapshotTrigger widget;
+    private readonly WidgetBoardLink boardLink;
     private bool isOpeningBoard;
 
-    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, IDialogService dialogService, TransferCoordinator transferCoordinator)
+    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, IDialogService dialogService, TransferCoordinator transferCoordinator, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink)
     {
         InitializeComponent();
         this.settingsViewModel = settingsViewModel;
@@ -27,6 +28,8 @@ public partial class BoardsPage : ContentPage
         this.preferences = preferences;
         this.dialogService = dialogService;
         this.transferCoordinator = transferCoordinator;
+        this.widget = widget;
+        this.boardLink = boardLink;
         BindingContext = viewModel;
     }
 
@@ -40,21 +43,21 @@ public partial class BoardsPage : ContentPage
 
         // The home screen widget shows a copy of this list, and the overview is the one place that
         // knows the list is complete again: on every visit, whether the app was just started or a
-        // board was closed with a new note on it.
-        widget ??= new WidgetSnapshotTrigger(viewModel, preferences);
+        // board was closed with a new note on it. The trigger belongs to the app rather than to this
+        // page - it is what the copy is written from even after the page is gone - so what it watches
+        // is handed over on every visit instead of being tied to the first of them.
+        widget.Attach(viewModel);
 
         await viewModel.LoadBoardsCommand.ExecuteAsync(null);
         await widget.RefreshAsync();
-    }
 
-    protected override void OnDisappearing()
-    {
-        base.OnDisappearing();
-
-        // A page is made per navigation, so the trigger goes with it instead of staying subscribed
-        // to a list that outlives it.
-        widget?.Dispose();
-        widget = null;
+        // A tap on a widget that woke the app asked for its board before this page existed. The
+        // activation normally opens it; if it could not - a cold start has no overview yet - it is
+        // waiting here (see WidgetBoardLink).
+        if (boardLink.Take() is { } boardId)
+        {
+            await OpenBoardAsync(boardId);
+        }
     }
 
     /// <summary>
@@ -65,8 +68,30 @@ public partial class BoardsPage : ContentPage
     /// </summary>
     private async void OnBoardTapped(object? sender, TappedEventArgs e)
     {
+        if (sender is not Element { BindingContext: BoardViewModel board })
+        {
+            return;
+        }
+
+        await OpenBoardAsync(board.Id);
+    }
+
+    /// <summary>
+    /// Shows one board of the overview. Used by the tap on a row and by the board a tapped home
+    /// screen widget stands for, which is the same thing asked for by something that is not a row.
+    /// </summary>
+    public async Task OpenBoardAsync(Guid boardId)
+    {
         // Tapping a note twice before the push settles would push the board twice.
-        if (isOpeningBoard || sender is not Element { BindingContext: BoardViewModel board } || BindingContext is not BoardsViewModel viewModel)
+        if (isOpeningBoard || BindingContext is not BoardsViewModel viewModel)
+        {
+            return;
+        }
+
+        // The board may be gone from a list that was read a while ago: the widget can outlive a board
+        // that was deleted, and an import replaces the database behind this page's back.
+        var board = viewModel.FindBoard(boardId) ?? await LoadBoardAsync(viewModel, boardId);
+        if (board is null)
         {
             return;
         }
@@ -74,12 +99,24 @@ public partial class BoardsPage : ContentPage
         isOpeningBoard = true;
         try
         {
-            await Navigation.PushAsync(new BoardPage(viewModel.FindBoard(board.Id) ?? board, preferences, transferCoordinator));
+            // Only the overview of this board is wanted; whatever was open went with the tap.
+            if (Navigation.NavigationStack.Count > 1)
+            {
+                await Navigation.PopToRootAsync();
+            }
+
+            await Navigation.PushAsync(new BoardPage(board, preferences, transferCoordinator));
         }
         finally
         {
             isOpeningBoard = false;
         }
+    }
+
+    private static async Task<BoardViewModel?> LoadBoardAsync(BoardsViewModel viewModel, Guid boardId)
+    {
+        await viewModel.LoadBoardsCommand.ExecuteAsync(null);
+        return viewModel.FindBoard(boardId);
     }
 
     private async void OnSettingsClicked(object? sender, EventArgs e)
@@ -118,10 +155,7 @@ public partial class BoardsPage : ContentPage
 
         // The wish is part of what the widget reads, so it has to be written now rather than on the
         // next visit: whoever stands on the home screen with the menu just closed cannot wait.
-        if (widget is not null)
-        {
-            await widget.RefreshAsync();
-        }
+        await widget.RefreshAsync();
 
         await dialogService.DisplayAlertAsync(
             Strings.WidgetForBoard,

@@ -16,7 +16,14 @@ public partial class AppShell : Shell
         {
             Title = "Boards",
             Route = "boards",
-            ContentTemplate = new DataTemplate(() => services.GetRequiredService<BoardsPage>()),
+            ContentTemplate = new DataTemplate(() => Boards = services.GetRequiredService<BoardsPage>()),
         });
     }
+
+    /// <summary>
+    /// The overview this shell built, as long as it exists. What needs it is not a page and has no
+    /// way of its own to get there - a tap on the home screen widget, which is opened out of the
+    /// app's lifecycle (see <see cref="MauiProgram"/>) rather than from a row in the list.
+    /// </summary>
+    internal BoardsPage? Boards { get; private set; }
 }
