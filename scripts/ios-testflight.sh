@@ -53,6 +53,8 @@ die()  { printf '\033[31mFehler:\033[0m %s\n' "$*" >&2; exit 1; }
 csproj_value() { sed -n "s/.*<$1>\(.*\)<\/$1>.*/\1/p" "$PROJ" | head -1 | tr -d '[:space:]'; }
 
 BUNDLE_ID="${BUNDLE_ID:-$(csproj_value ApplicationId)}"
+# Muss zu Penban.Widget.iOS/project.yml und Platforms/iOS/Entitlements.plist passen.
+APP_GROUP="${APP_GROUP:-group.com.agredoapplication.panban}"
 VERSION="${VERSION:-$(csproj_value ApplicationDisplayVersion)}"
 BUILD="${BUILD:-$(csproj_value ApplicationVersion)}"
 
@@ -245,6 +247,59 @@ verify_bundle_runtime_hash() { # <pfad/zur/App.app>
     Lösung: '$0 clean' ausführen und erneut bauen."
 }
 
+# Die Extension wird nicht mitgebaut: Penban.Maui.csproj bettet ein, was in
+# Penban.Widget.iOS/build/<Configuration>-iphoneos liegt. Ein TestFlight-Build muss sie deshalb
+# selbst in Release erzeugen – eine zuletzt gebaute Debug-Extension bringt sonst 'get-task-allow'
+# mit (App Store Connect lehnt das Paket mit 90164 ab) und trägt deren Version statt der der App.
+build_widget_extension() {
+  local script="$REPO_ROOT/scripts/ios-widget.sh"
+  [ -x "$script" ] || die "Widget-Skript nicht gefunden oder nicht ausführbar: $script
+    Ohne die Extension im Bundle hätte die App keine Widgets."
+
+  log "Baue Widget-Extension (Release)"
+  # Über 'bash' statt direkt: die Datei muss nicht ausführbar sein, damit das hier läuft.
+  VERSION="$VERSION" BUILD="$BUILD" bash "$script" build Release
+}
+
+# Die eingebettete Extension muss zur App passen, sonst fällt es erst beim Upload auf.
+verify_widget_extension() { # <pfad/zur/App.app>
+  local app="$1" appex
+  appex="$(find "$app/PlugIns" -maxdepth 1 -type d -name '*.appex' -print -quit 2>/dev/null || true)"
+  [ -n "$appex" ] || die "Im Bundle steckt keine Widget-Extension ($app/PlugIns).
+    Ein TestFlight-Build ohne Widget wäre unvollständig – erst '$REPO_ROOT/scripts/ios-widget.sh
+    build Release', dann erneut bauen."
+  echo "Widget-Extension: $(basename "$appex")"
+
+  local app_version app_build ext_version ext_build
+  app_version="$(plutil -extract CFBundleShortVersionString raw -o - "$app/Info.plist" 2>/dev/null || true)"
+  app_build="$(plutil -extract CFBundleVersion raw -o - "$app/Info.plist" 2>/dev/null || true)"
+  ext_version="$(plutil -extract CFBundleShortVersionString raw -o - "$appex/Info.plist" 2>/dev/null || true)"
+  ext_build="$(plutil -extract CFBundleVersion raw -o - "$appex/Info.plist" 2>/dev/null || true)"
+  if [ "$ext_version" != "$app_version" ] || [ "$ext_build" != "$app_build" ]; then
+    die "Die Extension hat eine andere Version als die App (Extension: $ext_version ($ext_build),
+    App: $app_version ($app_build)). Das ist eine veraltete .appex aus einem früheren Build, und
+    App Store Connect weist sie mit 90473 zurück.
+    Lösung: '$REPO_ROOT/scripts/ios-widget.sh' build Release ausführen (VERSION und BUILD in
+    Penban.Widget.iOS/project.yml müssen zu Penban.Maui.csproj passen) und '$0 clean' + erneut bauen."
+  fi
+  echo "Version:          $ext_version ($ext_build)"
+
+  # get-task-allow erlaubt das Debuggen und ist im App Store nicht zulässig. Der Wert zählt,
+  # nicht das Vorhandensein des Schlüssels: 'false' setzt auch die App-Store-Signatur.
+  local entitlements debug
+  entitlements="$(codesign -d --entitlements - --xml "$appex" 2>/dev/null || true)"
+  debug="$(printf '%s' "$entitlements" | plutil -extract get-task-allow raw -o - - 2>/dev/null || true)"
+  if [ "$debug" = "true" ] || [ "$debug" = "1" ]; then
+    die "Die eingebettete Extension ist mit 'get-task-allow' signiert, also mit dem
+    Development-Profil gebaut, und wird von App Store Connect abgelehnt (90164).
+    Lösung: '$REPO_ROOT/scripts/ios-widget.sh' build Release ausführen (die Extension braucht ein
+    Apple-Distribution-Zertifikat und ein App-Store-Profil) und '$0 clean' + erneut bauen."
+  fi
+  printf '%s' "$entitlements" | grep -q "$APP_GROUP" \
+    || die "Der Extension fehlt die App Group '$APP_GROUP' – das Widget hätte keinen Zugriff auf
+    den geteilten Ordner. '$REPO_ROOT/scripts/ios-widget.sh' build Release ausführen."
+}
+
 # ------------------------------------------------------------------- Kommandos --
 cmd_info() {
   select_build_dir
@@ -283,6 +338,8 @@ cmd_build() {
 
   log "Bereinige alte iOS-Build-Artefakte (obj/bin/$IOS_TFM)"
   clean_ios_outputs
+
+  build_widget_extension
 
   log "Baue Release-IPA: $BUNDLE_ID $VERSION ($BUILD)"
   echo "Signierung: ${SIGNING_KEY}"
@@ -329,6 +386,9 @@ cmd_build() {
 
   log "Prüfe Bundle auf konsistente Runtime-Hashes"
   verify_bundle_runtime_hash "$APP_PATH"
+
+  log "Prüfe die eingebettete Widget-Extension"
+  verify_widget_extension "$APP_PATH"
 
   printf 'Nächster Schritt: %s upload "%s"\n' "$0" "$IPA_PATH"
 }
