@@ -2,9 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- The widget reads the snapshot and the previews the app writes into the shared container.
-	     Identifier mirrors WidgetSharedStorage.GroupId in the app; the container is only handed out
-	     when both targets claim the same group. -->
+	<!-- Xcode merges these with what the provisioning profile grants, so naming the App Group is
+	     enough here. The MAUI build signs the embedded copy again and only reads a file, which is
+	     why it uses build/PenbanWidget.entitlements - written by scripts/ios-widget.sh from the
+	     finished extension. -->
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.com.agredoapplication.panban</string>
