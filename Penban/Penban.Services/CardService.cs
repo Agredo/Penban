@@ -1,5 +1,6 @@
 // Framework-agnostic: no Microsoft.Maui.* usings allowed in this file.
 using Penban.Models;
+using Penban.Recognition;
 using Penban.Services.Abstractions;
 using Penban.Util;
 
@@ -10,11 +11,19 @@ public class CardService : ICardService
 {
     private readonly ICardRepository repository;
     private readonly IPreferences preferences;
+    private readonly IRecognitionQueue recognition;
+    private readonly IRecognitionStore recognitionStore;
 
-    public CardService(ICardRepository repository, IPreferences preferences)
+    public CardService(
+        ICardRepository repository,
+        IPreferences preferences,
+        IRecognitionQueue recognition,
+        IRecognitionStore recognitionStore)
     {
         this.repository = repository;
         this.preferences = preferences;
+        this.recognition = recognition;
+        this.recognitionStore = recognitionStore;
     }
 
     public async Task<List<Card>> GetCardsAsync(Guid columnId)
@@ -60,9 +69,24 @@ public class CardService : ICardService
         return card;
     }
 
-    public Task SaveCardAsync(Card card) => repository.SaveAsync(card);
+    public Task SaveCardAsync(Card card)
+    {
+        // The ink goes to the queue rather than through it: reading a card takes the better part of a
+        // second per line, and the card is closed by the user before this is called. Waiting here
+        // would put that time on the screen for nothing. A card with no ink is queued as well - that
+        // is how the text of a note the user erased is taken back out of the search.
+        recognition.Enqueue(card.Id, card.Strokes ?? []);
+        return repository.SaveAsync(card);
+    }
 
-    public Task DeleteCardAsync(Guid cardId) => repository.DeleteAsync(cardId);
+    public async Task DeleteCardAsync(Guid cardId)
+    {
+        // Both halves of the derived data go: a queued card would be read for a card that no longer
+        // exists, and stored text would keep a deleted note in the search results.
+        recognition.Forget(cardId);
+        await repository.DeleteAsync(cardId);
+        await recognitionStore.RemoveAsync(cardId);
+    }
 
     public async Task ReorderCardsAsync(Guid columnId, IReadOnlyList<Guid> orderedCardIds)
     {

@@ -11,6 +11,8 @@ using Microsoft.Maui.LifecycleEvents;
 #endif
 using Penban.Maui.Views.Services;
 using Penban.Maui.Views.Widget;
+using Penban.Recognition;
+using Penban.Recognition.Onnx;
 using Penban.Services;
 using Penban.Services.Abstractions;
 using Penban.ViewModels;
@@ -92,6 +94,19 @@ public static class MauiProgram
         services.AddSingleton<IFileShareService, MauiFileShareService>();
         services.AddSingleton<IDataTransferService, DataTransferService>();
         services.AddSingleton<TransferCoordinator>();
+
+        // Texterkennung: the store is the database, the recogniser is the model, and the queue is what
+        // keeps the two off the user's path. The model itself is named by CreateFromEmbeddedResources
+        // rather than by a file path, so it cannot go missing next to the app.
+        services.AddSingleton<IRecognitionStore, LiteDbRecognitionStore>();
+        services.AddSingleton<IInkTextRecognizer>(_ => OnnxInkTextRecognizer.CreateFromEmbeddedResources());
+        services.AddSingleton<IInkRecognitionService, InkRecognitionService>();
+
+        // Handed to the queue as a factory, not as a value: building the recogniser loads the model,
+        // and a board nobody has written on should never pay for that.
+        services.AddSingleton<Func<IInkRecognitionService>>(
+            provider => provider.GetRequiredService<IInkRecognitionService>);
+        services.AddSingleton<IRecognitionQueue, RecognitionQueue>();
 
         // The widget's copy of the overview belongs to the app, not to the page that happens to hold
         // the list: it is written again while the app is left, when no overview is on screen at all.
