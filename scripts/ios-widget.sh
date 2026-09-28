@@ -5,6 +5,10 @@
 #   scripts/ios-widget.sh build [Debug|Release]   Extension bauen und ablegen (Standard: Release)
 #   scripts/ios-widget.sh clean                   Build-Ordner der Extension löschen
 #
+# VERSION=0.4.1 und BUILD=9 setzen die Version der Extension; sie muss der App entsprechen, sonst
+# lehnt App Store Connect das Paket ab (90473). Ohne die Variablen gelten die Werte aus project.yml.
+# scripts/ios-testflight.sh reicht hier automatisch die Version durch, die es in die App schreibt.
+#
 # Voraussetzung: macOS mit Xcode. Nur Xcode kann eine .appex erzeugen – die MAUI-Toolchain
 # bettet sie anschließend nur ein. Das Ergebnis landet unter
 #
@@ -31,6 +35,12 @@ SCHEME="PenbanWidget"
 # ein Extension-Bundle muss die Bundle-ID der App als Präfix tragen.
 EXTENSION_BUNDLE_ID="com.agredoapplication.panban.WidgetExtension"
 APP_GROUP="group.com.agredoapplication.panban"
+
+# Version und Build-Nummer dürfen von der App nicht abweichen – App Store Connect weist ein Paket
+# mit 90473 zurück. project.yml nennt Defaults; die Werte aus der Umgebung stechen sie, damit
+# scripts/ios-testflight.sh hier genau die Version mitgeben kann, die es in die App schreibt.
+VERSION="${VERSION:-}"
+BUILD="${BUILD:-}"
 
 log()  { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[33mHinweis:\033[0m %s\n' "$*" >&2; }
@@ -93,6 +103,18 @@ verify_appex() { # <pfad/zur/PenbanWidget.appex>
 
   echo "Bundle-ID:  $bundle_id"
   echo "App Group:  $APP_GROUP"
+
+  # Eine abweichende Version fällt sonst erst beim Upload auf (90473).
+  local version build
+  version="$(plutil -extract CFBundleShortVersionString raw -o - "$appex/Info.plist" 2>/dev/null || true)"
+  build="$(plutil -extract CFBundleVersion raw -o - "$appex/Info.plist" 2>/dev/null || true)"
+  [ -z "$VERSION" ] || [ "$version" = "$VERSION" ] \
+    || die "Die Extension wurde als Version '$version' gebaut, erwartet war '$VERSION'.
+    MARKETING_VERSION in Penban.Widget.iOS/project.yml an Penban.Maui.csproj angleichen."
+  [ -z "$BUILD" ] || [ "$build" = "$BUILD" ] \
+    || die "Die Extension wurde mit Build-Nummer '$build' gebaut, erwartet war '$BUILD'.
+    CURRENT_PROJECT_VERSION in Penban.Widget.iOS/project.yml an Penban.Maui.csproj angleichen."
+  echo "Version:    $version ($build)"
 }
 
 # Die Datei, mit der der MAUI-Build die eingebettete Extension neu signiert. Xcode setzt beim
@@ -180,6 +202,9 @@ cmd_build() {
   fi
 
   log "Baue $SCHEME ($configuration)"
+  local -a version=()
+  [ -n "$VERSION" ] && version+=(MARKETING_VERSION="$VERSION")
+  [ -n "$BUILD" ] && version+=(CURRENT_PROJECT_VERSION="$BUILD")
   # CONFIGURATION_BUILD_DIR statt -derivedDataPath: so landet das .appex direkt in dem Ordner,
   # den der MAUI-Build erwartet, ohne Zwischenkopie.
   (cd "$WIDGET_DIR" && xcodebuild \
@@ -189,6 +214,7 @@ cmd_build() {
     -destination 'generic/platform=iOS' \
     -allowProvisioningUpdates \
     CONFIGURATION_BUILD_DIR="$out_dir" \
+    ${version[@]+"${version[@]}"} \
     ${sign[@]+"${sign[@]}"} \
     build)
 
