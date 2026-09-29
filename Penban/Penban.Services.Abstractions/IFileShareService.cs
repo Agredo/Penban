@@ -13,6 +13,10 @@ public interface IFileShareService
     /// <summary>Hands the file to the operating system's share sheet.</summary>
     Task ShareAsync(string filePath, string title);
 
-    /// <summary>Lets the user pick a file, or returns <c>null</c> when the picker was cancelled.</summary>
-    Task<string?> PickAsync(string title, string fileExtension);
+    /// <summary>
+    /// Lets the user pick a file, or returns <c>null</c> when the picker was cancelled. What comes
+    /// back is the handle itself: the file has to be read through it, because a picked file is not
+    /// always readable by its path (see <see cref="PickedFile"/>).
+    /// </summary>
+    Task<PickedFile?> PickAsync(string title, string fileExtension);
 }

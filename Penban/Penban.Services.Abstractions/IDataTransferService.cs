@@ -3,7 +3,7 @@ namespace Penban.Services.Abstractions;
 /// <summary>
 /// Writes and reads Penban export files: the whole database as a backup, a single board, or just
 /// the cards of a board. A file is written next to the app and then handed to the platform share
-/// sheet by <see cref="IFileShareService"/>; reading starts from a path a file picker returned.
+/// sheet by <see cref="IFileShareService"/>; reading starts from the file a picker handed back.
 /// </summary>
 public interface IDataTransferService
 {
@@ -16,9 +16,10 @@ public interface IDataTransferService
 
     /// <summary>
     /// Reads what a file holds without importing anything. Returns <c>null</c> when the file is not
-    /// a Penban file, or comes from a version this build does not understand.
+    /// a Penban file, or comes from a version this build does not understand. A file that cannot be
+    /// read at all is not one of those cases and is reported as an error instead.
     /// </summary>
-    Task<ImportFileInfo?> ReadAsync(string filePath);
+    Task<ImportFileInfo?> ReadAsync(PickedFile file);
 
     /// <summary>
     /// Imports a file. What the file holds decides what happens: a backup replaces or merges,
@@ -26,5 +27,5 @@ public interface IDataTransferService
     /// <paramref name="targetColumnId"/> - which is therefore required for a cards file.
     /// <paramref name="mode"/> only matters for a backup.
     /// </summary>
-    Task<ImportResult> ImportAsync(string filePath, ImportMode mode, Guid? targetColumnId = null);
+    Task<ImportResult> ImportAsync(PickedFile file, ImportMode mode, Guid? targetColumnId = null);
 }
