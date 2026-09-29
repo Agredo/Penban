@@ -8,6 +8,19 @@ public interface ICardService
     Task<List<Card>> GetCardsAsync(Guid columnId);
 
     /// <summary>
+    /// Returns one entry per card in the column, in board order, without reading any ink. Meant for
+    /// the board overview, which counts the cards, dates the board and draws a few notes from them -
+    /// <see cref="CardHeader"/> explains why that is worth its own call.
+    /// </summary>
+    Task<List<CardHeader>> GetCardHeadersAsync(Guid columnId);
+
+    /// <summary>
+    /// Returns the cards with the given ids, in the order they were asked for, brought into document
+    /// space exactly as <see cref="GetCardsAsync(Guid)"/> does. Ids without a card are left out.
+    /// </summary>
+    Task<List<Card>> GetCardsByIdsAsync(IReadOnlyList<Guid> cardIds);
+
+    /// <summary>
     /// Returns the card with the given id, or <c>null</c> if it no longer exists. Used to find out
     /// which board a recognised text came from, so that a search result can be opened.
     /// </summary>

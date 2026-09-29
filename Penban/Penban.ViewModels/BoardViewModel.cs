@@ -58,6 +58,13 @@ public partial class BoardViewModel : ObservableObject
     /// <summary>Number of notes the overview fans out; more than a handful stops reading as a stack.</summary>
     private const int PreviewNoteLimit = 3;
 
+    /// <summary>
+    /// How many places' worth of cards the overview may read through to fill the fan, see
+    /// <see cref="PickPreviewsAsync"/>. Enough to look past the blank notes a board tends to start
+    /// with, few enough that a board of nothing but blank notes still lists quickly.
+    /// </summary>
+    private const int PreviewProbeFactor = 4;
+
     /// <summary>Total number of cards across all columns; loaded by <see cref="LoadSummaryAsync"/>.</summary>
     [ObservableProperty]
     private int cardCount;
@@ -105,6 +112,11 @@ public partial class BoardViewModel : ObservableObject
     /// Loads the lightweight summary shown on the board overview (last edit, card count per lane,
     /// ink of the first few notes) without populating the column card collections used by the board
     /// page.
+    /// <para>
+    /// The counts and the date come out of an ink-free read of the board (<see cref="CardHeader"/>),
+    /// which is what keeps this cheap on a board whose notes have been written on: only the handful
+    /// of cards that are actually drawn are read whole, see <see cref="PickPreviewsAsync"/>.
+    /// </para>
     /// </summary>
     public async Task LoadSummaryAsync()
     {
@@ -115,26 +127,26 @@ public partial class BoardViewModel : ObservableObject
 
         var count = 0;
         var lastEdited = LastEditedUtc;
-        var previews = new List<Card>();
+        var candidates = new List<Guid>();
         var summaries = new List<BoardColumnSummary>();
 
         foreach (var column in Columns)
         {
-            var cards = await cardService.GetCardsAsync(column.Id);
-            count += cards.Count;
-            summaries.Add(new BoardColumnSummary(column.Title, cards.Count, NoteColorIndex));
+            var headers = await cardService.GetCardHeadersAsync(column.Id);
+            count += headers.Count;
+            summaries.Add(new BoardColumnSummary(column.Title, headers.Count, NoteColorIndex));
 
-            foreach (var card in cards)
+            foreach (var header in headers)
             {
-                lastEdited = card.UpdatedAtUtc > lastEdited ? card.UpdatedAtUtc : lastEdited;
+                lastEdited = header.UpdatedAtUtc > lastEdited ? header.UpdatedAtUtc : lastEdited;
 
-                // Only notes that were actually written on say something about the board.
-                if (card.Strokes.Count > 0 && previews.Count < cardLimit)
-                {
-                    previews.Add(card);
-                }
+                // Board order - columns in their order, cards in the order the board shows them. It
+                // is the order the fan fills up in, and the order PickPreviewsAsync walks in.
+                candidates.Add(header.Id);
             }
         }
+
+        var previews = await PickPreviewsAsync(candidates, cardLimit);
 
         LastEditedUtc = lastEdited;
 
@@ -169,6 +181,50 @@ public partial class BoardViewModel : ObservableObject
         // announced separately.
         OnPropertyChanged(nameof(SummaryText));
         OnPropertyChanged(nameof(HasColumns));
+    }
+
+    /// <summary>
+    /// Reads the board's cards in order and returns the first <paramref name="limit"/> that were
+    /// written on - the notes the overview actually draws.
+    /// <para>
+    /// Whether a card carries ink can only be seen by reading the card, and the ink of a card is what
+    /// makes reading it expensive. So they are read in runs of <paramref name="limit"/> at a time,
+    /// stopping at the first run that fills the fan, and never more than
+    /// <see cref="PreviewProbeFactor"/> runs into the board: blank notes are looked past, but not
+    /// indefinitely - a board of nothing but blank notes would otherwise cost what it cost before.
+    /// </para>
+    /// </summary>
+    private async Task<List<Card>> PickPreviewsAsync(IReadOnlyList<Guid> candidates, int limit)
+    {
+        var previews = new List<Card>();
+
+        // How far into the board to look for written notes, at most.
+        var searched = Math.Min(candidates.Count, limit * PreviewProbeFactor);
+
+        for (var start = 0; start < searched && previews.Count < limit; start += limit)
+        {
+            var size = Math.Min(limit, searched - start);
+            var ids = new List<Guid>(size);
+            for (var offset = 0; offset < size; offset++)
+            {
+                ids.Add(candidates[start + offset]);
+            }
+
+            foreach (var card in await cardService.GetCardsByIdsAsync(ids))
+            {
+                // Only notes that were actually written on say something about the board.
+                if (card.Strokes.Count > 0)
+                {
+                    previews.Add(card);
+                    if (previews.Count == limit)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return previews;
     }
 
     /// <summary>
