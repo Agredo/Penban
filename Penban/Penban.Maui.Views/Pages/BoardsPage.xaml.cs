@@ -14,16 +14,18 @@ public partial class BoardsPage : ContentPage
     private readonly IPreferences preferences;
     private readonly IDialogService dialogService;
     private readonly SettingsViewModel settingsViewModel;
+    private readonly SearchViewModel searchViewModel;
     private readonly FeedbackViewModel feedbackViewModel;
     private readonly TransferCoordinator transferCoordinator;
     private readonly WidgetSnapshotTrigger widget;
     private readonly WidgetBoardLink boardLink;
     private bool isOpeningBoard;
 
-    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, IDialogService dialogService, TransferCoordinator transferCoordinator, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink)
+    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, SearchViewModel searchViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, IDialogService dialogService, TransferCoordinator transferCoordinator, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink)
     {
         InitializeComponent();
         this.settingsViewModel = settingsViewModel;
+        this.searchViewModel = searchViewModel;
         this.feedbackViewModel = feedbackViewModel;
         this.preferences = preferences;
         this.dialogService = dialogService;
@@ -80,7 +82,12 @@ public partial class BoardsPage : ContentPage
     /// Shows one board of the overview. Used by the tap on a row and by the board a tapped home
     /// screen widget stands for, which is the same thing asked for by something that is not a row.
     /// </summary>
-    public async Task OpenBoardAsync(Guid boardId)
+    /// <param name="boardId">The board to show.</param>
+    /// <param name="openCardId">
+    /// A note on that board to open on top of it. Handed in when the board was found by a search:
+    /// the board is then only the way to the note the user was looking for.
+    /// </param>
+    public async Task OpenBoardAsync(Guid boardId, Guid? openCardId = null)
     {
         // Tapping a note twice before the push settles would push the board twice.
         if (isOpeningBoard || BindingContext is not BoardsViewModel viewModel)
@@ -105,7 +112,7 @@ public partial class BoardsPage : ContentPage
                 await Navigation.PopToRootAsync();
             }
 
-            await Navigation.PushAsync(new BoardPage(board, preferences, transferCoordinator));
+            await Navigation.PushAsync(new BoardPage(board, preferences, transferCoordinator, openCardId));
         }
         finally
         {
@@ -122,6 +129,13 @@ public partial class BoardsPage : ContentPage
     private async void OnSettingsClicked(object? sender, EventArgs e)
     {
         await Navigation.PushAsync(new SettingsPage(settingsViewModel, feedbackViewModel));
+    }
+
+    private async void OnSearchClicked(object? sender, EventArgs e)
+    {
+        // The search hands a found board back to this page: opening one is the overview's job, and
+        // the page that was pushed from here is gone by the time a result is tapped.
+        await Navigation.PushAsync(new SearchPage(searchViewModel, OpenBoardAsync));
     }
 
     private async void OnTransferClicked(object? sender, EventArgs e)

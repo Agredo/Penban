@@ -1,5 +1,6 @@
 // Framework-agnostic: no Microsoft.Maui.* usings allowed in this file.
 using Penban.Models;
+using Penban.Recognition;
 using Penban.Services.Abstractions;
 using Penban.Util;
 
@@ -10,20 +11,61 @@ public class CardService : ICardService
 {
     private readonly ICardRepository repository;
     private readonly IPreferences preferences;
+    private readonly IRecognitionQueue recognition;
+    private readonly IRecognitionStore recognitionStore;
 
-    public CardService(ICardRepository repository, IPreferences preferences)
+    public CardService(
+        ICardRepository repository,
+        IPreferences preferences,
+        IRecognitionQueue recognition,
+        IRecognitionStore recognitionStore)
     {
         this.repository = repository;
         this.preferences = preferences;
+        this.recognition = recognition;
+        this.recognitionStore = recognitionStore;
     }
 
     public async Task<List<Card>> GetCardsAsync(Guid columnId)
     {
         var cards = await repository.GetByColumnAsync(columnId);
+        await MigrateAsync(cards);
+        return cards;
+    }
 
-        // Ink used to be stored in whatever surface pixels the renderer had; cards written before
-        // document space existed have to be converted once. Migrate is idempotent and marks the card,
-        // so this is a no-op from the second load on.
+    public Task<Card?> GetCardAsync(Guid cardId) => repository.GetAsync(cardId);
+
+    public void QueueRecognition(IReadOnlyList<Card> cards)
+    {
+        ArgumentNullException.ThrowIfNull(cards);
+
+        // Backwards, because the queue takes the newest entry first: a board handed over in one go is
+        // then read in the order it is written, so a search made while the run is still going finds
+        // the notes the user is looking at before the ones further down. Each card goes through the
+        // same door as a save, so a note edited while the board is open replaces its queued self
+        // instead of being read twice.
+        for (var i = cards.Count - 1; i >= 0; i--)
+        {
+            recognition.Enqueue(cards[i].Id, cards[i].Strokes ?? []);
+        }
+    }
+
+    public async Task<int> QueueAllRecognitionAsync()
+    {
+        var cards = await repository.GetAllAsync();
+        await MigrateAsync(cards);
+        QueueRecognition(cards);
+        return cards.Count;
+    }
+
+    /// <summary>
+    /// Converts ink that used to be stored in whatever surface pixels the renderer had into document
+    /// space. Cards written before document space existed have to be converted once; Migrate is
+    /// idempotent and marks the card, so this is a no-op from the second load on. Reading a card
+    /// without this would hand the recogniser coordinates from a space it does not expect.
+    /// </summary>
+    private async Task MigrateAsync(IReadOnlyList<Card> cards)
+    {
         foreach (var card in cards)
         {
             if (!InkDocument.NeedsMigration(card))
@@ -34,8 +76,6 @@ public class CardService : ICardService
             InkDocument.Migrate(card);
             await repository.SaveAsync(card);
         }
-
-        return cards;
     }
 
     public async Task<Card> CreateCardAsync(Guid columnId)
@@ -60,9 +100,24 @@ public class CardService : ICardService
         return card;
     }
 
-    public Task SaveCardAsync(Card card) => repository.SaveAsync(card);
+    public Task SaveCardAsync(Card card)
+    {
+        // The ink goes to the queue rather than through it: reading a card takes the better part of a
+        // second per line, and the card is closed by the user before this is called. Waiting here
+        // would put that time on the screen for nothing. A card with no ink is queued as well - that
+        // is how the text of a note the user erased is taken back out of the search.
+        recognition.Enqueue(card.Id, card.Strokes ?? []);
+        return repository.SaveAsync(card);
+    }
 
-    public Task DeleteCardAsync(Guid cardId) => repository.DeleteAsync(cardId);
+    public async Task DeleteCardAsync(Guid cardId)
+    {
+        // Both halves of the derived data go: a queued card would be read for a card that no longer
+        // exists, and stored text would keep a deleted note in the search results.
+        recognition.Forget(cardId);
+        await repository.DeleteAsync(cardId);
+        await recognitionStore.RemoveAsync(cardId);
+    }
 
     public async Task ReorderCardsAsync(Guid columnId, IReadOnlyList<Guid> orderedCardIds)
     {

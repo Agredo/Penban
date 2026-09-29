@@ -69,6 +69,13 @@ public partial class BoardPage : ContentPage
     private bool suppressCardRebuild;
 
     /// <summary>
+    /// A note to open as soon as the board is loaded, or <c>null</c> for a board that was opened for
+    /// its own sake. Set when the board was reached through a search result; cleared once it has
+    /// been opened, so returning to the board does not open it again.
+    /// </summary>
+    private Guid? openCardId;
+
+    /// <summary>
     /// Whether the notes are sized to their content. Read from the settings when the board appears
     /// so a change there is picked up without restarting the app; the field is what the card
     /// rebuild compares against.
@@ -80,11 +87,12 @@ public partial class BoardPage : ContentPage
     private static readonly BindableProperty ColumnViewModelProperty =
         BindableProperty.CreateAttached("ColumnViewModel", typeof(ColumnViewModel), typeof(BoardPage), null);
 
-    public BoardPage(BoardViewModel viewModel, IPreferences preferences, TransferCoordinator transferCoordinator)
+    public BoardPage(BoardViewModel viewModel, IPreferences preferences, TransferCoordinator transferCoordinator, Guid? openCardId = null)
     {
         InitializeComponent();
         this.preferences = preferences;
         this.transferCoordinator = transferCoordinator;
+        this.openCardId = openCardId;
         BindingContext = this.viewModel = viewModel;
         BoardKanban.ItemsSource = kanbanCards;
         BoardKanban.DragEnd += OnKanbanDragEnd;
@@ -162,6 +170,37 @@ public partial class BoardPage : ContentPage
         RebuildKanbanColumns();
         RebuildKanbanCards();
         isLoaded = true;
+
+        // A board opened from a search result carries the note that was searched for, and that note
+        // is what the tap asked for: the board is only the way there. Dispatched rather than opened
+        // here, because the board is still being pushed while this runs.
+        if (openCardId is { } wanted)
+        {
+            openCardId = null;
+            Dispatcher.Dispatch(() => OpenSearchedCard(wanted));
+        }
+    }
+
+    /// <summary>
+    /// Opens the note a search result pointed at. A note that is gone by now - deleted while the
+    /// search page was open - leaves the board showing, which is what a tap on the board itself
+    /// would have got.
+    /// </summary>
+    private async void OpenSearchedCard(Guid cardId)
+    {
+        if (viewModel is null)
+        {
+            return;
+        }
+
+        var card = viewModel.Columns
+            .SelectMany(column => column.Cards)
+            .FirstOrDefault(candidate => candidate.Id == cardId);
+
+        if (card is not null)
+        {
+            await OpenCardEditorAsync(card);
+        }
     }
 
     private async void OnColumnsChanged(object? sender, NotifyCollectionChangedEventArgs e)

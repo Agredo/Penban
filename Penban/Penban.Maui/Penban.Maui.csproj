@@ -148,6 +148,8 @@
     <ProjectReference Include="..\Penban.Maui.Services\Penban.Maui.Services.csproj" />
     <ProjectReference Include="..\Penban.Services\Penban.Services.csproj" />
     <ProjectReference Include="..\Penban.Data\Penban.Data.csproj" />
+    <!-- The ONNX recogniser, so its model and its native runtime travel with the app. -->
+    <ProjectReference Include="..\Penban.Recognition.Onnx\Penban.Recognition.Onnx.csproj" />
   </ItemGroup>
 
   <!-- Where the Xcode project leaves the built extension: scripts/ios-widget.sh writes the .appex

@@ -10,7 +10,21 @@ namespace Penban.Services.Abstractions;
 /// </summary>
 public interface ICardRepository
 {
+    /// <summary>
+    /// Returns the card with the given id, or <c>null</c> if there is no such card or it has been
+    /// deleted. Cards are otherwise only ever read through their column; this is what finds the card
+    /// that a recognised text belongs to.
+    /// </summary>
+    Task<Card?> GetAsync(Guid cardId);
+
     Task<List<Card>> GetByColumnAsync(Guid columnId);
+
+    /// <summary>
+    /// Returns every card that has not been deleted, in no particular order. Cards are otherwise only
+    /// ever read through their column; this is what reaches the notes written before the text
+    /// recognition was switched on, without reading the whole database board by board.
+    /// </summary>
+    Task<List<Card>> GetAllAsync();
 
     Task SaveAsync(Card card);
 

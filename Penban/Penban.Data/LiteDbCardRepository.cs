@@ -15,10 +15,19 @@ public class LiteDbCardRepository : ICardRepository
         cards.EnsureIndex(c => c.ColumnId);
     }
 
+    public Task<Card?> GetAsync(Guid cardId) => DatabaseWork.RunAsync(() =>
+    {
+        var card = cards.FindById(cardId);
+        return card is not null && !card.IsDeleted ? card : null;
+    });
+
     public Task<List<Card>> GetByColumnAsync(Guid columnId)
         => DatabaseWork.RunAsync(() => cards.Find(c => c.ColumnId == columnId && !c.IsDeleted)
             .OrderBy(c => c.SortOrder)
             .ToList());
+
+    public Task<List<Card>> GetAllAsync()
+        => DatabaseWork.RunAsync(() => cards.Find(c => !c.IsDeleted).ToList());
 
     public Task SaveAsync(Card card) => DatabaseWork.RunAsync(() =>
     {

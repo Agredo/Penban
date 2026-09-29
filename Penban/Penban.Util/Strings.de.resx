@@ -403,4 +403,52 @@
   <data name="WidgetForBoardHelpFormat" xml:space="preserve">
     <value>&quot;{0}&quot; ist für das nächste Widget gemerkt.&#10;&#10;iOS legt ein Widget selber ab, niemals eine App:&#10;&#10;1. Eine leere Stelle des Home-Bildschirms lange drücken&#10;2. Auf &quot;+&quot; tippen und nach &quot;Penban&quot; suchen&#10;3. Eine Grösse wählen und das Widget hinzufügen&#10;4. Das Widget weiterhin drücken und unter &quot;Widget bearbeiten&quot; &quot;{0}&quot; wählen</value>
   </data>
+  <data name="SettingsRecognitionSection" xml:space="preserve">
+    <value>Suche</value>
+  </data>
+  <data name="RecognitionEnabled" xml:space="preserve">
+    <value>Text in Notizen finden</value>
+  </data>
+  <data name="RecognitionEnabledHelp" xml:space="preserve">
+    <value>Liest die Handschrift deiner Notizen im Hintergrund, damit ihr Text durchsucht werden kann. Ein ganzes Board braucht beim ersten Mal einige Minuten.</value>
+  </data>
+  <data name="SearchTitle" xml:space="preserve">
+    <value>Suche</value>
+  </data>
+  <data name="SearchPlaceholder" xml:space="preserve">
+    <value>Notizen durchsuchen</value>
+  </data>
+  <data name="SearchNoResults" xml:space="preserve">
+    <value>Keine Notizen gefunden</value>
+  </data>
+  <data name="SearchNoResultsHelp" xml:space="preserve">
+    <value>Gefunden werden nur Notizen, die bereits gelesen wurden. Gelesen wird ein Board beim Öffnen, oder alle Notizen auf einmal in den Einstellungen.</value>
+  </data>
+  <data name="SearchBoardLabelFormat" xml:space="preserve">
+    <value>in {0}</value>
+  </data>
+  <data name="SearchStillReadingFormat" xml:space="preserve">
+    <value>Notizen werden noch gelesen ({0} ausstehend)</value>
+  </data>
+  <data name="SearchFailedTitle" xml:space="preserve">
+    <value>Suche fehlgeschlagen</value>
+  </data>
+  <data name="SearchFailedMessageFormat" xml:space="preserve">
+    <value>Die Notizen konnten nicht durchsucht werden: {0}</value>
+  </data>
+  <data name="RecognitionIndexAll" xml:space="preserve">
+    <value>Vorhandene Notizen lesen</value>
+  </data>
+  <data name="RecognitionIndexAllHelp" xml:space="preserve">
+    <value>Gelesen wird beim Speichern einer Notiz oder beim Öffnen ihres Boards. Einmal ausführen, damit auch die Notizen von vorher gefunden werden.</value>
+  </data>
+  <data name="RecognitionIndexAllAction" xml:space="preserve">
+    <value>Jetzt lesen</value>
+  </data>
+  <data name="RecognitionIndexProgressFormat" xml:space="preserve">
+    <value>{0} von {1} Notizen gelesen</value>
+  </data>
+  <data name="RecognitionIndexDoneFormat" xml:space="preserve">
+    <value>{0} Notizen sind jetzt durchsuchbar.</value>
+  </data>
 </root>

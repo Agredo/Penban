@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Penban.Models\Penban.Models.csproj" />
+    <ProjectReference Include="..\Penban.Recognition\Penban.Recognition.csproj" />
     <ProjectReference Include="..\Penban.Services.Abstractions\Penban.Services.Abstractions.csproj" />
   </ItemGroup>
 
