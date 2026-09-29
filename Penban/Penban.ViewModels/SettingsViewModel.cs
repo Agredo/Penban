@@ -57,8 +57,7 @@ public partial class SettingsViewModel : ObservableObject
     public IReadOnlyList<string> RendererNames { get; } = [Strings.InkRendererSkia, Strings.InkRendererToolkit];
 
     /// <summary>
-    /// Display names of the two ways of reaching the drawing tools, in the order of
-    /// <see cref="SelectedInkToolUiIndex"/>.
+    /// Display names of the two settings of <see cref="SelectedInkToolUiIndex"/>, in its order.
     /// </summary>
     public IReadOnlyList<string> InkToolUiNames { get; } = [Strings.InkToolUiRadialMenu, Strings.InkToolUiToolBar];
 
@@ -99,8 +98,9 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnAllowFingerDrawingChanged(bool value) => Persist(PreferenceKeys.AllowFingerDrawing, value);
 
     /// <summary>
-    /// How the drawing tools are reached, as an index into <see cref="ToolUis"/>. The radial menu is
-    /// the default, because it is the one that leaves the whole page to the note.
+    /// Whether the drawing tools are also reached from the radial menu, as an index into <see
+    /// cref="ToolUis"/>. The radial menu is the default, because a finger on the note is then all it
+    /// takes to change tools.
     /// </summary>
     [ObservableProperty]
     private int selectedInkToolUiIndex;
@@ -145,14 +145,21 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Whether the pen's lean is read at all. It is not only a switch for the effect below: on its own
+    /// it widens the stroke the flatter the pen is held, the way an upright pen writes thin and one
+    /// laid flat writes broad.
+    /// </summary>
     [ObservableProperty]
     private bool tiltDetectionEnabled;
 
     partial void OnTiltDetectionEnabledChanged(bool value) => Persist(PreferenceKeys.TiltDetectionEnabled, value);
 
     /// <summary>
-    /// Depends on <see cref="TiltDetectionEnabled"/>: without tilt data there is nothing for the
-    /// effect to render, so the page disables this switch while that one is off.
+    /// Depends on <see cref="TiltDetectionEnabled"/>, which is what reads the lean: this one turns the
+    /// width it gives into the nib's own shape, so the width follows the direction the pen is dragged
+    /// in. Without the lean there is nothing to shape, so the page disables this switch while that one
+    /// is off.
     /// </summary>
     [ObservableProperty]
     private bool tiltRenderingEffect;

@@ -23,9 +23,10 @@ namespace Penban.Maui.Views.Ink;
 /// so turning <see cref="PreferenceKeys.TiltDetectionEnabled"/> off takes effect on the next stroke.
 /// The pressure is not the setting's business: whether a stroke varies its width with it is decided by
 /// the renderer, so it is published either way. The values reach the canvas one event late - the
-/// pointer event is seen after the canvas has already handled it - so the first point of a stroke is
-/// always recorded upright and at full width. That is invisible in practice, and the alternative would
-/// be to intercept and re-dispatch every touch.
+/// pointer event is seen after the canvas has already handled it - so what arrives is the reading for
+/// the point after the one it belongs to. The canvas repairs the first point of a stroke from the next
+/// reading while it is still the only point; the alternative would be to intercept and re-dispatch
+/// every touch.
 /// </para>
 /// </summary>
 public class PenInputBehavior : PlatformBehavior<View, FrameworkElement>

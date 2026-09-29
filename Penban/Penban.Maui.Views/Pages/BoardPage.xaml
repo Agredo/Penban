@@ -15,8 +15,10 @@
              Adding a column belongs here rather than under the board: it acts on the board, not on
              a single column, and it keeps the whole height of the board free for the notes.
              The note button sits beside it for the same reason: the note belongs to the board, not
-             to a column, and it is what the board shows on the overview and on the home screen. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="6">
+             to a column, and it is what the board shows on the overview and on the home screen.
+             The settings button is the same one as on the overview: the drawing settings are tried
+             out on a note, so they have to be reachable without leaving the board. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="6">
             <Button Grid.Column="0"
                     Text="&#xf15c;"
                     Style="{StaticResource GhostIconButton}"
@@ -41,6 +43,11 @@
                     Clicked="OnBoardNoteClicked"
                     SemanticProperties.Description="{markup:Translate BoardNote}" />
             <Button Grid.Column="4"
+                    Text="&#xf588;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnSettingsClicked"
+                    SemanticProperties.Description="{markup:Translate Settings}" />
+            <Button Grid.Column="5"
                     Text="&#xf2fd;"
                     Style="{StaticResource AccentIconButton}"
                     Command="{Binding AddColumnCommand}"

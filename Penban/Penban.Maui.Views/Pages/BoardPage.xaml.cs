@@ -59,6 +59,8 @@ public partial class BoardPage : ContentPage
     /// </summary>
     private const double NoteCellPadding = 10;
 
+    private readonly SettingsViewModel settingsViewModel;
+    private readonly FeedbackViewModel feedbackViewModel;
     private readonly IPreferences preferences;
     private readonly TransferCoordinator transferCoordinator;
     private readonly List<(ColumnViewModel Column, PropertyChangedEventHandler Handler)> titleSubscriptions = [];
@@ -87,9 +89,17 @@ public partial class BoardPage : ContentPage
     private static readonly BindableProperty ColumnViewModelProperty =
         BindableProperty.CreateAttached("ColumnViewModel", typeof(ColumnViewModel), typeof(BoardPage), null);
 
-    public BoardPage(BoardViewModel viewModel, IPreferences preferences, TransferCoordinator transferCoordinator, Guid? openCardId = null)
+    public BoardPage(
+        BoardViewModel viewModel,
+        SettingsViewModel settingsViewModel,
+        FeedbackViewModel feedbackViewModel,
+        IPreferences preferences,
+        TransferCoordinator transferCoordinator,
+        Guid? openCardId = null)
     {
         InitializeComponent();
+        this.settingsViewModel = settingsViewModel;
+        this.feedbackViewModel = feedbackViewModel;
         this.preferences = preferences;
         this.transferCoordinator = transferCoordinator;
         this.openCardId = openCardId;
@@ -99,6 +109,15 @@ public partial class BoardPage : ContentPage
         BoardKanban.SizeChanged += OnBoardKanbanSizeChanged;
         viewModel.Columns.CollectionChanged += OnColumnsChanged;
         Application.Current!.RequestedThemeChanged += OnRequestedThemeChanged;
+    }
+
+    /// <summary>
+    /// Opens the settings from the board. The drawing settings are tried out on a note, and going
+    /// back to the overview for each one loses the board and the note that was being worked on.
+    /// </summary>
+    private async void OnSettingsClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new SettingsPage(settingsViewModel, feedbackViewModel));
     }
 
     /// <summary>
@@ -595,15 +614,14 @@ public partial class BoardPage : ContentPage
 
     /// <summary>
     /// Opens the ink editor for a card and applies whatever it changed about the board itself.
+    /// The editor is a page of the shell's own stack, so the board keeps its place under it and the
+    /// shell's bar gives the editor its title and its way back. Pushing returns as soon as the editor
+    /// is up, the way a modal push does, so what the editor changed about the board is not read off
+    /// here but on the way back, see <see cref="OnAppearing"/>.
     /// </summary>
     private async Task OpenCardEditorAsync(CardViewModel card)
     {
-        await Navigation.PushModalAsync(new CardInkEditorPage(card, preferences));
-
-        if (RemoveDeletedCards())
-        {
-            RebuildKanbanCards();
-        }
+        await Navigation.PushAsync(new CardInkEditorPage(card, preferences, settingsViewModel, feedbackViewModel, viewModel?.Title ?? string.Empty));
     }
 
     /// <summary>
@@ -618,7 +636,7 @@ public partial class BoardPage : ContentPage
             return;
         }
 
-        await Navigation.PushModalAsync(new CardInkEditorPage(viewModel.CreateNoteEditor(), preferences));
+        await Navigation.PushAsync(new CardInkEditorPage(viewModel.CreateNoteEditor(), preferences, settingsViewModel, feedbackViewModel, viewModel.Title));
         UpdateBoardNoteButton();
     }
 

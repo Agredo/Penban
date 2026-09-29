@@ -371,9 +371,17 @@ public class InkCanvasHostView : ContentView
 
         if (activeRenderer is SkiaInkCanvasView skia)
         {
+            // The pen's lean is what both tilt settings work with, and only the platform input handler
+            // reads it: with the switch off it never arrives, so neither setting has anything to work
+            // with and the stroke is drawn as if the pen were upright.
+            var tiltDetected = ReadBool(PreferenceKeys.TiltDetectionEnabled, false);
+
             skia.PressureSensitiveWidth = ReadBool(PreferenceKeys.PressureSensitiveWidth, true);
-            skia.TiltRenderingEffect = ReadBool(PreferenceKeys.TiltDetectionEnabled, false)
-                && ReadBool(PreferenceKeys.TiltRenderingEffect, false);
+
+            // One switch makes the stroke wider the flatter the pen lies, the other turns that width
+            // into the nib's own shape, which makes it depend on the direction the pen is dragged in.
+            skia.TiltSensitiveWidth = tiltDetected;
+            skia.TiltRenderingEffect = tiltDetected && ReadBool(PreferenceKeys.TiltRenderingEffect, false);
 
             // The renderer that is being swapped in has to be told this again as well: it is not a
             // setting but something a platform behavior asked for.

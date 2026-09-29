@@ -191,7 +191,7 @@
     <value>Radieren mit der Stift-Rückseite</value>
   </data>
   <data name="TiltDetectionEnabled" xml:space="preserve">
-    <value>Stiftneigung erkennen</value>
+    <value>Strichbreite folgt der Stiftneigung</value>
   </data>
   <data name="TiltRenderingEffect" xml:space="preserve">
     <value>Kalligrafie-Effekt aus der Stiftneigung</value>
@@ -260,10 +260,10 @@
     <value>Zeichenwerkzeuge</value>
   </data>
   <data name="InkToolUiRadialMenu" xml:space="preserve">
-    <value>Radialmenü</value>
+    <value>Werkzeugleiste und Radialmenü</value>
   </data>
   <data name="InkToolUiToolBar" xml:space="preserve">
-    <value>Werkzeugleiste</value>
+    <value>Nur Werkzeugleiste</value>
   </data>
   <data name="SettingsGesturesSection" xml:space="preserve">
     <value>Gesten</value>

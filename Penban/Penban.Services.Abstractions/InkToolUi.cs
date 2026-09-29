@@ -1,19 +1,19 @@
 namespace Penban.Services.Abstractions;
 
 /// <summary>
-/// Selects how the drawing tools of the ink editor are reached: from the rings of the radial menu or
-/// from the row of buttons and colours above the note. The menu offers what the tools and the two
-/// palettes offer, so the two are alternatives and only the chosen one is shown. Lives next to
+/// Selects whether the drawing tools of the ink editor are also reached from the rings of the radial
+/// menu, next to the row of buttons and colours above the note. The row is drawn either way, because
+/// it shares its row with the buttons that leave the card: hiding it would take no height off the
+/// note and would only put the tools out of reach. Lives next to
 /// <see cref="PreferenceKeys.InkToolUi"/> because it is the value stored under that key, and the
 /// settings page has to be able to offer it without referencing the MAUI view layer.
 /// </summary>
 public enum InkToolUi
 {
     /// <summary>
-    /// The radial menu, opened by tapping the note with a finger or with the right mouse button. The
-    /// buttons and the colours are hidden, so the note is the only thing on the page to touch; the
-    /// way out of the card and the button that opens the ring stay where they are, because the ring
-    /// carries neither.
+    /// The row of tools and the two palettes, and the ring on top of it: a free finger taps the note
+    /// to ask for one, and the button beside the row is what is left when there is no free finger or
+    /// no right mouse button.
     /// </summary>
     RadialMenu,
 

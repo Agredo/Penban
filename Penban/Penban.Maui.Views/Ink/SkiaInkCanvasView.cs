@@ -35,8 +35,20 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// <summary>How much wider the nib gets when the pen is laid flat against the surface.</summary>
     private const float NibWidening = 2.5f;
 
-    /// <summary>Upper bound on nib stamps per segment, to keep long strokes cheap to redraw.</summary>
-    private const int MaxNibStampsPerSegment = 12;
+    /// <summary>
+    /// How much wider the stroke itself gets when the pen is laid flat, as a share of its width. A pen
+    /// that is stood upright leaves a thin line and one that is held flat a broad one: half again as
+    /// wide at the 45° a pen is usually held at, twice as wide lying on the surface.
+    /// </summary>
+    private const float TiltWidthWidening = 1f;
+
+    /// <summary>
+    /// Upper bound on nib stamps per segment. It only has to stop a segment that crosses a large part
+    /// of the note in a single event - a flick, or a stroke the platform reports as one long jump -
+    /// from being drawn with thousands of stamps; it has to stay far above what a pen moving at
+    /// writing speed asks for, because too few stamps leave a row of dots instead of a line.
+    /// </summary>
+    private const int MaxNibStampsPerSegment = 256;
 
     /// <summary>
     /// How far a swipe may drift sideways before it counts as something else (a pan, a pinch) and is
@@ -93,6 +105,21 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     /// <summary>The contact the stroke being drawn belongs to, for as long as there is one.</summary>
     private long currentStrokeContactId;
+
+    /// <summary>
+    /// Whether the first point of the stroke being drawn was recorded before the platform had reported
+    /// how hard the pen is pressed, which is the usual case - see <see cref="SetStylusPressure"/>. The
+    /// point is put right the moment the value arrives, so a stroke does not begin with a point at
+    /// full width, which the nib draws as a blob where the pen went down.
+    /// </summary>
+    private bool firstPointAwaitsPressure;
+
+    /// <summary>
+    /// The same for the pen's lean. Without it the first point of a stroke is recorded upright, so the
+    /// first segment of a calligraphy stroke would be drawn as a plain full-width line instead of as
+    /// the nib.
+    /// </summary>
+    private bool firstPointAwaitsTilt;
 
     /// <summary>
     /// How many pens or mice are down, so a resting hand cannot interrupt one of them. Not counted
@@ -214,6 +241,13 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     public bool PressureSensitiveWidth { get; set; } = true;
 
     /// <summary>
+    /// Whether the line width follows how flat the pen is held: upright draws thin, laid flat draws
+    /// broad. The width stays the same along the stroke, whichever way the pen is dragged - the nib
+    /// whose shape makes it depend on that is <see cref="TiltRenderingEffect"/>.
+    /// </summary>
+    public bool TiltSensitiveWidth { get; set; }
+
+    /// <summary>
     /// Whether the pen tilt recorded in <see cref="InkPoint.Tilt"/>/<see cref="InkPoint.Azimuth"/> is
     /// turned into a calligraphy look. Has no visible effect on strokes whose tilt is zero, so a
     /// device that reports no tilt draws exactly as before.
@@ -229,6 +263,19 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     {
         penTilt = tilt;
         penAzimuth = azimuth;
+
+        // The lean of the point the stroke started with was not known when that point was recorded, so
+        // it is written into it now - while it is still the only point of the stroke, which is when it
+        // is still the point the value belongs to.
+        if (firstPointAwaitsTilt && currentStroke is { Points.Count: 1 } stroke)
+        {
+            var point = stroke.Points[0];
+            point.Tilt = tilt;
+            point.Azimuth = azimuth;
+            stroke.Points[0] = point;
+            firstPointAwaitsTilt = false;
+            canvasView.InvalidateSurface();
+        }
     }
 
     /// <summary>
@@ -242,7 +289,22 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// backend reads the real pressure out of the touch stream, so there this is never called.
     /// </para>
     /// </summary>
-    public void SetStylusPressure(float pressure) => penPressure = pressure;
+    public void SetStylusPressure(float pressure)
+    {
+        penPressure = pressure;
+
+        // A pen that is lifted takes its press with it, so the point the next stroke starts with is
+        // recorded before the platform has said how hard that pen is now pressed and ends up at full
+        // width. The press of the stroke that is starting is known here.
+        if (pressure > 0 && firstPointAwaitsPressure && currentStroke is { Points.Count: 1 } stroke)
+        {
+            var point = stroke.Points[0];
+            point.Pressure = pressure;
+            stroke.Points[0] = point;
+            firstPointAwaitsPressure = false;
+            canvasView.InvalidateSurface();
+        }
+    }
 
     /// <summary>
     /// Whether the platform names the contacts that come from the pen, through
@@ -389,6 +451,8 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         currentStroke = null;
         currentStrokeIsFinger = false;
         currentStrokeContactId = 0;
+        firstPointAwaitsPressure = false;
+        firstPointAwaitsTilt = false;
         activeFingers.Clear();
         activeStylusCount = 0;
         isMultiTouchGesture = false;
@@ -775,6 +839,13 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         currentStrokeContactId = e.Id;
         currentStrokeIsFinger = isFinger;
         AddPoint(currentStroke, e);
+
+        // The platform reports the press and the lean of the pen after the canvas has already handled
+        // the point they belong to, so the point this stroke starts with is written without them and
+        // put right as soon as they arrive - see SetStylusPressure and SetStylusTilt.
+        firstPointAwaitsPressure = true;
+        firstPointAwaitsTilt = true;
+
         Strokes.Add(currentStroke);
         commands.RecordAdded(currentStroke);
         canvasView.InvalidateSurface();
@@ -1009,6 +1080,36 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             Azimuth = penAzimuth,
             TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
         });
+
+        // A device that reports nothing for the first point of a stroke never puts it right while it
+        // is still the only one - see SetStylusPressure. The stroke has to move on without it then,
+        // and the press of the point just added is the closest thing to the one that is missing: the
+        // pen is pressed about as hard a millisecond later, and that is far closer than the full
+        // width the first point would otherwise keep for the whole stroke.
+        if (stroke.Points.Count > 1 && (firstPointAwaitsPressure || firstPointAwaitsTilt))
+        {
+            var first = stroke.Points[0];
+
+            if (firstPointAwaitsPressure)
+            {
+                var pressure = penPressure > 0 ? penPressure : e.Pressure;
+                if (pressure > 0)
+                {
+                    first.Pressure = pressure;
+                }
+
+                firstPointAwaitsPressure = false;
+            }
+
+            if (firstPointAwaitsTilt)
+            {
+                first.Tilt = penTilt;
+                first.Azimuth = penAzimuth;
+                firstPointAwaitsTilt = false;
+            }
+
+            stroke.Points[0] = first;
+        }
     }
 
     private void OnPaintSurface(object? sender, SKPaintSurfaceEventArgs e)
@@ -1053,6 +1154,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             nibPaint.Color = paint.Color;
 
             var first = stroke.Points[0];
+            var baseThickness = TiltSensitiveWidth ? stroke.Thickness * TiltWidthFactor(first.Tilt) : stroke.Thickness;
 
             if (stroke.Points.Count == 1)
             {
@@ -1060,19 +1162,21 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                 // shape suggests.
                 if (TiltRenderingEffect && first.Tilt > MinimumTilt)
                 {
-                    StampNib(canvas, nibPaint, first.X, first.Y, first.Tilt, first.Azimuth, stroke.Thickness);
+                    StampNib(canvas, nibPaint, first.X, first.Y, first.Tilt, first.Azimuth, baseThickness);
                 }
                 else
                 {
-                    canvas.DrawCircle(first.X, first.Y, Math.Max(stroke.Thickness / 2f, 1f), nibPaint);
+                    canvas.DrawCircle(first.X, first.Y, Math.Max(baseThickness / 2f, 1f), nibPaint);
                 }
 
                 continue;
             }
 
-            if (!PressureSensitiveWidth)
+            // One path with a single width is only right when nothing varies the width along the
+            // stroke - neither the pressure, nor the lean, nor the nib of the tilt effect.
+            if (!PressureSensitiveWidth && !TiltSensitiveWidth && !TiltRenderingEffect)
             {
-                // Fallback: one width for the whole stroke, as before the setting existed.
+                // One width for the whole stroke, as before either setting existed.
                 using var pathBuilder = new SKPathBuilder();
                 pathBuilder.MoveTo(new SKPoint(first.X, first.Y));
                 for (int i = 1; i < stroke.Points.Count; i++)
@@ -1083,21 +1187,34 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
                 using var path = pathBuilder.Detach();
 
-                paint.StrokeWidth = stroke.Thickness * (stroke.Points[^1].Pressure > 0 ? stroke.Points[^1].Pressure : 1f);
+                paint.StrokeWidth = stroke.Thickness;
                 canvas.DrawPath(path, paint);
                 continue;
             }
 
-            // Pressure varies along the stroke, so the width has to as well - one path with a
-            // single StrokeWidth would flatten the whole line to whatever the pen pressed last.
-            // Each segment gets the mean of its two endpoints' pressure, which keeps neighbouring
-            // segments close enough in width that the joins are not visible.
+            // Something varies the width along the stroke, so it is drawn segment by segment: one path
+            // with a single StrokeWidth would flatten the whole line to one value - to whatever the pen
+            // pressed last, if the width is not meant to follow the pressure at all.
             for (int i = 1; i < stroke.Points.Count; i++)
             {
                 var from = stroke.Points[i - 1];
                 var to = stroke.Points[i];
-                var pressure = (from.Pressure + to.Pressure) / 2f;
-                var thickness = stroke.Thickness * (pressure > 0 ? pressure : 1f);
+
+                // Where the width does follow the pressure, each segment gets the mean of its two
+                // endpoints' pressure, which keeps neighbouring segments close enough in width that
+                // the joins are not visible. The lean is taken from the start of the segment - it
+                // changes too slowly for a mean of the two to be worth it.
+                var thickness = stroke.Thickness;
+                if (TiltSensitiveWidth)
+                {
+                    thickness *= TiltWidthFactor(from.Tilt);
+                }
+
+                if (PressureSensitiveWidth)
+                {
+                    var pressure = (from.Pressure + to.Pressure) / 2f;
+                    thickness *= pressure > 0 ? pressure : 1f;
+                }
 
                 if (TiltRenderingEffect && from.Tilt > MinimumTilt)
                 {
@@ -1125,13 +1242,14 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     {
         var distance = Distance(from.X, from.Y, to.X, to.Y);
 
-        // Enough stamps that the nib footprints overlap; without that a fast stroke would come out as
-        // a row of dots. The pen's lean is taken from the start of the segment - it changes too slowly
-        // for interpolating it per segment to be worth the cost.
-        var spacing = MathF.Max(thickness / 2f, 0.5f);
+        // Enough stamps that the nib footprints overlap, whichever way the pen is dragged: the nib is
+        // at its narrowest along its own long axis, so its width is what the spacing has to stay below.
+        // Without that a fast stroke comes out as a row of dots. The pen's lean is taken from the start
+        // of the segment - it changes too slowly for interpolating it per segment to be worth the cost.
+        var spacing = MathF.Max(thickness * 0.75f, 0.5f);
         var steps = Math.Clamp((int)MathF.Ceiling(distance / spacing), 1, MaxNibStampsPerSegment);
 
-        for (var step = 1; step <= steps; step++)
+        for (var step = 0; step <= steps; step++)
         {
             var t = step / (float)steps;
             StampNib(
@@ -1149,7 +1267,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     private void StampNib(SKCanvas canvas, SKPaint paint, float x, float y, float tilt, float azimuth, float thickness)
     {
         var minor = MathF.Max(thickness, 0.5f) / 2f;
-        var flatten = Math.Clamp(tilt / HalfPi, 0f, 1f);
+        var flatten = Flatten(tilt);
         var major = minor * (1f + (NibWidening * flatten));
 
         // Drawn around the origin and then rotated and moved into place, so the rotation cannot shift
@@ -1160,4 +1278,14 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         canvas.DrawOval(0f, 0f, major, minor, paint);
         canvas.Restore();
     }
+
+    /// <summary>How flat the pen lies, <c>0</c> upright and <c>1</c> resting on the surface.</summary>
+    private static float Flatten(float tilt) => Math.Clamp(tilt / HalfPi, 0f, 1f);
+
+    /// <summary>
+    /// What the pen's lean does to the width of the stroke itself - see
+    /// <see cref="TiltSensitiveWidth"/>. An upright pen leaves the width as it is, a flat one leaves
+    /// it up to <see cref="TiltWidthWidening"/> wider.
+    /// </summary>
+    private static float TiltWidthFactor(float tilt) => 1f + (TiltWidthWidening * Flatten(tilt));
 }

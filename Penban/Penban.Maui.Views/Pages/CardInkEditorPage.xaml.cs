@@ -145,6 +145,8 @@ public partial class CardInkEditorPage : ContentPage
 
     private readonly INoteEditorTarget noteTarget;
     private readonly IPreferences preferences;
+    private readonly SettingsViewModel settingsViewModel;
+    private readonly FeedbackViewModel feedbackViewModel;
     private readonly List<StickyNoteBorder> swatches = [];
     private readonly List<Border> penSwatches = [];
     private readonly List<Border> thicknessRungs = [];
@@ -175,11 +177,22 @@ public partial class CardInkEditorPage : ContentPage
     /// </summary>
     private Point? radialMenuOrigin;
 
-    public CardInkEditorPage(INoteEditorTarget noteTarget, IPreferences preferences)
+    public CardInkEditorPage(
+        INoteEditorTarget noteTarget,
+        IPreferences preferences,
+        SettingsViewModel settingsViewModel,
+        FeedbackViewModel feedbackViewModel,
+        string boardTitle)
     {
         InitializeComponent();
         this.noteTarget = noteTarget;
         this.preferences = preferences;
+        this.settingsViewModel = settingsViewModel;
+        this.feedbackViewModel = feedbackViewModel;
+
+        // The shell's bar stands above this page and reads its title, and the title that says where the
+        // back button leads is the board the card came from.
+        Title = boardTitle;
 
         // Attaching the store also restores the renderer and the drawing settings, so it has to
         // happen before anything is loaded into the host.
@@ -511,6 +524,21 @@ public partial class CardInkEditorPage : ContentPage
         await noteTarget.SaveCommand.ExecuteAsync(null);
     }
 
+    /// <summary>
+    /// Reads the settings that this page does not hold itself back in. The settings page is opened
+    /// from here and writes straight to the store, while the surface and the tool row were told their
+    /// settings once, in the constructor - so a switch flipped over the card has to be handed to both
+    /// of them here, or it would only show up on the next card. On the way in the first time this
+    /// only reads the same values a second time.
+    /// </summary>
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+
+        ApplyToolUi();
+        InkHost.ApplyPreferences();
+    }
+
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
@@ -521,7 +549,8 @@ public partial class CardInkEditorPage : ContentPage
             return;
         }
 
-        // Leaving without "Fertig" (hardware back, swipe-down on iPad) still keeps the ink.
+        // Leaving without "Fertig" - the shell bar's back button, the hardware back, the swipe down -
+        // still keeps the ink.
         CloseRadialMenu();
         _ = SaveAsync();
     }
@@ -641,11 +670,22 @@ public partial class CardInkEditorPage : ContentPage
         await noteTarget.DeleteCommand.ExecuteAsync(null);
         if (noteTarget.IsDeleted)
         {
-            await Navigation.PopModalAsync();
+            await Navigation.PopAsync();
         }
     }
 
     private async void OnDoneClicked(object? sender, EventArgs e) => await CloseAsync();
+
+    /// <summary>
+    /// Opens the settings over the card. The card is a page of the shell's stack, so the settings page
+    /// goes on that same stack and its own back button returns here. It is the same settings page as
+    /// everywhere else; coming back to this one hands what was changed on it to the note, see
+    /// <see cref="OnAppearing"/>.
+    /// </summary>
+    private async void OnSettingsClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new SettingsPage(settingsViewModel, feedbackViewModel));
+    }
 
     /// <summary>
     /// A finger dragging the card down. The card follows the finger and shrinks on the way, the way
@@ -938,30 +978,29 @@ public partial class CardInkEditorPage : ContentPage
     }
 
     /// <summary>
-    /// Shows the way in that was picked and takes the other one away: the ring carries what the four
-    /// tool buttons and the two palettes carry, so the two are alternatives and never both. That is
-    /// the whole of the scrolling row - <see cref="ToolBar"/> holds the tools, the pen colours and the
-    /// paper colours together - so hiding it hands the note the space all of them were taking, and the
-    /// only thing left in the row is the button that opens the ring: the note is what a free finger
-    /// taps, and the button is what is left when there is no free finger. The two buttons that leave
-    /// the card stand outside it and are not touched here, because the ring cannot delete or close a
-    /// card. In the toolbar mode the menu is off altogether: no tap on the note, no right mouse button
-    /// and no button of its own.
+    /// Puts the ring in or out of reach, following the setting. The row of tools - <see
+    /// cref="ToolBar"/> holds the tools, the pen colours and the paper colours together - is always
+    /// drawn, because it shares its row with the buttons that leave the card: taking it away takes no
+    /// height off the note, it only puts the tools out of reach. What the setting picks is whether the
+    /// ring is there as well. With it, the note is what a free finger taps and the button beside the
+    /// row is what is left when there is no free finger or no right mouse button. Without it, neither
+    /// the tap on the note nor the right mouse button asks for a ring, and the button goes with it.
+    /// The two buttons that leave the card stand outside the row and are not touched here, because
+    /// the ring cannot delete or close a card.
     /// </summary>
     private void ApplyToolUi()
     {
         var isToolBar = ReadToolUi() == InkToolUi.ToolBar;
 
-        ToolBar.IsVisible = isToolBar;
         MenuButton.IsVisible = !isToolBar;
         InkHost.RadialMenuEnabled = !isToolBar;
 
         if (isToolBar)
         {
-            // A ring that is up would be left there without a way of being asked for again, and the
-            // ladder hangs under a button that is about to go away with the rest of the row.
+            // A ring that is up would be left there without a way of being asked for again, since
+            // neither the note nor the button beside the row asks for one in this mode. The ladder of
+            // widths is not touched: the button that opens it stays in the row.
             CloseRadialMenu();
-            CloseThicknessFlyout();
         }
     }
 
@@ -1031,6 +1070,6 @@ public partial class CardInkEditorPage : ContentPage
 
         isClosing = true;
         await SaveAsync();
-        await Navigation.PopModalAsync();
+        await Navigation.PopAsync();
     }
 }
