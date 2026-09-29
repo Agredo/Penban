@@ -105,6 +105,42 @@
     <Exec Command="if [ ! -f &quot;$(WidgetReloaderObject)&quot; ] || [ &quot;$(WidgetReloaderSource)&quot; -nt &quot;$(WidgetReloaderObject)&quot; ]; then xcrun --sdk $(WidgetReloaderSdk) swiftc -target $(WidgetReloaderTarget) -sdk &quot;$(_SdkRoot)&quot; -parse-as-library -O -c &quot;$(WidgetReloaderSource)&quot; -o &quot;$(WidgetReloaderObject)&quot;; fi" />
   </Target>
 
+  <!-- The ONNX Runtime ships its managed assembly with a DllImport for the custom-op entry point of
+       onnxruntime-extensions, which on iOS resolves to "__Internal" and so becomes a hard
+       requirement of the link - see the source file for why, and why Penban answers it with a stub.
+       Same shape as LinkWidgetReloader: the iOS SDK compiles no C source of its own accord, so this
+       target compiles the object and hands it to the link. -->
+  <Target Name="LinkOnnxRuntimeExtensionsStub"
+          BeforeTargets="_ComputeLinkNativeExecutableInputs"
+          DependsOnTargets="_DetectSdkLocations"
+          Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+    <PropertyGroup>
+      <OnnxRuntimeStubSource>$(MSBuildProjectDirectory)/Platforms/iOS/OnnxRuntimeExtensionsStub.c</OnnxRuntimeStubSource>
+      <OnnxRuntimeStubObject>$(IntermediateOutputPath)OnnxRuntimeExtensionsStub.o</OnnxRuntimeStubObject>
+
+      <OnnxRuntimeStubSdk>iphoneos</OnnxRuntimeStubSdk>
+      <OnnxRuntimeStubSdk Condition="$(RuntimeIdentifier.Contains('simulator'))">iphonesimulator</OnnxRuntimeStubSdk>
+      <OnnxRuntimeStubArchitecture>arm64</OnnxRuntimeStubArchitecture>
+      <OnnxRuntimeStubArchitecture Condition="$(RuntimeIdentifier.EndsWith('x64'))">x86_64</OnnxRuntimeStubArchitecture>
+      <OnnxRuntimeStubTarget>$(OnnxRuntimeStubArchitecture)-apple-ios$(SupportedOSPlatformVersion)</OnnxRuntimeStubTarget>
+      <OnnxRuntimeStubTarget Condition="'$(OnnxRuntimeStubSdk)' == 'iphonesimulator'">$(OnnxRuntimeStubTarget)-simulator</OnnxRuntimeStubTarget>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <!-- A plain object file suffices here, unlike for the widget reloader: the linker asks for the
+           symbol itself. -->
+      <LinkerArgument Include="$(OnnxRuntimeStubObject)" />
+
+      <!-- So that a clean build really starts over. -->
+      <FileWrites Include="$(OnnxRuntimeStubObject)" />
+    </ItemGroup>
+
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(OnnxRuntimeStubObject)'))" />
+    <!-- The freshness test lives in the shell for the same reason as above: MSBuild has no property
+         function that compares two timestamps. -->
+    <Exec Command="if [ ! -f &quot;$(OnnxRuntimeStubObject)&quot; ] || [ &quot;$(OnnxRuntimeStubSource)&quot; -nt &quot;$(OnnxRuntimeStubObject)&quot; ]; then xcrun --sdk $(OnnxRuntimeStubSdk) clang -target $(OnnxRuntimeStubTarget) -isysroot &quot;$(_SdkRoot)&quot; -O2 -c &quot;$(OnnxRuntimeStubSource)&quot; -o &quot;$(OnnxRuntimeStubObject)&quot;; fi" />
+  </Target>
+
   <ItemGroup>
     <!-- App Icon: the Penban logo tile carries the brand on every platform. Apple icons must not
          contain transparency (App Store rule), so iOS and Mac Catalyst get the variant with the
