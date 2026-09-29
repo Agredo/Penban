@@ -32,6 +32,12 @@ public interface IRecognitionQueue
     /// <summary>How many cards are waiting. The card being read is not counted.</summary>
     int PendingCount { get; }
 
+    /// <summary>
+    /// Whether a card is being read right now. It is the one card <see cref="PendingCount"/> does not
+    /// count, so a caller that wants to know when the queue has come to rest has to ask for both.
+    /// </summary>
+    bool IsReading { get; }
+
     /// <summary>Raised after a card's text was stored, so a list of matches can be built again.</summary>
     event EventHandler<Guid>? Recognized;
 

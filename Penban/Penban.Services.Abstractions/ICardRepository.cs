@@ -19,6 +19,13 @@ public interface ICardRepository
 
     Task<List<Card>> GetByColumnAsync(Guid columnId);
 
+    /// <summary>
+    /// Returns every card that has not been deleted, in no particular order. Cards are otherwise only
+    /// ever read through their column; this is what reaches the notes written before the text
+    /// recognition was switched on, without reading the whole database board by board.
+    /// </summary>
+    Task<List<Card>> GetAllAsync();
+
     Task SaveAsync(Card card);
 
     /// <summary>Soft-deletes the card with the given id.</summary>

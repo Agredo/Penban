@@ -26,6 +26,9 @@ public class LiteDbCardRepository : ICardRepository
             .OrderBy(c => c.SortOrder)
             .ToList());
 
+    public Task<List<Card>> GetAllAsync()
+        => DatabaseWork.RunAsync(() => cards.Find(c => !c.IsDeleted).ToList());
+
     public Task SaveAsync(Card card) => DatabaseWork.RunAsync(() =>
     {
         card.UpdatedAtUtc = DateTimeOffset.UtcNow;

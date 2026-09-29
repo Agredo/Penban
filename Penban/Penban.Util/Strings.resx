@@ -422,12 +422,27 @@
     <value>No notes found</value>
   </data>
   <data name="SearchNoResultsHelp" xml:space="preserve">
-    <value>Only notes that have already been read can be found. A board is read when it is opened.</value>
+    <value>Only notes that have already been read can be found. A board is read when it is opened, or all notes at once in the settings.</value>
   </data>
   <data name="SearchBoardLabelFormat" xml:space="preserve">
     <value>in {0}</value>
   </data>
   <data name="SearchStillReadingFormat" xml:space="preserve">
     <value>Still reading notes ({0} to go)</value>
+  </data>
+  <data name="RecognitionIndexAll" xml:space="preserve">
+    <value>Read existing notes</value>
+  </data>
+  <data name="RecognitionIndexAllHelp" xml:space="preserve">
+    <value>Reading happens when a note is saved or its board is opened. Run this once so the notes from before are findable too.</value>
+  </data>
+  <data name="RecognitionIndexAllAction" xml:space="preserve">
+    <value>Read now</value>
+  </data>
+  <data name="RecognitionIndexProgressFormat" xml:space="preserve">
+    <value>{0} of {1} notes read</value>
+  </data>
+  <data name="RecognitionIndexDoneFormat" xml:space="preserve">
+    <value>{0} notes are now searchable.</value>
   </data>
 </root>

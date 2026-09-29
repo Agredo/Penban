@@ -1,5 +1,6 @@
 // Framework-agnostic: no Microsoft.Maui.* usings allowed in this file.
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Penban.Services.Abstractions;
 using Penban.Util;
 
@@ -27,14 +28,28 @@ public partial class SettingsViewModel : ObservableObject
     ];
 
     private readonly IPreferences preferences;
+    private readonly ICardService cardService;
+    private readonly IRecognitionQueue queue;
+
+    /// <summary>
+    /// How often the running pass asks the queue how much is left. Reading a note takes the better
+    /// part of a second, so this keeps the bar moving without waking the machine for nothing.
+    /// </summary>
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
 
     /// <summary>Suppresses the write-through while <see cref="Refresh"/> is reading, so loading the
     /// page does not write back every value it just read.</summary>
     private bool isLoading;
 
-    public SettingsViewModel(IPreferences preferences)
+    public SettingsViewModel(IPreferences preferences, ICardService cardService, IRecognitionQueue queue)
     {
+        ArgumentNullException.ThrowIfNull(preferences);
+        ArgumentNullException.ThrowIfNull(cardService);
+        ArgumentNullException.ThrowIfNull(queue);
+
         this.preferences = preferences;
+        this.cardService = cardService;
+        this.queue = queue;
         Refresh();
     }
 
@@ -175,6 +190,98 @@ public partial class SettingsViewModel : ObservableObject
     private bool recognitionEnabled;
 
     partial void OnRecognitionEnabledChanged(bool value) => Persist(PreferenceKeys.RecognitionEnabled, value);
+
+    /// <summary>
+    /// Whether the one-off pass over the notes that were written before the switch was turned on is
+    /// running. While it runs the button is out of reach and the bar under it is shown.
+    /// </summary>
+    [ObservableProperty]
+    private bool isIndexingNotes;
+
+    /// <summary>
+    /// Whether a pass has finished, which is when the line under the button says how many notes came
+    /// out of it. Kept apart from <see cref="IsIndexingNotes"/> so the two never show at once.
+    /// </summary>
+    [ObservableProperty]
+    private bool hasIndexedNotes;
+
+    /// <summary>How many notes the running pass was handed, and how many of them are done.</summary>
+    [ObservableProperty]
+    private int indexTotal;
+
+    [ObservableProperty]
+    private int indexDone;
+
+    /// <summary>How far the pass has come, for the bar. Nothing runs, nothing to show.</summary>
+    public double IndexProgress => IndexTotal <= 0 ? 0 : Math.Clamp((double)IndexDone / IndexTotal, 0, 1);
+
+    /// <summary>How far the pass has come, as the line under the bar says it.</summary>
+    public string IndexProgressLabel =>
+        string.Format(Strings.RecognitionIndexProgressFormat, IndexDone, IndexTotal);
+
+    /// <summary>What the pass reports once it is over.</summary>
+    public string IndexResultLabel => string.Format(Strings.RecognitionIndexDoneFormat, IndexTotal);
+
+    private bool CanIndexNotes => !IsIndexingNotes;
+
+    partial void OnIsIndexingNotesChanged(bool value) => IndexAllNotesCommand.NotifyCanExecuteChanged();
+
+    partial void OnIndexTotalChanged(int value)
+    {
+        OnPropertyChanged(nameof(IndexProgress));
+        OnPropertyChanged(nameof(IndexProgressLabel));
+        OnPropertyChanged(nameof(IndexResultLabel));
+    }
+
+    partial void OnIndexDoneChanged(int value)
+    {
+        OnPropertyChanged(nameof(IndexProgress));
+        OnPropertyChanged(nameof(IndexProgressLabel));
+    }
+
+    /// <summary>
+    /// Reads every note in the app once. Reading happens when a note is saved or when its board is
+    /// opened, so the notes that were already there when the switch was turned on would otherwise
+    /// only become findable board by board - and a board nobody opens again never at all.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanIndexNotes))]
+    private async Task IndexAllNotesAsync()
+    {
+        HasIndexedNotes = false;
+        IndexTotal = 0;
+        IndexDone = 0;
+        IsIndexingNotes = true;
+
+        try
+        {
+            IndexTotal = await cardService.QueueAllRecognitionAsync();
+
+            // The queue reads on its own worker and reports nothing the caller waits for, so the pass
+            // is followed by asking it how much is left rather than by waiting for an answer per note.
+            // It counts the notes that are still waiting and not the one it has in hand, so that one
+            // is subtracted here - otherwise the bar would be full while the last note was still
+            // being read.
+            while (true)
+            {
+                var remaining = queue.PendingCount;
+                IndexDone = Math.Clamp(IndexTotal - remaining - (queue.IsReading ? 1 : 0), 0, IndexTotal);
+
+                if (remaining == 0 && !queue.IsReading)
+                {
+                    break;
+                }
+
+                await Task.Delay(PollInterval);
+            }
+
+            IndexDone = IndexTotal;
+            HasIndexedNotes = true;
+        }
+        finally
+        {
+            IsIndexingNotes = false;
+        }
+    }
 
     private void Persist(string key, bool value)
     {

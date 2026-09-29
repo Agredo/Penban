@@ -422,12 +422,27 @@
     <value>Keine Notizen gefunden</value>
   </data>
   <data name="SearchNoResultsHelp" xml:space="preserve">
-    <value>Gefunden werden nur Notizen, die bereits gelesen wurden. Gelesen wird ein Board beim Öffnen.</value>
+    <value>Gefunden werden nur Notizen, die bereits gelesen wurden. Gelesen wird ein Board beim Öffnen, oder alle Notizen auf einmal in den Einstellungen.</value>
   </data>
   <data name="SearchBoardLabelFormat" xml:space="preserve">
     <value>in {0}</value>
   </data>
   <data name="SearchStillReadingFormat" xml:space="preserve">
     <value>Notizen werden noch gelesen ({0} ausstehend)</value>
+  </data>
+  <data name="RecognitionIndexAll" xml:space="preserve">
+    <value>Vorhandene Notizen lesen</value>
+  </data>
+  <data name="RecognitionIndexAllHelp" xml:space="preserve">
+    <value>Gelesen wird beim Speichern einer Notiz oder beim Öffnen ihres Boards. Einmal ausführen, damit auch die Notizen von vorher gefunden werden.</value>
+  </data>
+  <data name="RecognitionIndexAllAction" xml:space="preserve">
+    <value>Jetzt lesen</value>
+  </data>
+  <data name="RecognitionIndexProgressFormat" xml:space="preserve">
+    <value>{0} von {1} Notizen gelesen</value>
+  </data>
+  <data name="RecognitionIndexDoneFormat" xml:space="preserve">
+    <value>{0} Notizen sind jetzt durchsuchbar.</value>
   </data>
 </root>

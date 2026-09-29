@@ -29,21 +29,7 @@ public class CardService : ICardService
     public async Task<List<Card>> GetCardsAsync(Guid columnId)
     {
         var cards = await repository.GetByColumnAsync(columnId);
-
-        // Ink used to be stored in whatever surface pixels the renderer had; cards written before
-        // document space existed have to be converted once. Migrate is idempotent and marks the card,
-        // so this is a no-op from the second load on.
-        foreach (var card in cards)
-        {
-            if (!InkDocument.NeedsMigration(card))
-            {
-                continue;
-            }
-
-            InkDocument.Migrate(card);
-            await repository.SaveAsync(card);
-        }
-
+        await MigrateAsync(cards);
         return cards;
     }
 
@@ -61,6 +47,34 @@ public class CardService : ICardService
         for (var i = cards.Count - 1; i >= 0; i--)
         {
             recognition.Enqueue(cards[i].Id, cards[i].Strokes ?? []);
+        }
+    }
+
+    public async Task<int> QueueAllRecognitionAsync()
+    {
+        var cards = await repository.GetAllAsync();
+        await MigrateAsync(cards);
+        QueueRecognition(cards);
+        return cards.Count;
+    }
+
+    /// <summary>
+    /// Converts ink that used to be stored in whatever surface pixels the renderer had into document
+    /// space. Cards written before document space existed have to be converted once; Migrate is
+    /// idempotent and marks the card, so this is a no-op from the second load on. Reading a card
+    /// without this would hand the recogniser coordinates from a space it does not expect.
+    /// </summary>
+    private async Task MigrateAsync(IReadOnlyList<Card> cards)
+    {
+        foreach (var card in cards)
+        {
+            if (!InkDocument.NeedsMigration(card))
+            {
+                continue;
+            }
+
+            InkDocument.Migrate(card);
+            await repository.SaveAsync(card);
         }
     }
 

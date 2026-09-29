@@ -42,6 +42,12 @@ public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
     /// <summary>Set when the queue is being torn down, so a late card cannot be queued into nothing.</summary>
     private bool closed;
 
+    /// <summary>
+    /// Set while a card is being read, so that <see cref="PendingCount"/> plus this is what a caller
+    /// has to wait for. Guarded by <see cref="gate"/> like the rest of the queue's state.
+    /// </summary>
+    private bool reading;
+
     private Task? worker;
 
     /// <summary>
@@ -67,6 +73,18 @@ public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
             lock (gate)
             {
                 return waiting.Count;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public bool IsReading
+    {
+        get
+        {
+            lock (gate)
+            {
+                return reading;
             }
         }
     }
@@ -181,7 +199,24 @@ public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
                 continue;
             }
 
-            await RecognizeAsync(work, cancellationToken).ConfigureAwait(false);
+            // Marked around the read, not inside it, so that a caller watching PendingCount and this
+            // sees the queue as busy for exactly as long as the card it took is being worked on.
+            lock (gate)
+            {
+                reading = true;
+            }
+
+            try
+            {
+                await RecognizeAsync(work, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                lock (gate)
+                {
+                    reading = false;
+                }
+            }
         }
     }
 
