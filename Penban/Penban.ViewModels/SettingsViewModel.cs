@@ -220,7 +220,7 @@ public partial class SettingsViewModel : ObservableObject
         string.Format(Strings.RecognitionIndexProgressFormat, IndexDone, IndexTotal);
 
     /// <summary>What the pass reports once it is over.</summary>
-    public string IndexResultLabel => string.Format(Strings.RecognitionIndexDoneFormat, IndexTotal);
+    public string IndexResultLabel => string.Format(Strings.RecognitionIndexDoneFormat, IndexDone);
 
     private bool CanIndexNotes => !IsIndexingNotes;
 
@@ -237,7 +237,15 @@ public partial class SettingsViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IndexProgress));
         OnPropertyChanged(nameof(IndexProgressLabel));
+        OnPropertyChanged(nameof(IndexResultLabel));
     }
+
+    /// <summary>
+    /// How many notes the queue has finished since the pass started. Written on the queue's worker
+    /// thread and read on the caller's, hence a counter and not a plain field - and hence not
+    /// <see cref="IndexDone"/>, which may only be written from the thread that owns the bindings.
+    /// </summary>
+    private int notesRead;
 
     /// <summary>
     /// Reads every note in the app once. Reading happens when a note is saved or when its board is
@@ -252,21 +260,31 @@ public partial class SettingsViewModel : ObservableObject
         IndexDone = 0;
         IsIndexingNotes = true;
 
+        void Count(object? sender, Guid cardId) => Interlocked.Increment(ref notesRead);
+        void CountFailure(object? sender, RecognitionFailure failure) => Interlocked.Increment(ref notesRead);
+
+        notesRead = 0;
+        queue.Recognized += Count;
+        queue.Failed += CountFailure;
+
         try
         {
-            IndexTotal = await cardService.QueueAllRecognitionAsync();
+            // Nothing is handed over while the switch is off, so asking for the count anyway would
+            // count notes the queue never got.
+            IndexTotal = RecognitionEnabled ? await cardService.QueueAllRecognitionAsync() : 0;
 
             // The queue reads on its own worker and reports nothing the caller waits for, so the pass
-            // is followed by asking it how much is left rather than by waiting for an answer per note.
-            // It counts the notes that are still waiting and not the one it has in hand, so that one
-            // is subtracted here - otherwise the bar would be full while the last note was still
-            // being read.
-            while (true)
+            // follows the queue's own count of finished notes rather than waiting for an answer per
+            // note. Working it out from what is still waiting instead would be wrong: turning the
+            // switch off makes the queue throw a waiting note away, and a thrown-away note leaves the
+            // queue looking exactly like a read one.
+            while (IndexTotal > 0)
             {
-                var remaining = queue.PendingCount;
-                IndexDone = Math.Clamp(IndexTotal - remaining - (queue.IsReading ? 1 : 0), 0, IndexTotal);
+                // Clamped because the queue also reads notes saved while the pass runs; that can only
+                // push the count past the total, never the bar past full.
+                IndexDone = Math.Min(Volatile.Read(ref notesRead), IndexTotal);
 
-                if (remaining == 0 && !queue.IsReading)
+                if (queue.PendingCount == 0 && !queue.IsReading)
                 {
                     break;
                 }
@@ -274,11 +292,12 @@ public partial class SettingsViewModel : ObservableObject
                 await Task.Delay(PollInterval);
             }
 
-            IndexDone = IndexTotal;
             HasIndexedNotes = true;
         }
         finally
         {
+            queue.Recognized -= Count;
+            queue.Failed -= CountFailure;
             IsIndexingNotes = false;
         }
     }
