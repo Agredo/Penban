@@ -38,9 +38,32 @@
 	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
+	<!-- Adopts the scene lifecycle, which iOS 27 refuses to start the app without: an app whose
+	     plist has no scene manifest is aborted in UIApplicationMain with "No scene lifecycle
+	     adoption" (EXC_BREAKPOINT). The configuration name is not free to choose - MAUI only builds
+	     its window for the session whose configuration is called
+	     __MAUI_DEFAULT_SCENE_CONFIGURATION__ (MauiUIApplicationDelegate.MauiSceneConfigurationKey),
+	     and that session's delegate has to be the class named here. -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>__MAUI_DEFAULT_SCENE_CONFIGURATION__</string>
+					<key>UISceneDelegateClassName</key>
+					<string>SceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 	<!-- The board a tapped home screen widget stands for arrives as penban://board/<id>. The scheme
 	     has to be declared here for iOS to hand the URL to the app at all; the widget builds that
-	     address in PenbanWidget.swift and MauiProgram reads it. -->
+	     address in PenbanWidget.swift and Platforms/iOS/SceneDelegate.cs reads it. -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

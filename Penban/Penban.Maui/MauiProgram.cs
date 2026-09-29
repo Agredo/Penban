@@ -6,7 +6,6 @@ using Penban.Maui.Services;
 using Penban.Maui.Views.Pages;
 #if IOS
 using System.Diagnostics;
-using Foundation;
 using Microsoft.Maui.LifecycleEvents;
 #endif
 using Penban.Maui.Views.Services;
@@ -45,21 +44,20 @@ public static class MauiProgram
 
 #if IOS
         // The home screen widget reaches the app through its lifecycle rather than through a page:
-        // the board a tap on it asks for, and the moment the app is left, which is when the copy the
-        // widget shows is brought up to date.
+        // the board a tap on it asks for (penban://board/<id>, read in Platforms/iOS/SceneDelegate.cs),
+        // and the moment the app is left, which is when the copy the widget shows is brought up to
+        // date.
+        //
+        // Asked for of the scene and of the process alike, because which of the two gets told is
+        // iOS's business: since the scene manifest (see Platforms/iOS/Info.plist) the scene is what
+        // the app is started as, while the process events keep coming as well. Both do the same
+        // thing, and both are safe to see twice - the second look at the request finds it taken, and
+        // the snapshot is written again to the same place.
         builder.ConfigureLifecycleEvents(events => events.AddiOS(ios => ios
-            .OpenUrl((_, url, _) =>
-            {
-                if (!TryReadBoardAddress(url, out var boardId))
-                {
-                    return false;
-                }
-
-                IPlatformApplication.Current?.Services.GetRequiredService<WidgetBoardLink>().Request(boardId);
-                return true;
-            })
             .OnActivated(_ => OpenRequestedBoard())
-            .DidEnterBackground(_ => RefreshWidgetCopy())));
+            .DidEnterBackground(_ => RefreshWidgetCopy())
+            .SceneOnActivated(_ => OpenRequestedBoard())
+            .SceneDidEnterBackground(_ => RefreshWidgetCopy())));
 #endif
 
 #if DEBUG
@@ -127,21 +125,6 @@ public static class MauiProgram
     }
 
 #if IOS
-    /// <summary>
-    /// Reads the address a tapped widget carries: <c>penban://board/&lt;id&gt;</c>.
-    /// </summary>
-    private static bool TryReadBoardAddress(NSUrl? url, out Guid boardId)
-    {
-        boardId = Guid.Empty;
-
-        const string prefix = "penban://board/";
-        var address = url?.AbsoluteString;
-
-        return address is not null
-            && address.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-            && Guid.TryParse(address[prefix.Length..], out boardId);
-    }
-
     /// <summary>
     /// Shows the board a tapped widget asked for. The tap itself only notes which board it was (see
     /// <see cref="WidgetBoardLink"/>): it arrives while the app is still in the background, and after

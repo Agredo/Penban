@@ -10,10 +10,12 @@ bettet nur ein fertiges Bundle ein. Deshalb ist die Arbeit geteilt:
 flowchart LR
     subgraph App["Penban.Maui (MAUI)"]
         A[BoardsPage]
-        L["MauiProgram<br/>OnActivated · DidEnterBackground · OpenUrl"]
+        L["MauiProgram<br/>SceneOnActivated · SceneDidEnterBackground"]
+        Q["SceneDelegate<br/>scene:openURLContexts:"]
         A --> B[WidgetSnapshotTrigger]
         L --> B
         L --> U[WidgetBoardLink]
+        Q --> U
         U --> A
         B --> C[WidgetCardDrawable]
         C --> D[WidgetImageRenderer]
@@ -32,7 +34,7 @@ flowchart LR
     E --> G
     F --> H
     G --> H
-    I -->|"penban://board/&lt;id&gt;"| L
+    I -->|"penban://board/&lt;id&gt;"| Q
 ```
 
 Die App zeichnet die Karte **einmal pro Board, Größe und Erscheinungsbild** als PNG und legt sie
@@ -50,7 +52,7 @@ zweites Mal nachgebaut werden.
 | --- | --- |
 | `BoardsPage.OnAppearing` → `RefreshAsync` | Die Übersicht ist vollständig (Neustart, Rückkehr von einem Board) |
 | Boardliste geändert / Board-Eigenschaft geändert | Nach ~2 s Ruhe: Anlegen, Umbenennen, Löschen, neu gelesene Zeilen |
-| `MauiProgram` → `DidEnterBackground` | Beim Verlassen der App – der Moment, in dem der Nutzer zum Home-Screen und damit zum Widget geht |
+| `MauiProgram` → `SceneDidEnterBackground` | Beim Verlassen der App – der Moment, in dem der Nutzer zum Home-Screen und damit zum Widget geht |
 
 Vor jedem Schreiben liest der Trigger die Zeilen über `LoadSummaryAsync` neu: ein Board wird nicht
 neu gebaut, wenn auf ihm etwas passiert ist, und ohne dieses Nachlesen hätte die Karte die alten
@@ -72,10 +74,13 @@ Beides läuft über die Extension hinaus und braucht Wege, die C# allein nicht h
   weggelassen, weil niemand es über ein Symbol referenziert). `IosWidgetRefresh` ruft die Methode
   über `objc_msgSend` auf.
 - **Öffnen.** Die Ansicht trägt `.widgetURL(penban://board/<id>)`; `Info.plist` der App meldet das
-  Schema unter `CFBundleURLTypes` an. Der Tap landet im Lebenszyklus (`OpenUrl`), und weil die App
-  dabei noch im Hintergrund ist – und nach einem Kaltstart noch gar keine Übersicht existiert –
-  merkt sich `WidgetBoardLink` nur das Board. Wer zuerst bereit ist, öffnet es: `OnActivated` oder
-  `BoardsPage.OnAppearing`.
+  Schema unter `CFBundleURLTypes` an. Der Tap landet bei `SceneDelegate.OpenUrl`: seit dem
+  Szenen-Lebenszyklus (`UIApplicationSceneManifest` in `Platforms/iOS/Info.plist`) bekommt die
+  geöffneten URLs die Szene und nicht mehr die App, und bei einem Kaltstart kommt die URL sofort
+  nach dem Verbinden der Szene – dann gibt es den MAUI-Fenster-Handler noch nicht, über den die
+  Lebenszyklus-Ereignisse der Szene laufen. Weil die App dabei noch im Hintergrund ist – und nach
+  einem Kaltstart noch gar keine Übersicht existiert – merkt sich `WidgetBoardLink` nur das Board.
+  Wer zuerst bereit ist, öffnet es: `SceneOnActivated` oder `BoardsPage.OnAppearing`.
 
 ## Inhalt
 

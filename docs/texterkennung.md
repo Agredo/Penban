@@ -204,6 +204,14 @@ Stelle, die die rohe Zeile dereferenziert, weil sie die Zeilen vergleicht, **bev
 dotnet build Penban/Penban.Maui/Penban.Maui.csproj -f net10.0-windows10.0.19041.0
 ```
 
+Auf iOS verlangt die verwaltete ONNX-Runtime-Assembly das Symbol `RegisterCustomOps` aus
+`onnxruntime-extensions` als `DllImport("__Internal")` und macht es damit zu einer harten
+Anforderung des Links — obwohl die Erweiterung optional ist und Penban keine eigenen Operatoren
+benutzt. Der statische Runtime-Teil würde deshalb nicht linken („Undefined symbols for architecture
+arm64: _RegisterCustomOps"). `Platforms/iOS/OnnxRuntimeExtensionsStub.c` beantwortet das Symbol; der
+Target `LinkOnnxRuntimeExtensionsStub` übersetzt die Datei und reicht sie an den Linker, so wie
+`LinkWidgetReloader` es mit dem Swift-Teil tut. Ohne diesen Stub baut die App auf iOS nicht.
+
 Der volle Build braucht die MAUI-Workloads (iOS/Android). Die Erkennung selbst lässt sich davon
 unabhängig prüfen: `Penban.Recognition` und `Penban.Recognition.Onnx` zielen auf ein
 plattformneutrales TFM, laden ihr Modell aus eingebetteten Ressourcen und kennen kein MAUI. Ein
