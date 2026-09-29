@@ -42,6 +42,25 @@
     <WindowsPackageType Condition="$(TargetFramework.Contains('-windows'))">None</WindowsPackageType>
   </PropertyGroup>
 
+  <!-- Opt-in MSIX packaging, off by default so the ordinary build stays unpackaged:
+         dotnet build Penban.Maui.csproj -f net10.0-windows10.0.19041.0 -c Release -p:PenbanMsix=true
+       The single-project MSIX tooling is opt-in through EnableMsixTooling; GenerateAppxPackageOnBuild
+       makes the build itself write the package instead of only Visual Studio's Package and Publish.
+       All of this has to stand in the project file, not in a Directory.Build.targets: the MSIX targets
+       read these properties while they are evaluated, and those targets are imported before
+       Directory.Build.targets. The result lands in AppxPackageDir, which defaults to AppPackages\ next
+       to the project - pass -p:AppxPackageDir=<path> to put it somewhere else. -->
+  <PropertyGroup Condition="$(TargetFramework.Contains('-windows')) And '$(PenbanMsix)' == 'true'">
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <AppxBundle>Always</AppxBundle>
+    <!-- Unsigned: a sideload-only package. Signing would need a certificate whose subject matches the
+         manifest publisher ("CN=Penban Local"), which no machine has yet. -->
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <UapAppxPackageBuildMode>SideloadOnly</UapAppxPackageBuildMode>
+  </PropertyGroup>
+
   <!-- The home screen widget: the app and the extension share the App Group container declared
        here, so both sides have to claim it. Without the file the container is never handed out and
        the widget stays empty. -->
