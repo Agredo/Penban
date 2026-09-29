@@ -103,13 +103,13 @@ public partial class BoardViewModel : ObservableObject
         var count = 0;
         var lastEdited = LastEditedUtc;
         var previews = new List<Card>();
+        var summaries = new List<BoardColumnSummary>();
 
-        ColumnSummary.Clear();
         foreach (var column in Columns)
         {
             var cards = await cardService.GetCardsAsync(column.Id);
             count += cards.Count;
-            ColumnSummary.Add(new BoardColumnSummary(column.Title, cards.Count, NoteColorIndex));
+            summaries.Add(new BoardColumnSummary(column.Title, cards.Count, NoteColorIndex));
 
             foreach (var card in cards)
             {
@@ -132,20 +132,23 @@ public partial class BoardViewModel : ObservableObject
             previews.Add(new Card { Id = Id });
         }
 
-        PreviewNotes.Clear();
-
+        var notes = new List<BoardNotePreview>();
         var total = previews.Count + (hasNote ? 1 : 0);
         for (var index = 0; index < previews.Count; index++)
         {
-            PreviewNotes.Add(new BoardNotePreview(previews[index], index, total));
+            notes.Add(new BoardNotePreview(previews[index], index, total));
         }
 
         if (hasNote)
         {
             // Added last, because the last place of the fan is the one drawn on top: the note that
             // stands for the whole board belongs in front of the cards underneath it.
-            PreviewNotes.Add(new BoardNotePreview(Id, board.NoteStrokes, board.NoteColorIndex, total - 1, total));
+            notes.Add(new BoardNotePreview(Id, board.NoteStrokes, board.NoteColorIndex, total - 1, total));
         }
+
+        // Applied together and without clearing, see Replace.
+        Replace(ColumnSummary, summaries);
+        Replace(PreviewNotes, notes);
 
         CardCount = count;
 
@@ -153,6 +156,40 @@ public partial class BoardViewModel : ObservableObject
         // announced separately.
         OnPropertyChanged(nameof(SummaryText));
         OnPropertyChanged(nameof(HasColumns));
+    }
+
+    /// <summary>
+    /// Puts <paramref name="items"/> into a collection that a layout is drawing, without ever
+    /// clearing it.
+    /// <para>
+    /// Clearing raises a reset, and a reset makes BindableLayout take the children of the layout it
+    /// feeds down all at once. On Windows the FlexLayout behind the load bar does not survive that:
+    /// the app dies in the native children collection with no exception raised anywhere. The row is
+    /// re-read on every visit to the overview, so the second visit would be enough to lose it.
+    /// </para>
+    /// <para>
+    /// Replacing and removing one at a time raises an event per place instead, which the same
+    /// controller handles without tearing the layout down.
+    /// </para>
+    /// </summary>
+    private static void Replace<T>(ObservableCollection<T> target, IReadOnlyList<T> items)
+    {
+        for (var index = 0; index < items.Count; index++)
+        {
+            if (index < target.Count)
+            {
+                target[index] = items[index];
+            }
+            else
+            {
+                target.Add(items[index]);
+            }
+        }
+
+        while (target.Count > items.Count)
+        {
+            target.RemoveAt(target.Count - 1);
+        }
     }
 
     [RelayCommand]
