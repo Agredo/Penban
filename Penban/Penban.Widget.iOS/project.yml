@@ -42,8 +42,8 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: YES
         # Muss zu ApplicationDisplayVersion / ApplicationVersion in Penban.Maui.csproj passen;
         # App Store Connect weist eine Extension mit abweichender Version zurück.
-        MARKETING_VERSION: "0.4.1"
-        CURRENT_PROJECT_VERSION: "9"
+        MARKETING_VERSION: "0.4.2"
+        CURRENT_PROJECT_VERSION: "10"
         TARGETED_DEVICE_FAMILY: "1,2"
         SKIP_INSTALL: YES
         SWIFT_EMIT_LOC_STRINGS: YES
