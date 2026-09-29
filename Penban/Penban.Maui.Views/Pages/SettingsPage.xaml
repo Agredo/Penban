@@ -204,6 +204,27 @@
                     </VerticalStackLayout>
                 </Border>
 
+                <Label Text="{markup:Translate SettingsRecognitionSection}"
+                       Style="{StaticResource CaptionLabel}"
+                       Margin="0,6,0,0" />
+
+                <!-- The only setting here whose cost is measured in minutes, so it explains itself:
+                     a switch that reads handwriting in the background is one whose effect on the
+                     battery nobody would guess from its name. -->
+                <Border Style="{StaticResource CardBorder}" Padding="16,6">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                        <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                            <Label Text="{markup:Translate RecognitionEnabled}"
+                                   Style="{StaticResource BodyLabel}" />
+                            <Label Text="{markup:Translate RecognitionEnabledHelp}"
+                                   Style="{StaticResource CaptionLabel}" />
+                        </VerticalStackLayout>
+                        <Switch Grid.Column="1"
+                                IsToggled="{Binding RecognitionEnabled}"
+                                VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+
                 <Label Text="{markup:Translate SettingsSupportSection}"
                        Style="{StaticResource CaptionLabel}"
                        Margin="0,6,0,0" />

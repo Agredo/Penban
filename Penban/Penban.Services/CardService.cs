@@ -47,6 +47,23 @@ public class CardService : ICardService
         return cards;
     }
 
+    public Task<Card?> GetCardAsync(Guid cardId) => repository.GetAsync(cardId);
+
+    public void QueueRecognition(IReadOnlyList<Card> cards)
+    {
+        ArgumentNullException.ThrowIfNull(cards);
+
+        // Backwards, because the queue takes the newest entry first: a board handed over in one go is
+        // then read in the order it is written, so a search made while the run is still going finds
+        // the notes the user is looking at before the ones further down. Each card goes through the
+        // same door as a save, so a note edited while the board is open replaces its queued self
+        // instead of being read twice.
+        for (var i = cards.Count - 1; i >= 0; i--)
+        {
+            recognition.Enqueue(cards[i].Id, cards[i].Strokes ?? []);
+        }
+    }
+
     public async Task<Card> CreateCardAsync(Guid columnId)
     {
         var existing = await repository.GetByColumnAsync(columnId);

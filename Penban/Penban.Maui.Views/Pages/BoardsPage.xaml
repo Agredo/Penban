@@ -12,8 +12,8 @@
              Style="{StaticResource AppPage}">
     <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
 
-        <!-- Header: logo + page title + settings + whole-database transfer + primary add action -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="6">
+        <!-- Header: logo + page title + search + settings + whole-database transfer + primary add action -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="6">
             <Image Grid.Column="0"
                    Source="penban_logo.png"
                    WidthRequest="36"
@@ -26,18 +26,24 @@
                    Style="{StaticResource LargeTitleLabel}"
                    VerticalOptions="Center" />
             <Button Grid.Column="2"
+                    Text="&#xf690;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnSearchClicked"
+                    SemanticProperties.Description="{markup:Translate SearchTitle}"
+                    VerticalOptions="Center" />
+            <Button Grid.Column="3"
                     Text="&#xf588;"
                     Style="{StaticResource GhostIconButton}"
                     Clicked="OnSettingsClicked"
                     SemanticProperties.Description="{markup:Translate Settings}"
                     VerticalOptions="Center" />
-            <Button Grid.Column="3"
+            <Button Grid.Column="4"
                     Text="&#xe467;"
                     Style="{StaticResource GhostIconButton}"
                     Clicked="OnTransferClicked"
                     SemanticProperties.Description="{markup:Translate TransferTitle}"
                     VerticalOptions="Center" />
-            <Button Grid.Column="4"
+            <Button Grid.Column="5"
                     Text="&#xf10a;"
                     Style="{StaticResource AccentIconButton}"
                     Command="{Binding AddBoardCommand}"

@@ -122,6 +122,7 @@ public static class MauiProgram
         services.AddTransient<BoardsViewModel>();
         services.AddTransient<BoardsPage>();
         services.AddTransient<SettingsViewModel>();
+        services.AddTransient<SearchViewModel>();
         services.AddTransient<FeedbackViewModel>();
     }
 

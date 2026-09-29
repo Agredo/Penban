@@ -64,4 +64,11 @@ public static class PreferenceKeys
     /// the configuration sheet pre-selects rather than something that puts a widget anywhere.
     /// </summary>
     public const string WidgetBoard = "Widget.PreferredBoard";
+
+    /// <summary>
+    /// Whether the app reads the handwriting of notes in the background so that their text can be
+    /// found again. On by default: the search is the feature, and one that stays empty until a
+    /// switch has been found is one nobody finds.
+    /// </summary>
+    public const string RecognitionEnabled = "Recognition.Enabled";
 }

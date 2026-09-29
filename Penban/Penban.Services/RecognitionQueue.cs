@@ -14,6 +14,7 @@ namespace Penban.Services;
 public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
 {
     private readonly Func<IInkRecognitionService> recognition;
+    private readonly IPreferences preferences;
 
     /// <summary>
     /// Guards the queue and the worker handle. Both are touched from the caller's thread (queuing) and
@@ -48,11 +49,13 @@ public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
     /// the model. A queue that is created when a board opens - and stays empty when nothing on that
     /// board was ever written - should not pay for that.
     /// </summary>
-    public RecognitionQueue(Func<IInkRecognitionService> recognition)
+    public RecognitionQueue(Func<IInkRecognitionService> recognition, IPreferences preferences)
     {
         ArgumentNullException.ThrowIfNull(recognition);
+        ArgumentNullException.ThrowIfNull(preferences);
 
         this.recognition = recognition;
+        this.preferences = preferences;
         stopped = shutdown.Token;
     }
 
@@ -78,6 +81,11 @@ public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
     public void Enqueue(Guid cardId, IReadOnlyList<InkStroke> strokes)
     {
         ArgumentNullException.ThrowIfNull(strokes);
+
+        if (!IsEnabled())
+        {
+            return;
+        }
 
         lock (gate)
         {
@@ -164,6 +172,15 @@ public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
                 continue;
             }
 
+            // Asked again here rather than only on the way in: opening a board hands over every card
+            // at once, so turning the setting off has to stop the run in progress and not just the
+            // next one. The card that was taken is dropped - it is queued again the next time it is
+            // saved or its board is opened.
+            if (!IsEnabled())
+            {
+                continue;
+            }
+
             await RecognizeAsync(work, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -208,6 +225,17 @@ public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
             work = first.Value;
             return true;
         }
+    }
+
+    /// <summary>
+    /// Whether reading is wanted at all. Read from the store rather than kept as a field, because the
+    /// setting is changed on a page that has no way of reaching a queue created before it. Anything
+    /// that cannot be parsed counts as on, which is how the settings page reads it as well.
+    /// </summary>
+    private bool IsEnabled()
+    {
+        var stored = preferences.Get(PreferenceKeys.RecognitionEnabled, bool.TrueString);
+        return !bool.TryParse(stored, out var enabled) || enabled;
     }
 
     /// <summary>One card waiting to be read, with the ink it had when it was queued.</summary>

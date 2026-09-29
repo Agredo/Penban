@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             x:Class="Penban.Maui.Views.Pages.SearchPage"
+             Title="{markup:Translate SearchTitle}"
+             Shell.NavBarIsVisible="False"
+             Style="{StaticResource AppPage}">
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="20,12" RowSpacing="16">
+
+        <!-- Own header instead of the Shell nav bar, like every other page in the app. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+            <Button Grid.Column="0"
+                    Text="&#xf15c;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnBackClicked"
+                    SemanticProperties.Description="{markup:Translate SearchTitle}" />
+            <Label Grid.Column="1"
+                   Text="{markup:Translate SearchTitle}"
+                   Style="{StaticResource TitleLabel}"
+                   VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Searched on the search key rather than on every letter: a lookup reads the whole store,
+             and a note's text is only there once the note has been read. -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <SearchBar Grid.Column="0"
+                       x:Name="SearchInput"
+                       Text="{Binding Query}"
+                       Placeholder="{markup:Translate SearchPlaceholder}"
+                       SearchButtonPressed="OnSearchPressed" />
+            <ActivityIndicator Grid.Column="1"
+                               IsRunning="{Binding IsSearching}"
+                               IsVisible="{Binding IsSearching}"
+                               VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Reading runs in the background while the search happens, so a search made right after
+             opening a board can come up short through no fault of the notes. Saying how much is
+             still to come is the difference between "nothing here" and "not yet". -->
+        <Label Grid.Row="2"
+               Text="{Binding PendingLabel}"
+               Style="{StaticResource CaptionLabel}"
+               IsVisible="{Binding HasPending}"
+               HorizontalTextAlignment="Center" />
+
+        <!-- Nothing found. Worth saying, because the reason is almost always the same one: the notes
+             have not been read yet, and a note that was never read cannot be found. -->
+        <VerticalStackLayout Grid.Row="3"
+                             Spacing="14"
+                             VerticalOptions="Center"
+                             IsVisible="{Binding ShowEmptyState}">
+            <Label Text="&#xf690;"
+                   Style="{StaticResource IconLabel}"
+                   FontSize="56"
+                   TextColor="{AppThemeBinding Light={StaticResource TextTertiaryLight}, Dark={StaticResource TextTertiaryDark}}"
+                   HorizontalTextAlignment="Center" />
+            <Label Text="{markup:Translate SearchNoResults}"
+                   Style="{StaticResource CaptionLabel}"
+                   FontSize="{StaticResource FontSizeBody}"
+                   HorizontalTextAlignment="Center" />
+            <Label Text="{markup:Translate SearchNoResultsHelp}"
+                   Style="{StaticResource CaptionLabel}"
+                   HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
+
+        <CollectionView Grid.Row="3" ItemsSource="{Binding Results}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource CardBorder}" Padding="14" Margin="0,6">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnResultTapped" />
+                        </Border.GestureRecognizers>
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="{Binding Text}"
+                                   Style="{StaticResource BodyLabel}" />
+                            <Label Text="{Binding BoardLabel}"
+                                   Style="{StaticResource CaptionLabel}" />
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>

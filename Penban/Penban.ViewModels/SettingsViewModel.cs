@@ -67,6 +67,7 @@ public partial class SettingsViewModel : ObservableObject
             TiltRenderingEffect = ReadBool(PreferenceKeys.TiltRenderingEffect, false);
             TwoFingerTapUndoEnabled = ReadBool(PreferenceKeys.TwoFingerTapUndoEnabled, true);
             ThreeFingerTapRedoEnabled = ReadBool(PreferenceKeys.ThreeFingerTapRedoEnabled, true);
+            RecognitionEnabled = ReadBool(PreferenceKeys.RecognitionEnabled, true);
             SelectedRendererIndex = ReadRendererIndex();
         }
         finally
@@ -164,6 +165,16 @@ public partial class SettingsViewModel : ObservableObject
 
     partial void OnThreeFingerTapRedoEnabledChanged(bool value) =>
         Persist(PreferenceKeys.ThreeFingerTapRedoEnabled, value);
+
+    /// <summary>
+    /// Whether the handwriting of notes is read in the background, which is what makes their text
+    /// findable. On by default, and worth a switch of its own because reading a board costs real
+    /// time on the processor - the one setting here whose cost is measured in minutes.
+    /// </summary>
+    [ObservableProperty]
+    private bool recognitionEnabled;
+
+    partial void OnRecognitionEnabledChanged(bool value) => Persist(PreferenceKeys.RecognitionEnabled, value);
 
     private void Persist(string key, bool value)
     {

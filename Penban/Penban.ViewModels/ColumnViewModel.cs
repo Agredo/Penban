@@ -46,6 +46,12 @@ public partial class ColumnViewModel : ObservableObject
         {
             Cards.Add(new CardViewModel(card, cardService, dialogService));
         }
+
+        // Opening a board is when its notes are handed to the search: a note written before the text
+        // recognition existed has no stored text yet, and waiting for it to be edited would leave the
+        // search empty for everything already written. Cards that were read before are recognised as
+        // unchanged by their hash and cost nothing further.
+        cardService.QueueRecognition(cards);
     }
 
     [RelayCommand]

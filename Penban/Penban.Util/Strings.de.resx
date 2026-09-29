@@ -403,4 +403,31 @@
   <data name="WidgetForBoardHelpFormat" xml:space="preserve">
     <value>&quot;{0}&quot; ist für das nächste Widget gemerkt.&#10;&#10;iOS legt ein Widget selber ab, niemals eine App:&#10;&#10;1. Eine leere Stelle des Home-Bildschirms lange drücken&#10;2. Auf &quot;+&quot; tippen und nach &quot;Penban&quot; suchen&#10;3. Eine Grösse wählen und das Widget hinzufügen&#10;4. Das Widget weiterhin drücken und unter &quot;Widget bearbeiten&quot; &quot;{0}&quot; wählen</value>
   </data>
+  <data name="SettingsRecognitionSection" xml:space="preserve">
+    <value>Suche</value>
+  </data>
+  <data name="RecognitionEnabled" xml:space="preserve">
+    <value>Text in Notizen finden</value>
+  </data>
+  <data name="RecognitionEnabledHelp" xml:space="preserve">
+    <value>Liest die Handschrift deiner Notizen im Hintergrund, damit ihr Text durchsucht werden kann. Ein ganzes Board braucht beim ersten Mal einige Minuten.</value>
+  </data>
+  <data name="SearchTitle" xml:space="preserve">
+    <value>Suche</value>
+  </data>
+  <data name="SearchPlaceholder" xml:space="preserve">
+    <value>Notizen durchsuchen</value>
+  </data>
+  <data name="SearchNoResults" xml:space="preserve">
+    <value>Keine Notizen gefunden</value>
+  </data>
+  <data name="SearchNoResultsHelp" xml:space="preserve">
+    <value>Gefunden werden nur Notizen, die bereits gelesen wurden. Gelesen wird ein Board beim Öffnen.</value>
+  </data>
+  <data name="SearchBoardLabelFormat" xml:space="preserve">
+    <value>in {0}</value>
+  </data>
+  <data name="SearchStillReadingFormat" xml:space="preserve">
+    <value>Notizen werden noch gelesen ({0} ausstehend)</value>
+  </data>
 </root>

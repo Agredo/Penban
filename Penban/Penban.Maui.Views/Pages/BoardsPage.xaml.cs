@@ -14,16 +14,18 @@ public partial class BoardsPage : ContentPage
     private readonly IPreferences preferences;
     private readonly IDialogService dialogService;
     private readonly SettingsViewModel settingsViewModel;
+    private readonly SearchViewModel searchViewModel;
     private readonly FeedbackViewModel feedbackViewModel;
     private readonly TransferCoordinator transferCoordinator;
     private readonly WidgetSnapshotTrigger widget;
     private readonly WidgetBoardLink boardLink;
     private bool isOpeningBoard;
 
-    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, IDialogService dialogService, TransferCoordinator transferCoordinator, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink)
+    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, SearchViewModel searchViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, IDialogService dialogService, TransferCoordinator transferCoordinator, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink)
     {
         InitializeComponent();
         this.settingsViewModel = settingsViewModel;
+        this.searchViewModel = searchViewModel;
         this.feedbackViewModel = feedbackViewModel;
         this.preferences = preferences;
         this.dialogService = dialogService;
@@ -122,6 +124,13 @@ public partial class BoardsPage : ContentPage
     private async void OnSettingsClicked(object? sender, EventArgs e)
     {
         await Navigation.PushAsync(new SettingsPage(settingsViewModel, feedbackViewModel));
+    }
+
+    private async void OnSearchClicked(object? sender, EventArgs e)
+    {
+        // The search hands a found board back to this page: opening one is the overview's job, and
+        // the page that was pushed from here is gone by the time a result is tapped.
+        await Navigation.PushAsync(new SearchPage(searchViewModel, OpenBoardAsync));
     }
 
     private async void OnTransferClicked(object? sender, EventArgs e)
