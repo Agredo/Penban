@@ -51,7 +51,10 @@ public partial class BoardsPage : ContentPage
         widget.Attach(viewModel);
 
         await viewModel.LoadBoardsCommand.ExecuteAsync(null);
-        await widget.RefreshAsync();
+
+        // The rows were just read, so the copy is written from them rather than from a second pass
+        // over every board - which would take as long as the load itself did.
+        await widget.RefreshAsync(rowsAreFresh: true);
 
         // A tap on a widget that woke the app asked for its board before this page existed. The
         // activation normally opens it; if it could not - a cold start has no overview yet - it is
@@ -168,8 +171,9 @@ public partial class BoardsPage : ContentPage
         WidgetPreferredBoard.Set(preferences, board.Id);
 
         // The wish is part of what the widget reads, so it has to be written now rather than on the
-        // next visit: whoever stands on the home screen with the menu just closed cannot wait.
-        await widget.RefreshAsync();
+        // next visit: whoever stands on the home screen with the menu just closed cannot wait. The
+        // rows need no second read - this is the overview that just loaded them.
+        await widget.RefreshAsync(rowsAreFresh: true);
 
         await dialogService.DisplayAlertAsync(
             Strings.WidgetForBoard,

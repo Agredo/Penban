@@ -64,7 +64,11 @@ public sealed class WidgetBoard
 
     public string Title { get; set; } = string.Empty;
 
-    /// <summary>Caption under the title, exactly as the overview words it.</summary>
+    /// <summary>
+    /// Caption under the title, as the widget words it: with a fixed date and time rather than the
+    /// "10 min ago" of the overview, because a caption that moves with the clock would have the whole
+    /// picture drawn again every minute (see <see cref="ViewModels.BoardViewModel.WidgetSummaryText"/>).
+    /// </summary>
     public string Summary { get; set; } = string.Empty;
 
     public int CardCount { get; set; }

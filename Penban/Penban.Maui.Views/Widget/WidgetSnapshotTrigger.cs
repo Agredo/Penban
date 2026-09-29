@@ -41,6 +41,7 @@ public sealed class WidgetSnapshotTrigger : IDisposable
     private BoardsViewModel? boards;
     private Task pending = Task.CompletedTask;
     private long version;
+    private bool rowsFresh;
     private bool suppress;
     private bool disposed;
 
@@ -64,6 +65,13 @@ public sealed class WidgetSnapshotTrigger : IDisposable
     /// Puts the overview that is on screen in charge: what it holds is what the widget shows next.
     /// Attaching again replaces the previous one - a page is made per navigation, and the list of the
     /// one that was left behind is not worth watching.
+    /// <para>
+    /// Attaching writes nothing by itself, although showing an overview does change what the widget
+    /// should show: the list is empty until the page has read it, and a copy written from an empty one
+    /// would not only put an empty home screen in front of the person using the app, it would also
+    /// differ from the copy the page writes a moment later - every board drawn again on every visit.
+    /// The page asks for the copy itself instead, once its rows are there (see <see cref="RefreshAsync"/>).
+    /// </para>
     /// </summary>
     public void Attach(BoardsViewModel overview)
     {
@@ -76,13 +84,10 @@ public sealed class WidgetSnapshotTrigger : IDisposable
 
             Detach();
             boards = overview;
+            rowsFresh = false;
             overview.Boards.CollectionChanged += OnBoardsChanged;
             Watch(overview.Boards);
         }
-
-        // Showing an overview is a change of what the widget should show, even when it is the same
-        // boards: the copy is written once the first of them has settled.
-        Trigger();
     }
 
     /// <summary>Completes when the next write is through; for the checks, which have no widget to wait on.</summary>
@@ -117,7 +122,12 @@ public sealed class WidgetSnapshotTrigger : IDisposable
     /// Writes at once instead of waiting for a burst to settle, for the moment the overview is known
     /// to be complete again.
     /// </summary>
-    public Task RefreshAsync()
+    /// <param name="rowsAreFresh">
+    /// Whether the rows were read from the database just now. The overview does that on every visit
+    /// anyway, and a second pass over every column of every board costs as much as the first - it is
+    /// the visit to the overview that the person in front of the phone is waiting on.
+    /// </param>
+    public Task RefreshAsync(bool rowsAreFresh = false)
     {
         lock (gate)
         {
@@ -125,6 +135,8 @@ public sealed class WidgetSnapshotTrigger : IDisposable
             {
                 return Task.CompletedTask;
             }
+
+            this.rowsFresh = rowsAreFresh;
 
             // Anything still waiting to settle is no longer the current state.
             version++;
@@ -193,7 +205,15 @@ public sealed class WidgetSnapshotTrigger : IDisposable
             return;
         }
 
-        await RefreshSummariesAsync(overview);
+        // Rows that were just read are not read again - the visit to the overview reads all of them
+        // already, and a second pass over every column of every board takes as long as the first.
+        // Read again is what the rest needs: a row carried over from a previous visit still knows
+        // what it knew then - a board is not rebuilt when a note is written on it - and the writer
+        // compares the rows against the copy on disk, so a stale row would not even be written.
+        if (!rowsFresh)
+        {
+            await RefreshSummariesAsync(overview);
+        }
 
         await WidgetSnapshotWriter.UpdateAsync(overview.Boards, folder, WidgetPreferredBoard.Get(preferences));
     }

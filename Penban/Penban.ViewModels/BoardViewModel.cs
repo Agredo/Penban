@@ -73,6 +73,19 @@ public partial class BoardViewModel : ObservableObject
         ? Strings.NoCardsYet
         : string.Format(Strings.BoardSummaryFormat, RelativeTime.Describe(LastEditedUtc, DateTimeOffset.UtcNow), CardCountText);
 
+    /// <summary>
+    /// The same caption for the home screen widget, with a fixed date and time instead of "10 min ago".
+    /// <para>
+    /// The widget shows a picture of this list, and that picture is only drawn again when one of these
+    /// lines changes. A wording that moves with the clock would make every board look different every
+    /// minute and have all of them redrawn for it - during the visit to the overview, which is the
+    /// moment someone is waiting for the list. A date stands still until the board is really written to.
+    /// </para>
+    /// </summary>
+    public string WidgetSummaryText => CardCount == 0
+        ? Strings.NoCardsYet
+        : string.Format(Strings.BoardSummaryFormat, LastEditedUtc.ToLocalTime().ToString(Strings.TimeStampFormat), CardCountText);
+
     private string CardCountText => CardCount == 1
         ? Strings.OneCard
         : string.Format(Strings.CardsCountFormat, CardCount);

@@ -154,6 +154,9 @@
   <data name="TimeHoursAgoFormat" xml:space="preserve">
     <value>{0} h ago</value>
   </data>
+  <data name="TimeStampFormat" xml:space="preserve">
+    <value>MMM d, h:mm tt</value>
+  </data>
   <data name="TimeYesterday" xml:space="preserve">
     <value>yesterday</value>
   </data>

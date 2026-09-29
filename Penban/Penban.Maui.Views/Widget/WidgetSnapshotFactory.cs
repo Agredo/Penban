@@ -70,7 +70,7 @@ public static class WidgetSnapshotFactory
             Id = board.Id,
             Version = version,
             Title = board.Title,
-            Summary = board.SummaryText,
+            Summary = board.WidgetSummaryText,
             CardCount = board.CardCount,
             HasNote = board.HasNote,
             NoteColorIndex = board.NoteColorIndex,
@@ -132,13 +132,18 @@ public static class WidgetSnapshotFactory
     /// <summary>
     /// Fingerprint of one board: everything of it that ends up in the picture. Carried by the board and
     /// by the names of its previews, so a board that looks different is read afresh by the widget.
+    /// <para>
+    /// The caption goes in as the widget shows it, not as the overview does: "10 min ago" would move
+    /// the fingerprint of every board on its own, once a minute, and have the whole widget drawn again
+    /// on the next visit for a picture that is in fact still correct.
+    /// </para>
     /// </summary>
     private static string BoardFingerprint(BoardViewModel board)
     {
         var text = new StringBuilder();
 
         text.Append(board.Title).Append('|')
-            .Append(board.SummaryText).Append('|')
+            .Append(board.WidgetSummaryText).Append('|')
             .Append(board.CardCount).Append('|')
             .Append(board.HasNote).Append('|')
             .Append(board.NoteColorIndex).Append('|')
