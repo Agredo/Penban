@@ -82,33 +82,33 @@ public class DataTransferService : IDataTransferService
         return new ExportResult(filePath, scope, file.Boards.Count, file.Cards.Count);
     }
 
-    public async Task<ImportFileInfo?> ReadAsync(string filePath)
+    public async Task<ImportFileInfo?> ReadAsync(PickedFile file)
     {
-        var file = await ReadFileAsync(filePath);
-        if (file is null)
+        var document = await ReadFileAsync(file);
+        if (document is null)
         {
             return null;
         }
 
         return new ImportFileInfo(
-            ScopeOf(file.Kind),
-            file.Boards.Count,
-            file.Cards.Count,
-            file.SourceBoardTitle);
+            ScopeOf(document.Kind),
+            document.Boards.Count,
+            document.Cards.Count,
+            document.SourceBoardTitle);
     }
 
-    public async Task<ImportResult> ImportAsync(string filePath, ImportMode mode, Guid? targetColumnId = null)
+    public async Task<ImportResult> ImportAsync(PickedFile file, ImportMode mode, Guid? targetColumnId = null)
     {
-        var file = await ReadFileAsync(filePath)
+        var document = await ReadFileAsync(file)
             ?? throw new InvalidOperationException("The file is not a readable Penban file.");
 
-        return ScopeOf(file.Kind) switch
+        return ScopeOf(document.Kind) switch
         {
-            ExportScope.Cards => await AppendCardsAsync(file.Cards, targetColumnId),
-            ExportScope.Board => await AddAsNewBoardsAsync(file.Boards, file.Cards),
+            ExportScope.Cards => await AppendCardsAsync(document.Cards, targetColumnId),
+            ExportScope.Board => await AddAsNewBoardsAsync(document.Boards, document.Cards),
             _ => mode == ImportMode.Replace
-                ? await ReplaceAllAsync(file)
-                : await AddAsNewBoardsAsync(file.Boards, file.Cards),
+                ? await ReplaceAllAsync(document)
+                : await AddAsNewBoardsAsync(document.Boards, document.Cards),
         };
     }
 
@@ -225,28 +225,29 @@ public class DataTransferService : IDataTransferService
         UpdatedAtUtc = source.UpdatedAtUtc,
     };
 
-    private static async Task<PenbanFile?> ReadFileAsync(string filePath)
+    private static async Task<PenbanFile?> ReadFileAsync(PickedFile file)
     {
         try
         {
-            await using var stream = File.OpenRead(filePath);
-            var file = await JsonSerializer.DeserializeAsync(stream, PenbanJsonContext.Default.PenbanFile);
-            if (file is null || !file.IsPenbanFile || !file.IsSupportedVersion)
+            await using var stream = await file.OpenRead();
+            var document = await JsonSerializer.DeserializeAsync(stream, PenbanJsonContext.Default.PenbanFile);
+            if (document is null || !document.IsPenbanFile || !document.IsSupportedVersion)
             {
                 return null;
             }
 
             // A null here can only come from a hand-edited file, and would turn into a
             // NullReferenceException somewhere far less obvious than this.
-            file.Boards ??= new List<Board>();
-            file.Cards ??= new List<Card>();
-            return file;
+            document.Boards ??= new List<Board>();
+            document.Cards ??= new List<Card>();
+            return document;
         }
-        catch (Exception exception) when (exception is JsonException
-                                             or IOException
-                                             or UnauthorizedAccessException
-                                             or NotSupportedException)
+        catch (Exception exception) when (exception is JsonException or NotSupportedException)
         {
+            // Well-formed enough to be opened, but not a Penban file. Anything that kept the file
+            // from being read at all - a denied access, a missing file - is deliberately not
+            // caught here: calling that "not a readable Penban file" would blame the file for
+            // something the system refused, and hide the real reason from the user.
             return null;
         }
     }

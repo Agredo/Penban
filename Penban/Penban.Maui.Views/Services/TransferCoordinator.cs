@@ -130,8 +130,8 @@ public class TransferCoordinator(
     /// </summary>
     private async Task<bool> ImportAsync(Func<Task<Guid?>>? chooseTargetColumn = null)
     {
-        var filePath = await PickAsync();
-        if (string.IsNullOrEmpty(filePath))
+        var picked = await PickAsync();
+        if (picked is null)
         {
             return false;
         }
@@ -139,7 +139,7 @@ public class TransferCoordinator(
         ImportFileInfo? info;
         try
         {
-            info = await transferService.ReadAsync(filePath);
+            info = await transferService.ReadAsync(picked);
         }
         catch (Exception exception)
         {
@@ -163,12 +163,12 @@ public class TransferCoordinator(
 
             // A cancelled column choice is not an error, so it says nothing.
             return await chooseTargetColumn() is { } columnId
-                && await RunImportAsync(filePath, ImportMode.Merge, columnId);
+                && await RunImportAsync(picked, ImportMode.Merge, columnId);
         }
 
         if (info.Scope == ExportScope.Board)
         {
-            return await RunImportAsync(filePath, ImportMode.Merge, null);
+            return await RunImportAsync(picked, ImportMode.Merge, null);
         }
 
         // "Merge" is offered first because it is the safe one: it can never lose what is already
@@ -181,7 +181,7 @@ public class TransferCoordinator(
 
         if (choice == 0)
         {
-            return await RunImportAsync(filePath, ImportMode.Merge, null);
+            return await RunImportAsync(picked, ImportMode.Merge, null);
         }
 
         if (choice == 1)
@@ -194,14 +194,14 @@ public class TransferCoordinator(
 
             if (confirmed)
             {
-                return await RunImportAsync(filePath, ImportMode.Replace, null);
+                return await RunImportAsync(picked, ImportMode.Replace, null);
             }
         }
 
         return false;
     }
 
-    private async Task<string?> PickAsync()
+    private async Task<PickedFile?> PickAsync()
     {
         try
         {
@@ -214,11 +214,11 @@ public class TransferCoordinator(
         }
     }
 
-    private async Task<bool> RunImportAsync(string filePath, ImportMode mode, Guid? targetColumnId)
+    private async Task<bool> RunImportAsync(PickedFile file, ImportMode mode, Guid? targetColumnId)
     {
         try
         {
-            var result = await transferService.ImportAsync(filePath, mode, targetColumnId);
+            var result = await transferService.ImportAsync(file, mode, targetColumnId);
             await dialogService.DisplayAlertAsync(
                 Strings.TransferImport,
                 string.Format(CultureInfo.CurrentCulture, Strings.ImportDoneFormat, result.BoardCount, result.CardCount),

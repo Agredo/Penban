@@ -26,7 +26,7 @@ public class MauiFileShareService : IFileShareService
             File = new ShareFile(filePath),
         });
 
-    public async Task<string?> PickAsync(string title, string fileExtension)
+    public async Task<PickedFile?> PickAsync(string title, string fileExtension)
     {
         var fileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
         {
@@ -45,6 +45,9 @@ public class MauiFileShareService : IFileShareService
             FileTypes = fileTypes,
         });
 
-        return picked?.FullPath;
+        // The path alone is not enough: on iOS the picker grants access to the file only through
+        // FileResult.OpenReadAsync, which opens that access, reads the bookmark the picker left and
+        // closes it again. Whoever only remembered FullPath was left with a denied read.
+        return picked is null ? null : new PickedFile(picked.FullPath, picked.OpenReadAsync);
     }
 }
