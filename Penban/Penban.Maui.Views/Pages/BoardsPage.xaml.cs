@@ -115,7 +115,7 @@ public partial class BoardsPage : ContentPage
                 await Navigation.PopToRootAsync();
             }
 
-            await Navigation.PushAsync(new BoardPage(board, preferences, transferCoordinator, openCardId));
+            await Navigation.PushAsync(new BoardPage(board, settingsViewModel, feedbackViewModel, preferences, transferCoordinator, openCardId));
         }
         finally
         {

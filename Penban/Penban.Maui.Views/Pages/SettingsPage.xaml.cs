@@ -33,11 +33,33 @@ public partial class SettingsPage : ContentPage
 
     private async void OnBackClicked(object? sender, EventArgs e)
     {
+        if (IsModal)
+        {
+            await Navigation.PopModalAsync();
+            return;
+        }
+
         await Navigation.PopAsync();
     }
 
     private async void OnFeedbackClicked(object? sender, TappedEventArgs e)
     {
-        await Navigation.PushAsync(new FeedbackPage(feedbackViewModel));
+        var page = new FeedbackPage(feedbackViewModel);
+
+        if (IsModal)
+        {
+            await Navigation.PushModalAsync(page);
+            return;
+        }
+
+        await Navigation.PushAsync(page);
     }
+
+    /// <summary>
+    /// Whether this page was put up over another one rather than onto the shell's stack, which is what
+    /// the ink editor does with it. A modal page has only the modal stack behind it - the window's own
+    /// stack refuses a push and a pop - so both ways off this page have to go through the modal one
+    /// while it is up.
+    /// </summary>
+    private bool IsModal => Navigation.ModalStack.Contains(this);
 }

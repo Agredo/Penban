@@ -191,7 +191,7 @@
     <value>Erase with the back of the pen</value>
   </data>
   <data name="TiltDetectionEnabled" xml:space="preserve">
-    <value>Detect pen tilt</value>
+    <value>Line width follows pen tilt</value>
   </data>
   <data name="TiltRenderingEffect" xml:space="preserve">
     <value>Calligraphy effect from pen tilt</value>
@@ -260,10 +260,10 @@
     <value>Drawing tools</value>
   </data>
   <data name="InkToolUiRadialMenu" xml:space="preserve">
-    <value>Radial menu</value>
+    <value>Toolbar and radial menu</value>
   </data>
   <data name="InkToolUiToolBar" xml:space="preserve">
-    <value>Toolbar</value>
+    <value>Toolbar only</value>
   </data>
   <data name="SettingsGesturesSection" xml:space="preserve">
     <value>Gestures</value>
