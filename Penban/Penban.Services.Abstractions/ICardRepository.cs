@@ -20,6 +20,20 @@ public interface ICardRepository
     Task<List<Card>> GetByColumnAsync(Guid columnId);
 
     /// <summary>
+    /// Returns one entry per card in the column, in board order, reading no ink. This is what
+    /// anything that only counts cards, dates them or picks a few of them to draw should use: which
+    /// of them were written on can only be told from the ink itself, so those few have to be read
+    /// whole, see <see cref="GetManyAsync"/>.
+    /// </summary>
+    Task<List<CardHeader>> GetHeadersByColumnAsync(Guid columnId);
+
+    /// <summary>
+    /// Returns the cards with the given ids, whole, in the order they were asked for. Ids that have
+    /// no card behind them, or only a deleted one, are left out.
+    /// </summary>
+    Task<List<Card>> GetManyAsync(IReadOnlyList<Guid> cardIds);
+
+    /// <summary>
     /// Returns every card that has not been deleted, in no particular order. Cards are otherwise only
     /// ever read through their column; this is what reaches the notes written before the text
     /// recognition was switched on, without reading the whole database board by board.

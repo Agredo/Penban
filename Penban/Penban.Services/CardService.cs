@@ -33,6 +33,19 @@ public class CardService : ICardService
         return cards;
     }
 
+    public Task<List<CardHeader>> GetCardHeadersAsync(Guid columnId)
+        => repository.GetHeadersByColumnAsync(columnId);
+
+    public async Task<List<Card>> GetCardsByIdsAsync(IReadOnlyList<Guid> cardIds)
+    {
+        var cards = await repository.GetManyAsync(cardIds);
+
+        // The same read as GetCardsAsync, only asked for by id: the cards handed out here are drawn
+        // like any other, so their ink has to be in document space just the same.
+        await MigrateAsync(cards);
+        return cards;
+    }
+
     public Task<Card?> GetCardAsync(Guid cardId) => repository.GetAsync(cardId);
 
     public void QueueRecognition(IReadOnlyList<Card> cards)
