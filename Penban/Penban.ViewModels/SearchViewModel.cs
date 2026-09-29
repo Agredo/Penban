@@ -20,6 +20,7 @@ public partial class SearchViewModel : ObservableObject
     private readonly IBoardService boardService;
     private readonly ICardService cardService;
     private readonly IRecognitionQueue queue;
+    private readonly IDialogService dialogService;
 
     /// <summary>
     /// The recognition service comes as a factory rather than as a value: building it loads the
@@ -29,17 +30,20 @@ public partial class SearchViewModel : ObservableObject
         Func<IInkRecognitionService> recognition,
         IBoardService boardService,
         ICardService cardService,
-        IRecognitionQueue queue)
+        IRecognitionQueue queue,
+        IDialogService dialogService)
     {
         ArgumentNullException.ThrowIfNull(recognition);
         ArgumentNullException.ThrowIfNull(boardService);
         ArgumentNullException.ThrowIfNull(cardService);
         ArgumentNullException.ThrowIfNull(queue);
+        ArgumentNullException.ThrowIfNull(dialogService);
 
         this.recognition = recognition;
         this.boardService = boardService;
         this.cardService = cardService;
         this.queue = queue;
+        this.dialogService = dialogService;
     }
 
     /// <summary>Notes whose text contains what was typed, the most recently read ones first.</summary>
@@ -144,6 +148,17 @@ public partial class SearchViewModel : ObservableObject
             }
 
             HasSearched = true;
+        }
+        catch (Exception error)
+        {
+            // A search that could not read the database is not "nothing found", so the results are
+            // left as they were and the failure is said out loud. Letting the exception out of the
+            // command would end the app instead, which is what happened when a stored note carried a
+            // null text.
+            await dialogService.DisplayAlertAsync(
+                Strings.SearchFailedTitle,
+                string.Format(Strings.SearchFailedMessageFormat, error.Message),
+                Strings.Done);
         }
         finally
         {

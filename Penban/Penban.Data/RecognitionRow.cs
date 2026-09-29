@@ -56,8 +56,14 @@ internal sealed class RecognitionRow
         Id,
         InkHash,
         Profile,
-        RawText,
-        NormalizedText,
+        // LiteDB stores an empty string as a null and reads it back as one - measured, not assumed:
+        // a row written with string.Empty comes out of the collection with a BsonType.Null in that
+        // field. A card the recognizer found no text on is therefore kept with no text at all, and
+        // the two fields are folded back to the empty string here so that nothing above this type has
+        // to know that. The search cannot use this mapping - it compares the rows before they are
+        // mapped - so it has to survive the null on its own.
+        RawText ?? string.Empty,
+        NormalizedText ?? string.Empty,
         MeanConfidence,
         // LiteDB gives a stored date back as Kind=Local. The instant is right, but the record calls
         // this member UpdatedAtUtc and its callers compare it with DateTime.UtcNow, so the kind is

@@ -430,6 +430,12 @@
   <data name="SearchStillReadingFormat" xml:space="preserve">
     <value>Notizen werden noch gelesen ({0} ausstehend)</value>
   </data>
+  <data name="SearchFailedTitle" xml:space="preserve">
+    <value>Suche fehlgeschlagen</value>
+  </data>
+  <data name="SearchFailedMessageFormat" xml:space="preserve">
+    <value>Die Notizen konnten nicht durchsucht werden: {0}</value>
+  </data>
   <data name="RecognitionIndexAll" xml:space="preserve">
     <value>Vorhandene Notizen lesen</value>
   </data>

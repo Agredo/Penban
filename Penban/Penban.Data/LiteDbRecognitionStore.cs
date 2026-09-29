@@ -71,7 +71,12 @@ public class LiteDbRecognitionStore : IRecognitionStore
             () => recognitions.FindAll()
                 // Ordinal, because both sides have already been through TextNormalizer: comparing
                 // culture-sensitively here would fold them a second time, in a different way.
-                .Where(row => row.NormalizedText.Contains(normalizedQuery, StringComparison.Ordinal))
+                // The null test is not defensiveness: LiteDB keeps an empty string as a null, so a
+                // card that nothing was read from comes back with a null here. One such card - a
+                // doodle, a single dot, a card whose lines all decoded to nothing - would otherwise
+                // make every search throw.
+                .Where(row => row.NormalizedText is not null
+                    && row.NormalizedText.Contains(normalizedQuery, StringComparison.Ordinal))
                 // Most recently recognised first. Recognition happens after the ink was last written,
                 // so this reads as "the notes I touched last come first", which is the order that
                 // helps while a card is still being worked on. Ranking by relevance needs the board

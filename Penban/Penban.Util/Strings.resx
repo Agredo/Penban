@@ -430,6 +430,12 @@
   <data name="SearchStillReadingFormat" xml:space="preserve">
     <value>Still reading notes ({0} to go)</value>
   </data>
+  <data name="SearchFailedTitle" xml:space="preserve">
+    <value>Search failed</value>
+  </data>
+  <data name="SearchFailedMessageFormat" xml:space="preserve">
+    <value>The notes could not be searched: {0}</value>
+  </data>
   <data name="RecognitionIndexAll" xml:space="preserve">
     <value>Read existing notes</value>
   </data>
