@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             xmlns:controls="clr-namespace:Penban.Maui.Views.Controls"
              x:Class="Penban.Maui.Views.Pages.SearchPage"
              Title="{markup:Translate SearchTitle}"
              Shell.NavBarIsVisible="False"
@@ -71,12 +72,30 @@
                         <Border.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnResultTapped" />
                         </Border.GestureRecognizers>
-                        <VerticalStackLayout Spacing="6">
-                            <Label Text="{Binding Text}"
-                                   Style="{StaticResource BodyLabel}" />
-                            <Label Text="{Binding BoardLabel}"
-                                   Style="{StaticResource CaptionLabel}" />
-                        </VerticalStackLayout>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+
+                            <!-- The note itself. The reading is what made it findable, but what the
+                                 note looks like is what tells the user they found the right one, so
+                                 the ink is drawn in the paper colour it has on the board. -->
+                            <controls:StickyNoteBorder Grid.Column="0"
+                                                       NoteColorIndex="{Binding NoteColorIndex}"
+                                                       Padding="6"
+                                                       WidthRequest="72"
+                                                       HeightRequest="72"
+                                                       VerticalOptions="Center">
+                                <controls:InkPreviewView HorizontalOptions="Fill"
+                                                         VerticalOptions="Fill"
+                                                         BackgroundColor="Transparent"
+                                                         StrokesSource="{Binding Strokes}" />
+                            </controls:StickyNoteBorder>
+
+                            <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                                <Label Text="{Binding Text}"
+                                       Style="{StaticResource BodyLabel}" />
+                                <Label Text="{Binding BoardLabel}"
+                                       Style="{StaticResource CaptionLabel}" />
+                            </VerticalStackLayout>
+                        </Grid>
                     </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>

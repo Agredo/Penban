@@ -5,13 +5,13 @@ namespace Penban.Maui.Views.Pages;
 /// <summary>
 /// Searches the text that was read from the notes. Opening a result is the overview's job - it is
 /// the page that knows how to show a board - so it is handed in as the one thing this page cannot
-/// do itself.
+/// do itself: the board, and the note on it that was searched for.
 /// </summary>
 public partial class SearchPage : ContentPage
 {
-    private readonly Func<Guid, Task> openBoard;
+    private readonly Func<Guid, Guid?, Task> openBoard;
 
-    public SearchPage(SearchViewModel viewModel, Func<Guid, Task> openBoard)
+    public SearchPage(SearchViewModel viewModel, Func<Guid, Guid?, Task> openBoard)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(openBoard);
@@ -59,8 +59,9 @@ public partial class SearchPage : ContentPage
         }
 
         // The search is a way of looking something up, not a place to stay: the board it found opens
-        // behind it, so the way back leads to the overview rather than to the search again.
+        // behind it and the note itself on top of that, because the note is what was looked up. The
+        // way back therefore leads to the board, and from there to the overview.
         await Navigation.PopAsync();
-        await openBoard(result.BoardId);
+        await openBoard(result.BoardId, result.CardId);
     }
 }

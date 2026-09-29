@@ -82,7 +82,12 @@ public partial class BoardsPage : ContentPage
     /// Shows one board of the overview. Used by the tap on a row and by the board a tapped home
     /// screen widget stands for, which is the same thing asked for by something that is not a row.
     /// </summary>
-    public async Task OpenBoardAsync(Guid boardId)
+    /// <param name="boardId">The board to show.</param>
+    /// <param name="openCardId">
+    /// A note on that board to open on top of it. Handed in when the board was found by a search:
+    /// the board is then only the way to the note the user was looking for.
+    /// </param>
+    public async Task OpenBoardAsync(Guid boardId, Guid? openCardId = null)
     {
         // Tapping a note twice before the push settles would push the board twice.
         if (isOpeningBoard || BindingContext is not BoardsViewModel viewModel)
@@ -107,7 +112,7 @@ public partial class BoardsPage : ContentPage
                 await Navigation.PopToRootAsync();
             }
 
-            await Navigation.PushAsync(new BoardPage(board, preferences, transferCoordinator));
+            await Navigation.PushAsync(new BoardPage(board, preferences, transferCoordinator, openCardId));
         }
         finally
         {

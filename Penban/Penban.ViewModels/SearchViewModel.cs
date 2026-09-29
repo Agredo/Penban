@@ -144,7 +144,7 @@ public partial class SearchViewModel : ObservableObject
                     continue;
                 }
 
-                Results.Add(new SearchResultViewModel(match.CardId, board.Id, match.RawText, board.Title));
+                Results.Add(new SearchResultViewModel(card, board.Id, match.RawText, board.Title));
             }
 
             HasSearched = true;
