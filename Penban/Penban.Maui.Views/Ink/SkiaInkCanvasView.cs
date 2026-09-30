@@ -1213,7 +1213,11 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                 if (PressureSensitiveWidth)
                 {
                     var pressure = (from.Pressure + to.Pressure) / 2f;
-                    thickness *= pressure > 0 ? pressure : 1f;
+                    // The minimum width scales with the pen size too (a share of it), so a thick pen
+                    // does not need a hard press to get a thick line.
+                    const float MinPressureWidthShare = 0.4f;
+                    pressure = pressure > 0 ? Math.Clamp(pressure, 0f, 1f) : 1f;
+                    thickness *= MinPressureWidthShare + (1f - MinPressureWidthShare) * pressure;
                 }
 
                 if (TiltRenderingEffect && from.Tilt > MinimumTilt)

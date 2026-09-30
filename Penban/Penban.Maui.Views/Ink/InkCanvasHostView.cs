@@ -258,7 +258,7 @@ public class InkCanvasHostView : ContentView
     /// <see cref="SetStylusContact"/>. Set by the behavior that reads those contacts - see
     /// <c>PenInputBehavior</c>, which exists only on Windows and iOS - and only on Apple, where
     /// SkiaSharp's touch events call every
-    /// contact a finger and the pencil therefore cannot be told from a hand without being named. While
+    /// contact
     /// it is on, the canvas waits for a press to be named before it decides what to do with it.
     /// </summary>
     public bool PlatformNamesStylusContacts

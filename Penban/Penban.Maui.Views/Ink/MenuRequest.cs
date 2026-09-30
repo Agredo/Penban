@@ -3,7 +3,7 @@ using Penban.Models;
 namespace Penban.Maui.Views.Ink;
 
 /// <summary>
-/// Where on the note the menu was asked for, in <see cref="InkDocument"/> units: the point a finger
+/// Where on the note the menu was asked for, in units: the point a finger
 /// was tapped at, or the point the right mouse button was pressed at.
 /// <para>
 /// The point is handed over rather than kept, because it is the only thing the surface knows about

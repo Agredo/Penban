@@ -3,7 +3,7 @@ using Penban.Models;
 namespace Penban.Maui.Views.Ink;
 
 /// <summary>
-/// Where the finger of a swipe out of the editor is, in <see cref="InkDocument"/> units: how far
+/// Where the finger of a swipe out of the editor is, in units: how far
 /// down it has come since it landed (<see cref="Travel"/>) and where on the note it landed
 /// (<see cref="StartY"/>, counted from the top of the note).
 /// <para>
