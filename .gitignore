@@ -44,3 +44,5 @@ Desktop.ini
 
 # Aus project.yml erzeugt (xcodegen generate)
 Penban/Penban.Widget.iOS/PenbanWidget.xcodeproj/
+/dist
+/Penban/dist
