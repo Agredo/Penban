@@ -10,8 +10,9 @@
     <OutputType Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">WinExe</OutputType>
     <RootNamespace>Penban.Maui</RootNamespace>
     <UseMaui>true</UseMaui>
-    <!-- iOS has no CoreCLR runtime pack (only Mono or NativeAOT), so keep Mono there. -->
-    <UseMonoRuntime Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != 'ios'">false</UseMonoRuntime>
+    <!-- iOS and MacCatalyst have no CoreCLR runtime pack on .NET 10 (only Mono or NativeAOT), so
+         both keep Mono. Only the platforms that do have one may switch it off. -->
+    <UseMonoRuntime Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != 'ios' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != 'maccatalyst'">false</UseMonoRuntime>
     <SingleProject>true</SingleProject>
     <ImplicitUsings>enable</ImplicitUsings>
 
@@ -19,6 +20,11 @@
     <ApplicationId>com.agredoapplication.panban</ApplicationId>
     <ApplicationDisplayVersion>0.4.3</ApplicationDisplayVersion>
     <ApplicationVersion>11</ApplicationVersion>
+    <!-- The platform SDKs derive Version/PackageVersion from ApplicationDisplayVersion inside each
+         target framework, but the outer cross-targeting build keeps the 1.0.0 default. NuGet's
+         Visual Studio restore reads both and fails with NU1105 ("PackageVersion should have a single
+         value for all target frameworks: 0.4.3, 1.0.0"), so pin it once, for every evaluation. -->
+    <Version>$(ApplicationDisplayVersion)</Version>
 
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>

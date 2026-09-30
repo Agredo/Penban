@@ -1,3 +1,5 @@
+using Penban.Models;
+
 namespace Penban.Maui.Views.Ink;
 
 /// <summary>
