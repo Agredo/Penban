@@ -486,27 +486,26 @@ public partial class BoardPage : ContentPage
         }
     }
 
-    /// <summary>Shows or hides the bar; hiding it also lifts the filter, so a board is never left narrowed with no sign of why.</summary>
+    /// <summary>
+    /// Slides the tags in beside the button, or tucks them away. Only one of the two panels is out at
+    /// a time, so the title keeps room on a narrow screen; a filter that is set stays in force while
+    /// its panel is tucked away, and the accent on its button says so.
+    /// </summary>
     private void OnFilterClicked(object? sender, EventArgs e)
     {
-        FilterBar.IsVisible = !FilterBar.IsVisible;
-        if (FilterBar.IsVisible)
-        {
-            FilterEntry.Focus();
-            return;
-        }
-
-        FilterEntry.Text = string.Empty;
-        filterTags.Clear();
-        foreach (var button in filterTagButtons.Values)
-        {
-            button.BackgroundColor = Colors.Transparent;
-        }
-
-        textMatches = null;
-        ApplyFilter();
+        FilterTagScroll.IsVisible = !FilterTagScroll.IsVisible;
+        SearchEntryHost.IsVisible = false;
     }
 
+    private void OnSearchClicked(object? sender, EventArgs e)
+    {
+        SearchEntryHost.IsVisible = !SearchEntryHost.IsVisible;
+        FilterTagScroll.IsVisible = false;
+        if (SearchEntryHost.IsVisible)
+        {
+            FilterEntry.Focus();
+        }
+    }
     private async void OnFilterTextChanged(object? sender, TextChangedEventArgs e)
     {
         filterSearch?.Cancel();
@@ -538,7 +537,9 @@ public partial class BoardPage : ContentPage
 
     private void ApplyFilter()
     {
-        FilterButton.Style = (Style)Application.Current!.Resources[IsFiltering ? "AccentIconButton" : "GhostIconButton"];
+        var resources = Application.Current!.Resources;
+        FilterButton.Style = (Style)resources[filterTags.Count > 0 ? "AccentIconButton" : "GhostIconButton"];
+        SearchButton.Style = (Style)resources[textMatches is not null ? "AccentIconButton" : "GhostIconButton"];
 
         // The drop index of a drag is a position among the notes that are shown, which is not a
         // position in the column while some of them are left out.

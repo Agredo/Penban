@@ -34,7 +34,7 @@ Taken from the "Penban Feedback" board, grouped by column. `[x]` = done, `[~]` =
 - [ ] Board tags for grouping and filtering.
 - [ ] Widget with multiple boards: select by tag and last edited. Probably wait for board tags.
 - [~] Card tags/pins: emoji, stickers or hand-drawn pins as tags on cards (one set per board). Emoji tags (fixed set, max 4 per card) can be pinned in the editor and show on the note; stickers, hand-drawn/per-board sets are missing.
-  - The board header has a search/filter bar: filter by tag (any chosen tag) and search the recognised text. Grouping is missing.
+  - The board header has a filter button (tag icons slide in beside it) and a search button (search field slides in beside it): filter by tag (any chosen tag) and search the recognised text. Grouping is missing.
 - [ ] Share selected columns/cards.
 - [ ] Gesture: three-finger drag changes the pen thickness.
 - [~] Group/filter cards by colour and by search text. Text search and tag filter exist in the board header; colour filter and grouping are missing.
