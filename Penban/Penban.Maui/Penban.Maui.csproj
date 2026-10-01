@@ -18,8 +18,8 @@
 
     <ApplicationTitle>Penban</ApplicationTitle>
     <ApplicationId>com.agredoapplication.panban</ApplicationId>
-    <ApplicationDisplayVersion>0.4.3</ApplicationDisplayVersion>
-    <ApplicationVersion>11</ApplicationVersion>
+    <ApplicationDisplayVersion>0.5.0</ApplicationDisplayVersion>
+    <ApplicationVersion>12</ApplicationVersion>
     <!-- The platform SDKs derive Version/PackageVersion from ApplicationDisplayVersion inside each
          target framework, but the outer cross-targeting build keeps the 1.0.0 default. NuGet's
          Visual Studio restore reads both and fails with NU1105 ("PackageVersion should have a single
