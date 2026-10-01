@@ -406,6 +406,29 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     public bool CanRedo => commands.CanRedo;
 
+    public bool EraseAll()
+    {
+        if (Strokes.Count == 0)
+        {
+            return false;
+        }
+
+        // Every stroke goes into one edit, carrying the position it had, so undo puts the whole note
+        // back in the order it was drawn in - the same shape the eraser records its strokes in.
+        var removed = new List<InkStrokePlacement>(Strokes.Count);
+        for (var index = 0; index < Strokes.Count; index++)
+        {
+            removed.Add(new InkStrokePlacement(index, Strokes[index]));
+        }
+
+        Strokes.Clear();
+        commands.RecordErased(removed);
+        ResetInputState();
+        canvasView.InvalidateSurface();
+        StrokeCompleted?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
     public void Undo()
     {
         if (!commands.Undo())
@@ -835,7 +858,14 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// </summary>
     private void StartStroke(SKTouchEventArgs e, bool isFinger)
     {
-        currentStroke = new InkStroke { Color = StrokeColor, Thickness = StrokeThickness };
+        currentStroke = new InkStroke
+        {
+            Color = StrokeColor,
+            Thickness = StrokeThickness,
+            // The stroke is given the setting of this moment, so that the width it is drawn in stays its
+            // own for good.
+            PressureSensitiveWidth = PressureSensitiveWidth,
+        };
         currentStrokeContactId = e.Id;
         currentStrokeIsFinger = isFinger;
         AddPoint(currentStroke, e);
@@ -1156,6 +1186,13 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             var first = stroke.Points[0];
             var baseThickness = TiltSensitiveWidth ? stroke.Thickness * TiltWidthFactor(first.Tilt) : stroke.Thickness;
 
+            // Whether the pressure shapes this stroke is asked of the stroke itself, not of the setting:
+            // the setting says how the stroke that is drawn next looks, and it must not reach back into
+            // the strokes that are already on the note - that is what made a note change its appearance
+            // when the switch was flipped. Only strokes from before they carried this have no answer of
+            // their own and keep following the setting, exactly as they did when they were drawn.
+            var pressureShapesWidth = stroke.PressureSensitiveWidth ?? PressureSensitiveWidth;
+
             if (stroke.Points.Count == 1)
             {
                 // Render a dot for a single tap - the nib itself, so a tilted pen leaves the mark its
@@ -1174,7 +1211,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
             // One path with a single width is only right when nothing varies the width along the
             // stroke - neither the pressure, nor the lean, nor the nib of the tilt effect.
-            if (!PressureSensitiveWidth && !TiltSensitiveWidth && !TiltRenderingEffect)
+            if (!pressureShapesWidth && !TiltSensitiveWidth && !TiltRenderingEffect)
             {
                 // One width for the whole stroke, as before either setting existed.
                 using var pathBuilder = new SKPathBuilder();
@@ -1210,7 +1247,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                     thickness *= TiltWidthFactor(from.Tilt);
                 }
 
-                if (PressureSensitiveWidth)
+                if (pressureShapesWidth)
                 {
                     var pressure = (from.Pressure + to.Pressure) / 2f;
                     // The minimum width scales with the pen size too (a share of it), so a thick pen

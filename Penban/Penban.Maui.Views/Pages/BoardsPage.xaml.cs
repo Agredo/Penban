@@ -1,4 +1,3 @@
-using System.Globalization;
 using Penban.Maui.Views.Services;
 using Penban.Maui.Views.Widget;
 using Penban.Services.Abstractions;
@@ -12,7 +11,6 @@ namespace Penban.Maui.Views.Pages;
 public partial class BoardsPage : ContentPage
 {
     private readonly IPreferences preferences;
-    private readonly IDialogService dialogService;
     private readonly SettingsViewModel settingsViewModel;
     private readonly SearchViewModel searchViewModel;
     private readonly FeedbackViewModel feedbackViewModel;
@@ -21,14 +19,20 @@ public partial class BoardsPage : ContentPage
     private readonly WidgetBoardLink boardLink;
     private bool isOpeningBoard;
 
-    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, SearchViewModel searchViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, IDialogService dialogService, TransferCoordinator transferCoordinator, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink)
+    /// <summary>
+    /// The board that was opened last, so that the row it stands for can be brought into view when
+    /// the overview comes back. A board opened from the home screen widget is opened without the list
+    /// ever having been scrolled to it, and the reader should see where they were.
+    /// </summary>
+    private Guid? lastOpenedBoardId;
+
+    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, SearchViewModel searchViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, TransferCoordinator transferCoordinator, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink)
     {
         InitializeComponent();
         this.settingsViewModel = settingsViewModel;
         this.searchViewModel = searchViewModel;
         this.feedbackViewModel = feedbackViewModel;
         this.preferences = preferences;
-        this.dialogService = dialogService;
         this.transferCoordinator = transferCoordinator;
         this.widget = widget;
         this.boardLink = boardLink;
@@ -55,6 +59,11 @@ public partial class BoardsPage : ContentPage
         // The rows were just read, so the copy is written from them rather than from a second pass
         // over every board - which would take as long as the load itself did.
         await widget.RefreshAsync(rowsAreFresh: true);
+
+        // Back from a board: the list keeps the place it was left at (see BoardsViewModel), and a row
+        // that is out of sight - the widget opens a board without the list ever having been scrolled
+        // to it - is brought into view. A row that is already on screen is left alone.
+        ScrollToLastOpenedBoard(viewModel);
 
         // A tap on a widget that woke the app asked for its board before this page existed. The
         // activation normally opens it; if it could not - a cold start has no overview yet - it is
@@ -115,12 +124,37 @@ public partial class BoardsPage : ContentPage
                 await Navigation.PopToRootAsync();
             }
 
+            lastOpenedBoardId = boardId;
             await Navigation.PushAsync(new BoardPage(board, settingsViewModel, feedbackViewModel, preferences, transferCoordinator, openCardId));
         }
         finally
         {
             isOpeningBoard = false;
         }
+    }
+
+    /// <summary>
+    /// Brings the row of the board that was closed last into view, unless it is already there. Read
+    /// after the rows have been loaded, when the list holds the items it is going to show.
+    /// </summary>
+    private void ScrollToLastOpenedBoard(BoardsViewModel viewModel)
+    {
+        if (lastOpenedBoardId is not { } boardId)
+        {
+            return;
+        }
+
+        lastOpenedBoardId = null;
+
+        // A board that was deleted in the meantime has no row to go to.
+        if (viewModel.FindBoard(boardId) is not { } board)
+        {
+            return;
+        }
+
+        // Handed to the dispatcher: the list has just been given its rows and does not know their
+        // places yet, and a list that is still being built would drop the jump.
+        Dispatcher.Dispatch(() => BoardsList.ScrollTo(board, position: ScrollToPosition.MakeVisible, animate: false));
     }
 
     private static async Task<BoardViewModel?> LoadBoardAsync(BoardsViewModel viewModel, Guid boardId)
@@ -157,27 +191,5 @@ public partial class BoardsPage : ContentPage
         {
             await transferCoordinator.ShowBoardExportMenuAsync(board.Id);
         }
-    }
-
-    /// <summary>
-    /// Asks for a widget showing the given board, on behalf of a card held down on this page (see
-    /// <see cref="BoardWidgetHoldBehavior"/>, which is what the cards in the list carry). iOS places a
-    /// widget for the person using the phone and offers an app no way to do it, so nothing can be
-    /// created here: the board is noted - the widget then starts on it - and the rest of the way is
-    /// explained.
-    /// </summary>
-    internal async void RequestWidgetForBoard(BoardViewModel board)
-    {
-        WidgetPreferredBoard.Set(preferences, board.Id);
-
-        // The wish is part of what the widget reads, so it has to be written now rather than on the
-        // next visit: whoever stands on the home screen with the menu just closed cannot wait. The
-        // rows need no second read - this is the overview that just loaded them.
-        await widget.RefreshAsync(rowsAreFresh: true);
-
-        await dialogService.DisplayAlertAsync(
-            Strings.WidgetForBoard,
-            string.Format(CultureInfo.CurrentCulture, Strings.WidgetForBoardHelpFormat, board.Title),
-            Strings.Done);
     }
 }

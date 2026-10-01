@@ -87,20 +87,20 @@ public partial class CardInkEditorPage : ContentPage
     private const string InkColor = "#1E2230";
 
     /// <summary>
-    /// Edge length of the largest dot the pen width ring draws, in device units. The widest rungs of
-    /// the ladder would be drawn wider than the segment carrying them, so past a point the dots only
-    /// hint at the width.
+    /// Edge length of the largest dot the ring's width block draws, in device units. The widest widths
+    /// would be drawn wider than the segment carrying them, so past a point the dots only hint at the
+    /// width - the number that stands in the middle of the menu is what says it exactly.
     /// </summary>
     private const double ThicknessDotMaxSize = 26;
 
     /// <summary>
-    /// Edge length of one rung of the width ladder that hangs under the width button, and the gap
-    /// between two of them. A rung draws the width itself as a dot, so the rungs are of very different
-    /// sizes, and this is the target they all sit in - wide enough to be pressed with a finger or the
-    /// pencil, like the buttons in the row above.
+    /// Width the pen flyout is drawn at: wide enough for five swatches of the palette in a row and for
+    /// a hex code to be typed into, and narrow enough to hang over the note without covering it whole.
     /// </summary>
-    private const double ThicknessRungSize = 44;
-    private const double ThicknessRungSpacing = 4;
+    private const double PenFlyoutWidth = 272;
+
+    /// <summary>How far the flyout is kept from the top and the bottom of the cell it hangs in.</summary>
+    private const double PenFlyoutMargin = 12;
 
     /// <summary>
     /// The blocks of the radial menu, in the order they sit on the ring from the top clockwise: the
@@ -113,8 +113,9 @@ public partial class CardInkEditorPage : ContentPage
     private const int ModeArc = 4;
 
     /// <summary>
-    /// Pen colours offered in the editor, dark enough to read on every paper colour. The picker
-    /// scrolls sideways, so the palette can be as wide as a real pen case.
+    /// Pen colours offered in the flyout and on the ring, dark enough to read on every paper colour.
+    /// The palette wraps in the flyout and fans out on the ring, so it can be as wide as a real pen
+    /// case without the row above the note growing with it.
     /// </summary>
     private static readonly (string Hex, string Name)[] PenColors =
     [
@@ -130,28 +131,32 @@ public partial class CardInkEditorPage : ContentPage
         ("#4A5568", Strings.PenColorGray),
     ];
 
-    /// <summary>
-    /// Names of the pen widths, in the order of <see cref="PenThickness.Presets"/>. The ring offers
-    /// them as dots drawn at the width itself, so these are only ever read in the middle of the menu.
-    /// </summary>
-    private static readonly string[] ThicknessNames =
-    [
-        Strings.PenThicknessFine,
-        Strings.PenThicknessNormal,
-        Strings.PenThicknessMedium,
-        Strings.PenThicknessBold,
-        Strings.PenThicknessExtraBold,
-    ];
-
     private readonly INoteEditorTarget noteTarget;
     private readonly IPreferences preferences;
     private readonly SettingsViewModel settingsViewModel;
     private readonly FeedbackViewModel feedbackViewModel;
     private readonly List<StickyNoteBorder> swatches = [];
-    private readonly List<Border> penSwatches = [];
-    private readonly List<Border> thicknessRungs = [];
-    private int selectedPenColorIndex;
-    private int selectedThicknessIndex;
+    private readonly List<Border> penSlotFrames = [];
+    private readonly List<PenGlyphView> penSlotGlyphs = [];
+    private readonly List<Label> penSlotChevrons = [];
+    private readonly List<Border> paletteSwatches = [];
+    private readonly List<Border> recentSwatches = [];
+
+    /// <summary>The pens of the row, in the order they stand in it. Read once, written back on every edit.</summary>
+    private PenSlot[] penSlots = [];
+
+    /// <summary>The colours used last, newest first - the row at the head of the flyout.</summary>
+    private IReadOnlyList<string> recentColors = [];
+
+    /// <summary>Which of <see cref="penSlots"/> is drawing. What the row frames and the flyout edits.</summary>
+    private int activePenSlot;
+
+    /// <summary>
+    /// Set while the flyout's own controls are being written to, so a control that is being moved onto
+    /// the pen does not report the move as a choice and write it straight back.
+    /// </summary>
+    private bool isUpdatingPenFlyout;
+
     private int saveVersion;
     private bool isClosing;
 
@@ -217,11 +222,17 @@ public partial class CardInkEditorPage : ContentPage
 
         NoteSurface.NoteColorIndex = noteTarget.NoteColorIndex;
         NoteArea.SizeChanged += OnNoteAreaSizeChanged;
+
+        // The pens are read before the row is built from them, and the pen that was drawing is handed
+        // to the surface before anything can be drawn with it.
+        penSlots = ReadPenSlots();
+        recentColors = PenColorHistory.Parse(preferences.Get(PreferenceKeys.PenRecentColors, string.Empty));
+        activePenSlot = ReadActivePenSlot();
         BuildColorPicker();
-        BuildPenColorPicker();
-        BuildThicknessLadder();
+        BuildPenSlots();
+        BuildPenFlyout();
+        ApplyPenSlot();
         ApplyToolUi();
-        ApplyThickness(PenThickness.NearestIndex(ReadStoredThickness()));
         UpdateToolButtons();
 
 #if IOS
@@ -256,9 +267,9 @@ public partial class CardInkEditorPage : ContentPage
     /// </summary>
     private void OnNoteAreaSizeChanged(object? sender, EventArgs e)
     {
-        // The ladder is placed against the cell it hangs in, so a cell that changed size puts it
-        // somewhere the width button no longer is.
-        CloseThicknessFlyout();
+        // The flyout is placed against the cell it hangs in, so a cell that changed size puts it
+        // somewhere the pen it belongs to no longer is.
+        ClosePenFlyout();
 
         var padding = NoteFrame.Padding;
         var side = Math.Floor(Math.Min(NoteArea.Width - padding.HorizontalThickness, NoteArea.Height - padding.VerticalThickness));
@@ -343,15 +354,128 @@ public partial class CardInkEditorPage : ContentPage
     }
 
     /// <summary>
-    /// Fills the picker with one round swatch per pen colour, so the choice is made on the colour
-    /// itself rather than on its name.
+    /// Puts the pens in the row: one per stored slot, drawn as the pen itself - a cap and a tip in the
+    /// pen's colour with a white blade between them, the blade as wide as the pen writes - and a small
+    /// chevron at the corner of the one that is drawing, which is what says that pressing it again
+    /// opens it. The row is built once and the pens are edited in place from then on, see
+    /// <see cref="UpdatePenSlots"/>.
     /// </summary>
-    private void BuildPenColorPicker()
+    private void BuildPenSlots()
     {
-        for (var index = 0; index < PenColors.Length; index++)
+        for (var index = 0; index < penSlots.Length; index++)
         {
-            var (hex, name) = PenColors[index];
+            var glyph = new PenGlyphView { Style = (Style)Application.Current!.Resources["PenGlyph"] };
+            var chevron = new Label
+            {
+                Text = IconFont.ChevronDown,
+                Style = (Style)Application.Current!.Resources["IconLabel"],
+                FontSize = 12,
+                HorizontalOptions = LayoutOptions.End,
+                VerticalOptions = LayoutOptions.End,
+                Margin = new Thickness(0, 0, 1, 1),
+            };
 
+            var frame = new Border
+            {
+                Style = (Style)Application.Current!.Resources["PenSlot"],
+                Content = new Grid { Children = { glyph, chevron } },
+            };
+
+            var chosen = index;
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (_, _) => OnPenSlotTapped(chosen);
+            frame.GestureRecognizers.Add(tap);
+
+            penSlotFrames.Add(frame);
+            penSlotGlyphs.Add(glyph);
+            penSlotChevrons.Add(chevron);
+            PenSlotRow.Add(frame);
+        }
+
+        UpdatePenSlots();
+    }
+
+    /// <summary>
+    /// What a press on one of the pens does. The pen that is not in hand is taken up - one press
+    /// switches pens - and the pen that already is opens its own flyout, so the row switches pens
+    /// without a second press and still has a way into the colour and the width of the pen in hand.
+    /// </summary>
+    private void OnPenSlotTapped(int index)
+    {
+        if (index != activePenSlot)
+        {
+            activePenSlot = index;
+            ApplyPenSlot();
+            UpdatePenSlots();
+            return;
+        }
+
+        if (PenFlyout.IsVisible)
+        {
+            ClosePenFlyout();
+            return;
+        }
+
+        ShowPenFlyout();
+    }
+
+    /// <summary>
+    /// Draws the pens as they are set and frames the one that is drawing, so the row says which pen is
+    /// in hand without a word for it: the frame stands out and the chevron inside it is the one that
+    /// opens the pen. Each of them is named for a screen reader as the colour and the width it holds,
+    /// because a pen is both of those together and neither of them is in its drawing alone.
+    /// </summary>
+    private void UpdatePenSlots()
+    {
+        var resources = Application.Current!.Resources;
+
+        for (var index = 0; index < penSlotFrames.Count; index++)
+        {
+            var slot = penSlots[index];
+            var isActive = index == activePenSlot;
+
+            penSlotGlyphs[index].Color = Color.FromArgb(slot.ColorHex);
+            penSlotGlyphs[index].Thickness = slot.Thickness;
+            penSlotFrames[index].Style = (Style)resources[isActive ? "PenSlotActive" : "PenSlot"];
+            penSlotChevrons[index].IsVisible = isActive;
+
+            SemanticProperties.SetDescription(
+                penSlotFrames[index],
+                string.Format(
+                    CultureInfo.CurrentCulture,
+                    Strings.PenSlotFormat,
+                    index + 1,
+                    PenColorName(slot.ColorHex),
+                    PenThickness.Format(slot.Thickness)));
+        }
+    }
+
+    /// <summary>
+    /// Hands the pen that is drawing to the surface and writes the whole row back to the store. The
+    /// colour and the width of new strokes sit on the renderer rather than being read back out of the
+    /// store the way the other drawing settings are, so every change to a pen has to come through
+    /// here; a renderer that is swapped in later carries them across, see InkCanvasHostView.
+    /// </summary>
+    private void ApplyPenSlot()
+    {
+        var slot = penSlots[activePenSlot];
+
+        InkHost.StrokeColor = slot.ColorHex;
+        InkHost.StrokeThickness = slot.Thickness;
+
+        preferences.Set(PreferenceKeys.ActivePenSlot, activePenSlot.ToString(CultureInfo.InvariantCulture));
+        preferences.Set(PreferenceKeys.PenSlots, PenSlots.Format(penSlots));
+    }
+
+    /// <summary>
+    /// Fills the flyout: the palette, the row of the colours used last, and the two pickers that are
+    /// drawn here rather than bought in. The palette is the same ten colours the ring fans out and in
+    /// the same order, so a colour stands in the same place whichever of the two was used to take it.
+    /// </summary>
+    private void BuildPenFlyout()
+    {
+        foreach (var (hex, name) in PenColors)
+        {
             var swatch = new Border
             {
                 BackgroundColor = Color.FromArgb(hex),
@@ -361,97 +485,312 @@ public partial class CardInkEditorPage : ContentPage
             };
             SemanticProperties.SetDescription(swatch, name);
 
-            var chosen = index;
+            var chosen = hex;
             var tap = new TapGestureRecognizer();
-            tap.Tapped += (_, _) => ApplyPenColor(chosen);
+            tap.Tapped += (_, _) => SetPenColor(chosen);
             swatch.GestureRecognizers.Add(tap);
 
-            penSwatches.Add(swatch);
-            PenColorPicker.Add(swatch);
+            paletteSwatches.Add(swatch);
+            PenPalette.Add(swatch);
         }
 
-        ApplyPenColor(selectedPenColorIndex);
-    }
-
-    /// <summary>Colours new strokes and marks the swatch, without touching strokes already drawn.</summary>
-    private void ApplyPenColor(int index)
-    {
-        selectedPenColorIndex = index;
-        InkHost.StrokeColor = PenColors[index].Hex;
-
-        for (var i = 0; i < penSwatches.Count; i++)
+        // One swatch for every colour that can be kept, hidden while there are fewer of them than that.
+        for (var index = 0; index < PenColorHistory.Maximum; index++)
         {
-            var isChosen = i == index;
-            penSwatches[i].Stroke = isChosen ? new SolidColorBrush(Color.FromArgb(InkColor)) : null;
-            penSwatches[i].StrokeThickness = isChosen ? 3 : 0;
-            penSwatches[i].Scale = isChosen ? 1.18 : 1;
-        }
-    }
-
-    /// <summary>
-    /// Fills the ladder that hangs under the width button with one rung per width, drawn at the width
-    /// itself and named for a screen reader, so the choice is made on the width rather than on a word
-    /// for it - the same five rungs the ring's width block draws. The rungs are all of the same size
-    /// whatever is drawn inside them, so the width of the ladder is known before it is ever put up and
-    /// it can be placed without having to ask the layout where it ended up first.
-    /// </summary>
-    private void BuildThicknessLadder()
-    {
-        ThicknessLadder.Spacing = ThicknessRungSpacing;
-
-        for (var index = 0; index < PenThickness.Count; index++)
-        {
-            var diameter = ThicknessDotDiameter(index);
-
-            var rung = new Border
+            var swatch = new Border
             {
-                Style = (Style)Resources["ThicknessRung"],
-                WidthRequest = ThicknessRungSize,
-                HeightRequest = ThicknessRungSize,
-                Content = new Border
-                {
-                    BackgroundColor = Color.FromArgb(InkColor),
-                    StrokeShape = new Ellipse(),
-                    WidthRequest = diameter,
-                    HeightRequest = diameter,
-                    HorizontalOptions = LayoutOptions.Center,
-                    VerticalOptions = LayoutOptions.Center,
-                },
+                StrokeShape = new Ellipse(),
+                WidthRequest = PenSwatchSize,
+                HeightRequest = PenSwatchSize,
             };
-            SemanticProperties.SetDescription(rung, ThicknessNames[index]);
 
             var chosen = index;
             var tap = new TapGestureRecognizer();
-            tap.Tapped += (_, _) => ApplyThickness(chosen);
-            rung.GestureRecognizers.Add(tap);
+            tap.Tapped += (_, _) =>
+            {
+                if (chosen < recentColors.Count)
+                {
+                    SetPenColor(recentColors[chosen]);
+                }
+            };
+            swatch.GestureRecognizers.Add(tap);
 
-            thicknessRungs.Add(rung);
-            ThicknessLadder.Add(rung);
+            recentSwatches.Add(swatch);
+            RecentColors.Add(swatch);
         }
 
-        ThicknessFlyout.WidthRequest =
-            ThicknessFlyout.Padding.HorizontalThickness
-            + (PenThickness.Count * ThicknessRungSize)
-            + ((PenThickness.Count - 1) * ThicknessRungSpacing);
+        ThicknessSlider.Minimum = PenThickness.Minimum;
+        ThicknessSlider.Maximum = PenThickness.Maximum;
+
+        HueStrip.HueChanged += OnHueChanged;
+        ColorArea.ColorChanged += OnColorAreaChanged;
+
+        UpdateRecentColors();
     }
 
     /// <summary>
-    /// Marks the rung of the ladder that is set, the way the ring marks the width block it took, and
-    /// says which width that is on the button that opens the ladder - the glyph on that button is the
-    /// same one for all five, so it is the only thing that tells a reader which is in use.
+    /// Says which of the recent colours are in use: the row is only ever as long as there are colours
+    /// kept, so a swatch that has none is taken out of the layout rather than left standing empty.
     /// </summary>
-    private void UpdateThicknessLadder()
+    private void UpdateRecentColors()
     {
-        for (var index = 0; index < thicknessRungs.Count; index++)
+        for (var index = 0; index < recentSwatches.Count; index++)
         {
-            var isChosen = index == selectedThicknessIndex;
-            thicknessRungs[index].Stroke = isChosen ? new SolidColorBrush(Color.FromArgb(InkColor)) : null;
-            thicknessRungs[index].StrokeThickness = isChosen ? 2 : 0;
+            var isUsed = index < recentColors.Count;
+            recentSwatches[index].IsVisible = isUsed;
+
+            if (isUsed)
+            {
+                recentSwatches[index].BackgroundColor = Color.FromArgb(recentColors[index]);
+                SemanticProperties.SetDescription(recentSwatches[index], PenColorName(recentColors[index]));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gives the pen in hand a colour. The pen in the other slot keeps its own and strokes already
+    /// drawn keep the colour they were drawn with - it is the pen that is edited, not the ink. A code
+    /// that cannot be read leaves the pen as it is.
+    /// </summary>
+    private void SetPenColor(string hex, bool fromFlyout = false)
+    {
+        if (!PenColor.TryNormalize(hex, out var normalized))
+        {
+            return;
         }
 
-        SemanticProperties.SetDescription(
-            ThicknessButton,
-            string.Format(CultureInfo.CurrentCulture, Strings.PenThicknessFormat, ThicknessNames[selectedThicknessIndex]));
+        penSlots[activePenSlot] = penSlots[activePenSlot] with { ColorHex = normalized };
+        recentColors = PenColorHistory.Add(recentColors, normalized);
+        preferences.Set(PreferenceKeys.PenRecentColors, PenColorHistory.Format(recentColors));
+
+        ApplyPenSlot();
+        UpdatePenSlots();
+        UpdateRecentColors();
+        UpdatePenFlyout(fromFlyout);
+    }
+
+    /// <summary>
+    /// Sets how wide the pen in hand writes. Strokes already drawn keep their width, and the width is
+    /// kept on the step the slider walks in, so the stored pen is the one that was set rather than one
+    /// that came out of a drag a hundredth of a point beside it.
+    /// </summary>
+    private void SetPenThickness(float thickness, bool fromSlider = false)
+    {
+        penSlots[activePenSlot] = penSlots[activePenSlot] with
+        {
+            Thickness = PenThickness.Snap(thickness, PenThickness.SliderStep),
+        };
+
+        ApplyPenSlot();
+        UpdatePenSlots();
+        UpdatePenFlyout(fromSlider);
+    }
+
+    /// <summary>
+    /// Puts the pen in hand into the controls of the flyout, from wherever the pen was changed - the
+    /// flyout itself, the ring, or the pen being taken up in the row - so the flyout and the pen can
+    /// never disagree about what the pen is. The controls are marked as being written to while this
+    /// runs, so writing to them does not come back as a choice that is applied a second time.
+    /// <para>
+    /// A change that was made on one of the flyout's own controls leaves all of them where they are.
+    /// They already show it - the code being typed, the handle being dragged, the colour under the
+    /// finger - and putting the value that was read out of them back into them would pull the work out
+    /// from under the finger: a code rounded out of a half-typed one, or a handle put back onto a step
+    /// while it is still being dragged. The code field is the one exception, and only in that it does
+    /// not lose the mark of a code that cannot be read - that is cleared here, because a pen that was
+    /// changed is a pen whose code can be read.
+    /// </para>
+    /// </summary>
+    private void UpdatePenFlyout(bool keepControls = false)
+    {
+        var slot = penSlots[activePenSlot];
+
+        isUpdatingPenFlyout = true;
+
+        PenFlyoutTitle.Text = string.Format(CultureInfo.CurrentCulture, Strings.PenSlotTitleFormat, activePenSlot + 1);
+
+        PenHexSwatch.BackgroundColor = Color.FromArgb(slot.ColorHex);
+        PenHexError.IsVisible = false;
+
+        ThicknessValue.Text = FormatThickness(slot.Thickness);
+        ThicknessPreview.Color = Color.FromArgb(slot.ColorHex);
+        ThicknessPreview.Thickness = slot.Thickness;
+
+        if (!keepControls)
+        {
+            PenHexEntry.Text = slot.ColorHex;
+            ThicknessSlider.Value = slot.Thickness;
+            HueStrip.Hue = PenColor.ToHsv(slot.ColorHex).Hue;
+            ColorArea.SetColor(slot.ColorHex);
+        }
+
+        isUpdatingPenFlyout = false;
+
+        UpdatePenColorMarks(slot.ColorHex);
+    }
+
+    /// <summary>
+    /// Outlines the swatch that holds the colour the pen writes in - in the palette and in the row of
+    /// the colours used last - and leaves the others plain.
+    /// </summary>
+    private void UpdatePenColorMarks(string hex)
+    {
+        for (var index = 0; index < paletteSwatches.Count; index++)
+        {
+            MarkSwatch(paletteSwatches[index], string.Equals(PenColors[index].Hex, hex, StringComparison.OrdinalIgnoreCase));
+        }
+
+        for (var index = 0; index < recentSwatches.Count; index++)
+        {
+            MarkSwatch(
+                recentSwatches[index],
+                index < recentColors.Count && string.Equals(recentColors[index], hex, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    /// <summary>Marks a swatch as the colour the pen writes in, or leaves it plain.</summary>
+    private static void MarkSwatch(Border swatch, bool isChosen)
+    {
+        swatch.Stroke = isChosen ? new SolidColorBrush(Color.FromArgb(InkColor)) : null;
+        swatch.StrokeThickness = isChosen ? 3 : 0;
+        swatch.Scale = isChosen ? 1.18 : 1;
+    }
+
+    /// <summary>The word for a colour of the palette, or the code itself for one that is not in it.</summary>
+    private static string PenColorName(string hex)
+    {
+        foreach (var (candidate, name) in PenColors)
+        {
+            if (string.Equals(candidate, hex, StringComparison.OrdinalIgnoreCase))
+            {
+                return name;
+            }
+        }
+
+        return hex;
+    }
+
+    /// <summary>
+    /// Puts the flyout up. It hangs from the top of the note's cell, which is exactly where the row of
+    /// pens above it ends, so only the sideways move is left to do and the note keeps its own height
+    /// underneath. It is capped to the cell before it is shown, because how high it turns out is not
+    /// known until the palette has wrapped and the note is what is left over.
+    /// </summary>
+    private void ShowPenFlyout()
+    {
+        if (NoteArea.Width > 2 * PenFlyoutMargin)
+        {
+            PenFlyout.WidthRequest = Math.Min(PenFlyoutWidth, NoteArea.Width - (2 * PenFlyoutMargin));
+        }
+
+        if (NoteArea.Height > 2 * PenFlyoutMargin)
+        {
+            PenFlyout.MaximumHeightRequest = NoteArea.Height - (2 * PenFlyoutMargin);
+        }
+
+        UpdatePenFlyout();
+        PenFlyout.IsVisible = true;
+        PlacePenFlyout();
+    }
+
+    /// <summary>
+    /// Puts the flyout under the pen it belongs to, centred on it, with both edges of the cell
+    /// respected - so a row scrolled to one end still leaves the flyout within the page rather than
+    /// half outside it.
+    /// </summary>
+    private void PlacePenFlyout()
+    {
+        var width = PenFlyout.WidthRequest;
+        var slot = penSlotFrames[activePenSlot];
+        var centre = XInNoteArea(slot) + (slot.Width / 2);
+
+        PenFlyout.TranslationX = Math.Clamp(
+            centre - (width / 2),
+            PenFlyoutMargin,
+            Math.Max(PenFlyoutMargin, NoteArea.Width - width - PenFlyoutMargin));
+    }
+
+    /// <summary>
+    /// Puts the flyout away. The colour and the width that were taken stay set and the flyout stays
+    /// where it was, so asking for the same pen again opens it in the same place.
+    /// </summary>
+    private void ClosePenFlyout() => PenFlyout.IsVisible = false;
+
+    /// <summary>
+    /// Wipes the note in one edit, so a single undo brings the whole of it back - the same button that
+    /// takes back a stroke takes back the wipe. Nothing is asked first: the button names what it does
+    /// to the ink, and a question in front of it would only stand in the way of a note that is being
+    /// started over. The row answers for the wipe afterwards by itself: with the ink gone there is
+    /// nothing left to wipe, and undo is lit.
+    /// </summary>
+    private void OnClearClicked(object? sender, EventArgs e) => InkHost.EraseAll();
+
+    /// <summary>
+    /// A colour typed into the field. A code that can be read is applied at once, so the pen follows
+    /// what is being typed and the note behind it can be drawn on straight away; one that cannot be
+    /// read is not applied at all - the pen keeps what it had - and the field says so underneath
+    /// instead of quietly taking something else.
+    /// </summary>
+    private void OnPenHexChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (isUpdatingPenFlyout)
+        {
+            return;
+        }
+
+        var text = e.NewTextValue ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            // An empty field is not a mistake: it is what a code is typed into.
+            PenHexError.IsVisible = false;
+            return;
+        }
+
+        if (PenColor.TryNormalize(text, out var hex))
+        {
+            SetPenColor(hex, fromFlyout: true);
+            return;
+        }
+
+        PenHexError.IsVisible = true;
+    }
+
+    /// <summary>The width the slider is dragged to, written into the pen while the finger is still down.</summary>
+    private void OnThicknessSliderChanged(object? sender, ValueChangedEventArgs e)
+    {
+        if (isUpdatingPenFlyout)
+        {
+            return;
+        }
+
+        SetPenThickness((float)e.NewValue, fromSlider: true);
+    }
+
+    /// <summary>
+    /// The hue of the bar being dragged. The square beside it is put onto that hue - it is the hue and
+    /// the square together that make a colour - and the colour the two of them make is what the pen
+    /// takes, so the pen follows the finger across the bar.
+    /// </summary>
+    private void OnHueChanged(object? sender, float hue)
+    {
+        if (isUpdatingPenFlyout)
+        {
+            return;
+        }
+
+        ColorArea.Hue = hue;
+        SetPenColor(ColorArea.Color, fromFlyout: true);
+    }
+
+    /// <summary>The colour the square under the finger stands for, written into the pen as it is dragged.</summary>
+    private void OnColorAreaChanged(object? sender, string hex)
+    {
+        if (isUpdatingPenFlyout)
+        {
+            return;
+        }
+
+        SetPenColor(hex, fromFlyout: true);
     }
 
     /// <summary>Keeps the tool buttons showing which mode is active and what can be undone.</summary>
@@ -471,8 +810,10 @@ public partial class CardInkEditorPage : ContentPage
         EraserButton.Style = (Style)resources[eraserDraws ? "AccentIconButton" : "GhostIconButton"];
 
         // Nothing to take back or to put back yet, so the buttons say so instead of doing nothing.
+        // The wipe is the same: with no ink on the note there is nothing for it to take away.
         UndoButton.IsEnabled = InkHost.CanUndo;
         RedoButton.IsEnabled = InkHost.CanRedo;
+        ClearButton.IsEnabled = InkHost.GetStrokes().Count > 0;
     }
 
     private void OnStrokeCompleted(object? sender, EventArgs e)
@@ -537,6 +878,11 @@ public partial class CardInkEditorPage : ContentPage
 
         ApplyToolUi();
         InkHost.ApplyPreferences();
+
+        // The colour and the width of new strokes are not part of the drawing settings the surface
+        // reads back - they sit on the renderer - so the pen in hand is handed to it again here,
+        // whether the settings page swapped the renderer or not.
+        ApplyPenSlot();
     }
 
     protected override void OnDisappearing()
@@ -552,6 +898,7 @@ public partial class CardInkEditorPage : ContentPage
         // Leaving without "Fertig" - the shell bar's back button, the hardware back, the swipe down -
         // still keeps the ink.
         CloseRadialMenu();
+        ClosePenFlyout();
         _ = SaveAsync();
     }
 
@@ -600,54 +947,12 @@ public partial class CardInkEditorPage : ContentPage
     }
 
     /// <summary>
-    /// Opens the ladder of pen widths under the button, or puts it away again when it is already out -
-    /// so the same button opens and closes it, and there is nothing else to press to get rid of it.
-    /// </summary>
-    private void OnThicknessClicked(object? sender, EventArgs e)
-    {
-        if (ThicknessFlyout.IsVisible)
-        {
-            CloseThicknessFlyout();
-            return;
-        }
-
-        ShowThicknessFlyout();
-    }
-
-    /// <summary>
-    /// Puts the ladder up under the width button. It hangs from the top of the note's cell, which is
-    /// exactly where the row of buttons above it ends, so only the sideways move is left to do. Both
-    /// edges of the cell are respected, so a row scrolled to one end still leaves the ladder within
-    /// the page rather than half outside it. The button is lit while the ladder is out, the way the
-    /// row lights whichever tool is the one drawing.
-    /// </summary>
-    private void ShowThicknessFlyout()
-    {
-        var width = ThicknessFlyout.WidthRequest;
-        var centre = XInNoteArea(ThicknessButton) + (ThicknessButton.Width / 2);
-
-        ThicknessFlyout.TranslationX = Math.Clamp(centre - (width / 2), 0, Math.Max(0, NoteArea.Width - width));
-        ThicknessFlyout.IsVisible = true;
-        ThicknessButton.Style = (Style)Application.Current!.Resources["AccentIconButton"];
-    }
-
-    /// <summary>
-    /// Puts the ladder away and takes the light off the button. The width that was taken stays set and
-    /// the ladder stays where it was, so asking for it again opens it in the same place.
-    /// </summary>
-    private void CloseThicknessFlyout()
-    {
-        ThicknessFlyout.IsVisible = false;
-        ThicknessButton.Style = (Style)Application.Current!.Resources["GhostIconButton"];
-    }
-
-    /// <summary>
-    /// How far a view of the row above the note sits from the left edge of the note's cell. The width
-    /// button hangs in the scrolling row, so its own position is measured from the stack of buttons it
-    /// is in and not from anything the page can use as it stands: the offsets of the views it hangs
-    /// under are added up, the scroll of the row is taken off on the way - scrolling moves the buttons
-    /// without moving the stack that holds them - and the cell, which begins to the right of the page's
-    /// own padding, is taken off at the end.
+    /// How far a view of the row above the note sits from the left edge of the note's cell. A pen hangs
+    /// in the scrolling row, so its own position is measured from the stack of pens it is in and not
+    /// from anything the page can use as it stands: the offsets of the views it hangs under are added
+    /// up, the scroll of the row is taken off on the way - scrolling moves the pens without moving the
+    /// stack that holds them - and the cell, which begins to the right of the page's own padding, is
+    /// taken off at the end.
     /// </summary>
     private double XInNoteArea(VisualElement view)
     {
@@ -853,19 +1158,32 @@ public partial class CardInkEditorPage : ContentPage
     /// The blocks of the ring, in the order of the arc constants: the colours and the pen widths,
     /// which open a fan of choices, then redo, undo and the pen/finger switch, which are taken on the
     /// spot and hold nothing.
+    /// <para>
+    /// Both fans set the pen that is drawing rather than a colour and a width beside it, so the middle
+    /// of each block names what that pen is now - the row of pens and the ring are two ways into the
+    /// same pen. The widths are offered in the ring's own steps, which are coarser than the slider's
+    /// because they are picked by sliding a finger across a wedge, and each of them is named by the
+    /// number it stands for, since a dot alone no longer tells a finger the width it would take.
+    /// </para>
     /// </summary>
     private IReadOnlyList<RadialMenuGroup> BuildMenuGroups()
     {
+        var slot = penSlots[activePenSlot];
+
         var colors = new RadialMenuEntry[PenColors.Length];
         for (var index = 0; index < PenColors.Length; index++)
         {
             colors[index] = new RadialMenuEntry(PenColors[index].Name, PenColors[index].Hex, 0);
         }
 
-        var widths = new RadialMenuEntry[PenThickness.Count];
-        for (var index = 0; index < PenThickness.Count; index++)
+        var steps = PenThickness.Steps(PenThickness.RadialStep);
+        var widths = new RadialMenuEntry[steps];
+        for (var index = 0; index < steps; index++)
         {
-            widths[index] = new RadialMenuEntry(ThicknessNames[index], null, (float)ThicknessDotDiameter(index));
+            widths[index] = new RadialMenuEntry(
+                PenThickness.Format(PenThickness.ValueAt(index, PenThickness.RadialStep)),
+                null,
+                (float)ThicknessDotDiameter(index));
         }
 
         // The tool block offers the tool that is not drawing at the moment, so what pressing it does
@@ -876,12 +1194,12 @@ public partial class CardInkEditorPage : ContentPage
         [
             new RadialMenuGroup(
                 Strings.RadialMenuColors,
-                PenColors[selectedPenColorIndex].Name,
+                PenColorName(slot.ColorHex),
                 colors,
                 IconFont.Color),
             new RadialMenuGroup(
                 Strings.PenThicknessTitle,
-                ThicknessNames[selectedThicknessIndex],
+                FormatThickness(slot.Thickness),
                 widths,
                 IconFont.LineThickness),
             new RadialMenuGroup(Strings.Redo, string.Empty, [], IconFont.Redo, IsAction: true),
@@ -894,6 +1212,12 @@ public partial class CardInkEditorPage : ContentPage
                 IsAction: true),
         ];
     }
+
+    /// <summary>A width as it is read - the number and the unit together, so it is never bare.</summary>
+    private static string FormatThickness(float thickness) => string.Format(
+        CultureInfo.CurrentCulture,
+        Strings.PenThicknessValueFormat,
+        PenThickness.Format(thickness));
 
     /// <summary>
     /// What was taken in the menu. A block that holds choices opens them onto the outer ring, a block
@@ -938,7 +1262,7 @@ public partial class CardInkEditorPage : ContentPage
                 break;
 
             case RadialMenuHitKind.Entry when hit.Group == ColorArc:
-                ApplyPenColor(hit.Index);
+                SetPenColor(PenColors[hit.Index].Hex);
                 break;
 
             case RadialMenuHitKind.Entry when hit.Group == ThicknessArc:
@@ -979,8 +1303,8 @@ public partial class CardInkEditorPage : ContentPage
 
     /// <summary>
     /// Puts the ring in or out of reach, following the setting. The row of tools - <see
-    /// cref="ToolBar"/> holds the tools, the pen colours and the paper colours together - is always
-    /// drawn, because it shares its row with the buttons that leave the card: taking it away takes no
+    /// cref="ToolBar"/> holds the tools, the pens and the paper colours together - is always drawn,
+    /// because it shares its row with the buttons that leave the card: taking it away takes no
     /// height off the note, it only puts the tools out of reach. What the setting picks is whether the
     /// ring is there as well. With it, the note is what a free finger taps and the button beside the
     /// row is what is left when there is no free finger or no right mouse button. Without it, neither
@@ -998,45 +1322,65 @@ public partial class CardInkEditorPage : ContentPage
         if (isToolBar)
         {
             // A ring that is up would be left there without a way of being asked for again, since
-            // neither the note nor the button beside the row asks for one in this mode. The ladder of
-            // widths is not touched: the button that opens it stays in the row.
+            // neither the note nor the button beside the row asks for one in this mode. The pens are
+            // not touched: they stay in the row either way, and so does the flyout they open.
             CloseRadialMenu();
         }
     }
 
     /// <summary>
-    /// Colours new strokes with the chosen pen width and remembers it for the next card. Strokes that
-    /// have already been drawn keep the width they were drawn with. The ladder marks the rung that was
-    /// taken, whichever of the two ways into it the width came from.
+    /// Sets the width of the pen in hand from the ring's width block. The block offers the range in
+    /// steps of its own - coarser than the slider's, because it is picked by sliding a finger across a
+    /// wedge rather than by dragging a handle - and the width taken here is the width the pen writes
+    /// with from now on, in the flyout as well. There is one pen, not a width beside it.
     /// </summary>
-    private void ApplyThickness(int index)
+    private void ApplyThickness(int index) =>
+        SetPenThickness(PenThickness.ValueAt(index, PenThickness.RadialStep));
+
+    /// <summary>
+    /// Width of the dot that stands for a width on the ring, in device units. Scaled up from the width
+    /// itself so the finest one is still a visible dot, and capped so the widest one stays inside the
+    /// segment that carries it.
+    /// </summary>
+    private static double ThicknessDotDiameter(int index) =>
+        Math.Clamp(PenThickness.ValueAt(index, PenThickness.RadialStep) * 1.6, 5, ThicknessDotMaxSize);
+
+    /// <summary>
+    /// The pens the row shows, as they were left. A store that has none yet - the first run, or one
+    /// written before the pens were slots - keeps the width the version before the slots remembered
+    /// for the first pen, so an update does not quietly hand the user a different pen than the one
+    /// they were drawing with.
+    /// </summary>
+    private PenSlot[] ReadPenSlots()
     {
-        selectedThicknessIndex = PenThickness.ClampIndex(index);
-        var thickness = PenThickness.ValueAt(selectedThicknessIndex);
-        InkHost.StrokeThickness = thickness;
-        preferences.Set(PreferenceKeys.PenThickness, thickness.ToString(CultureInfo.InvariantCulture));
-        UpdateThicknessLadder();
+        var stored = preferences.Get(PreferenceKeys.PenSlots, string.Empty);
+        if (!string.IsNullOrEmpty(stored))
+        {
+            return PenSlots.Parse(stored).ToArray();
+        }
+
+        var slots = PenSlots.Parse(null).ToArray();
+        var previous = preferences.Get(PreferenceKeys.PenThickness, string.Empty);
+        if (float.TryParse(previous, NumberStyles.Float, CultureInfo.InvariantCulture, out var thickness))
+        {
+            slots[0] = slots[0] with { Thickness = PenThickness.Clamp(thickness) };
+        }
+
+        return slots;
     }
 
     /// <summary>
-    /// Width of the dot that stands for a rung of the ladder on the ring, in device units. Scaled up
-    /// from the width itself so the finest rung is still a visible dot, and capped so the widest one
-    /// stays inside the segment that carries it.
+    /// Which pen was drawing. An index that is not one of the pens - a store written by a version that
+    /// had a different number of them - falls back on the first, so the row always has one in hand.
     /// </summary>
-    private static double ThicknessDotDiameter(int index) =>
-        Math.Clamp(PenThickness.ValueAt(index) * 1.6, 5, ThicknessDotMaxSize);
-
-    /// <summary>
-    /// The width the user last drew with. A stored value that is not a number - or one that is no
-    /// longer on the ladder - falls back on the width a pen starts with rather than leaving the
-    /// editor without one.
-    /// </summary>
-    private float ReadStoredThickness()
+    private int ReadActivePenSlot()
     {
-        var stored = preferences.Get(PreferenceKeys.PenThickness, string.Empty);
-        return float.TryParse(stored, NumberStyles.Float, CultureInfo.InvariantCulture, out var thickness)
-            ? thickness
-            : PenThickness.Default;
+        var stored = preferences.Get(PreferenceKeys.ActivePenSlot, string.Empty);
+        return int.TryParse(stored, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index)
+            && index >= 0
+            && index < penSlots.Length
+                ? index
+                : 0;
     }
 
     /// <summary>

@@ -5,6 +5,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                     xmlns:styles="clr-namespace:Penban.Maui.Views.Resources.Styles"
+                    xmlns:controls="clr-namespace:Penban.Maui.Views.Controls"
                     x:Class="Penban.Maui.Views.Resources.Styles.Theme">
 
     <!-- Class-based dictionaries resolve their StaticResource lookups during InitializeComponent,
@@ -293,6 +294,45 @@
         <Setter Property="TextColor"
                 Value="{AppThemeBinding Light={StaticResource DangerLight}, Dark={StaticResource DangerDark}}" />
         <Setter Property="BorderColor"
+                Value="{AppThemeBinding Light={StaticResource DangerLight}, Dark={StaticResource DangerDark}}" />
+    </Style>
+
+    <!-- ============ Pens ============ -->
+
+    <!-- One pen of the card editor's row. The frame is invisible until the pen is the one drawing, so
+         the two pens stand side by side as plain drawings of pens rather than as two buttons; the
+         padding is what keeps the drawing clear of the rounded corners the frame is drawn with. -->
+    <Style x:Key="PenSlot" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="Stroke" Value="Transparent" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 14" />
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="WidthRequest" Value="52" />
+        <Setter Property="HeightRequest" Value="60" />
+    </Style>
+
+    <!-- The pen that is drawing: the frame around it is what says which of the two it is, so it is the
+         only thing that has to change when the other one is taken up. -->
+    <Style x:Key="PenSlotActive" TargetType="Border" BasedOn="{StaticResource PenSlot}">
+        <Setter Property="StrokeThickness" Value="1.5" />
+        <Setter Property="Stroke"
+                Value="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+        <Setter Property="BackgroundColor"
+                Value="{AppThemeBinding Light={StaticResource SurfaceLight}, Dark={StaticResource SurfaceSecondaryDark}}" />
+    </Style>
+
+    <!-- The pen itself. Its outline cannot be a fixed colour: the row is drawn on the page's own
+         background, which is light in one theme and dark in the other, and a black outline would
+         disappear into the second. -->
+    <Style x:Key="PenGlyph" TargetType="controls:PenGlyphView">
+        <Setter Property="OutlineColor"
+                Value="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+    </Style>
+
+    <!-- A hex code that is not a colour. -->
+    <Style x:Key="PenHexError" TargetType="Label" BasedOn="{StaticResource CaptionLabel}">
+        <Setter Property="TextColor"
                 Value="{AppThemeBinding Light={StaticResource DangerLight}, Dark={StaticResource DangerDark}}" />
     </Style>
 

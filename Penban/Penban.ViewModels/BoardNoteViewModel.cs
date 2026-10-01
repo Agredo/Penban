@@ -12,7 +12,8 @@ namespace Penban.ViewModels;
 /// board itself and needs no column - but it holds the same ink and is edited by the same page, so
 /// the board can say something about itself the way a single card says something about its column.
 /// A board without a note keeps the paper colour and the tilt derived from its id, which is what
-/// makes its board card look the way it did before the note existed.
+/// makes its board card look the way it did before the note existed - unless the user picked a
+/// colour for the note, which the board holds on to until the note itself is dropped.
 /// </summary>
 public partial class BoardNoteViewModel : ObservableObject, INoteEditorTarget
 {
@@ -63,6 +64,11 @@ public partial class BoardNoteViewModel : ObservableObject, INoteEditorTarget
     /// Writes the note to the board. The board is updated first as well as through the service,
     /// because the service reads its own copy from the database: the instance the board page and the
     /// overview row hold is this one, and it has to follow the note without a reload.
+    /// <para>
+    /// Only the ink is written here. The paper colour is the user's choice and stays with the board
+    /// even while the note is empty - this save runs on every erase as well, so clearing it here
+    /// would repaint the board card behind the user's back.
+    /// </para>
     /// </summary>
     [RelayCommand]
     private async Task SaveAsync()
@@ -70,15 +76,14 @@ public partial class BoardNoteViewModel : ObservableObject, INoteEditorTarget
         var strokes = InkCanvas.Strokes.ToList();
 
         board.NoteStrokes = strokes;
-        board.NoteColorIndex = strokes.Count == 0 ? null : board.NoteColorIndex;
 
         await boardService.SaveBoardNoteAsync(board.Id, strokes, board.NoteColorIndex);
     }
 
     /// <summary>
-    /// Drops the note from the board. Erasing the last stroke and pressing delete come down to the
-    /// same thing - a board without a note - so both end up here and both put the board card back to
-    /// what it looked like before the note was written.
+    /// Drops the note from the board. Unlike erasing the last stroke, which only takes the ink away,
+    /// this takes the note together with the paper colour the user gave it, so the board card goes
+    /// back to what it looked like before the note was written.
     /// </summary>
     [RelayCommand]
     private async Task DeleteAsync()

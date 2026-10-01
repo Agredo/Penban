@@ -17,7 +17,22 @@ public class BoardService : IBoardService
         this.cardRepository = cardRepository;
     }
 
-    public Task<List<Board>> GetBoardsAsync() => repository.GetAllAsync();
+    /// <summary>
+    /// The overview's list, the board that was touched last first. The database hands the boards out
+    /// in whatever order they happen to sit in, which is why a new board used to turn up somewhere in
+    /// the middle of the list: nothing said where it belonged. This is the order of the boards
+    /// themselves - the overview then puts the rows in the order of the date it prints on them, which
+    /// counts the notes written on the board as well. Boards that carry the same timestamp - an import
+    /// writes many at once - are ordered by title so the list is at least the same on every visit.
+    /// </summary>
+    public async Task<List<Board>> GetBoardsAsync()
+    {
+        var boards = await repository.GetAllAsync();
+        return boards
+            .OrderByDescending(b => b.UpdatedAtUtc)
+            .ThenBy(b => b.Title, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+    }
 
     /// <summary>
     /// Column titles a new board starts with. A board is only usable once it has lanes to
@@ -65,7 +80,9 @@ public class BoardService : IBoardService
 
     /// <summary>
     /// Stores the board's own note. The strokes are copied so the caller can keep drawing into its
-    /// own list, and a note without strokes is removed rather than kept as an empty one.
+    /// own list, and a note without strokes is removed rather than kept as an empty one - the colour
+    /// however is stored either way: it is a choice of the user, and erasing the last stroke must not
+    /// repaint the board card. Only dropping the note gives it up, and that hands in <c>null</c>.
     /// </summary>
     public async Task SaveBoardNoteAsync(Guid boardId, IReadOnlyList<InkStroke> strokes, int? colorIndex)
     {
@@ -76,7 +93,7 @@ public class BoardService : IBoardService
         }
 
         board.NoteStrokes = strokes.Count == 0 ? [] : strokes.ToList();
-        board.NoteColorIndex = strokes.Count == 0 ? null : colorIndex;
+        board.NoteColorIndex = colorIndex;
         await repository.SaveAsync(board);
     }
 

@@ -15,36 +15,27 @@
              x:Class="Penban.Maui.Views.Pages.CardInkEditorPage"
              Style="{StaticResource AppPage}">
 
-    <ContentPage.Resources>
-        <!-- One rung of the width ladder in the flyout under the width button: a plain tile that the
-             dot of the width sits in. It carries a background rather than being transparent so that
-             the whole tile is a target on every platform, and so that the ladder reads as a row of
-             choices. The rung that is set is outlined in the code-behind, where the chosen index is
-             known. -->
-        <Style x:Key="ThicknessRung" TargetType="Border">
-            <Setter Property="BackgroundColor"
-                    Value="{AppThemeBinding Light={StaticResource SurfaceSecondaryLight}, Dark={StaticResource SurfaceSecondaryDark}}" />
-            <Setter Property="StrokeShape" Value="RoundRectangle 12" />
-            <Setter Property="StrokeThickness" Value="0" />
-        </Style>
-    </ContentPage.Resources>
-
     <Grid RowDefinitions="Auto,*" Padding="16" RowSpacing="12">
 
         <!-- Everything that is a button or a colour lives in the one row above the note, so the note
-             keeps the whole height underneath it: the drawing tools, the pen colours and the
-             paper colours scroll, and the way into the ring plus the two buttons that leave the card
-             are pinned to the right end of the row, where they are always one press away.
+             keeps the whole height underneath it: the drawing tools, the two pens and the paper
+             colours scroll, and the way into the ring plus the two buttons that leave the card are
+             pinned to the right end of the row, where they are always one press away.
              The scrolling part is always drawn, whatever the tools setting says: the row is as high as
              the buttons pinned to its right end either way, so hiding the tools takes no height off the
              note, it only puts them out of reach.
-             Drawing tools: one button for the two ways the pen draws, one for the eraser, one for the
-             pen width, and one each to undo and redo the last edit. Each button carries the glyph of
-             the same tool that the radial menu draws on its ring, and the words that used to be on
-             them are what a screen reader reads out. The font size is set here rather than left to the
-             two styles so a button that changes between them does not change the size of its glyph
-             with it. Horizontally scrollable, because the buttons and the two rows of colours together
-             are wider than any phone held upright. -->
+             Drawing tools: one button for the two ways the pen draws, one for the eraser, and one each
+             to undo and redo the last edit. Each button carries the glyph of the same tool that the
+             radial menu draws on its ring, and the words that used to be on them are what a screen
+             reader reads out. The font size is set here rather than left to the two styles so a button
+             that changes between them does not change the size of its glyph with it.
+             The pens come next, drawn as pens rather than as buttons, and they are what says which
+             colour and which width the next stroke gets - see the slot styles in Theme.xaml. The two
+             pens are built in the code-behind, one per stored slot, because the number of them and
+             everything on them is a stored value rather than a decision this file can make. Behind
+             them stands the button that wipes the note - one edit, so undo brings it back - and behind
+             that the paper colours, each palette behind its own hairline. Horizontally scrollable,
+             because the tools and the colours together are wider than any phone held upright. -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
             <ScrollView x:Name="ToolBar" Grid.Column="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
                 <HorizontalStackLayout Spacing="8">
@@ -53,7 +44,7 @@
                          to the other one. The glyph of the two (pen U+E8D8, finger U+E6D8) and the
                          words it is read out with are put on in the code-behind, because that is what
                          tells the two modes apart. Eraser = U+E5E5, undo = U+F19A, redo = U+F16F,
-                         radial menu = U+F07A5. -->
+                         clear = U+F201, radial menu = U+F07A5. -->
                     <Button x:Name="DrawModeButton"
                             FontSize="20"
                             Style="{StaticResource GhostIconButton}"
@@ -78,26 +69,24 @@
                             Style="{StaticResource GhostIconButton}"
                             Clicked="OnRedoClicked"
                             SemanticProperties.Description="{markup:Translate Redo}" />
-                    <!-- The pen width opens a ladder of widths downward from this button - see
-                         ThicknessFlyout - and carries the same glyph the ring's width block does
-                         (U+F0062). The words it is read out with name the width that is set, so
-                         that is put on in the code-behind together with the rest of the toolbar. -->
-                    <Button x:Name="ThicknessButton"
-                            Text="&#xf0062;"
-                            FontSize="20"
-                            Style="{StaticResource GhostIconButton}"
-                            Clicked="OnThicknessClicked" />
-                    <!-- A hairline, so the colours read as the other half of the same row rather than as
+                    <!-- A hairline, so the pens read as the other half of the same row rather than as
                          more tools. -->
-                    <BoxView x:Name="PenColorSeparator"
+                    <BoxView x:Name="PenSeparator"
                              WidthRequest="1"
                              HeightRequest="24"
                              VerticalOptions="Center"
                              Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
-                    <!-- Pen colours, filled in from the palette in the code-behind so a swatch is the ink
-                         itself. They belong to the toolbar, which is always drawn; when the radial menu
-                         is in use it carries the same palette on its ring. -->
-                    <HorizontalStackLayout x:Name="PenColorPicker" Spacing="10" Padding="2" VerticalOptions="Center" />
+                    <!-- The pens. Filled in from the stored slots in the code-behind; the one that is
+                         drawing wears the frame that says so. -->
+                    <HorizontalStackLayout x:Name="PenSlotRow" Spacing="2" VerticalOptions="Center" />
+                    <!-- Wipes the note in one edit. It sits with the pens rather than with the paper
+                         colours because that is what it acts on - the ink, not the note. -->
+                    <Button x:Name="ClearButton"
+                            Text="&#xf201;"
+                            FontSize="20"
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnClearClicked"
+                            SemanticProperties.Description="{markup:Translate ClearNote}" />
                     <!-- The paper colours sit behind a hairline of their own, so the two palettes are told
                          apart at a glance: the first one is the ink, this one is the note. -->
                     <BoxView x:Name="NoteColorSeparator"
@@ -155,27 +144,92 @@
                 </controls:StickyNoteBorder>
             </Border>
 
-            <!-- The ladder of pen widths, opened by the width button in the row above and hanging
-                 downward from the top of this cell - which is where that row ends - so it covers the
-                 top of the note rather than pushing it down. It is the last child of the cell, so it
-                 lies over the note; the ring is a child of the page and stays above both. Hidden
-                 until it is asked for, and placed sideways in the code-behind, under the button that
-                 opened it. The widths are drawn as dots at the width itself, exactly like the ring's
-                 width block, so the ladder reads the same whichever of the two was used. -->
-            <Border x:Name="ThicknessFlyout"
+            <!-- The pen flyout: what the pen that is drawing is made of, opened by pressing that pen
+                 a second time - the first press takes the other one up. It hangs downward from the top
+                 of this cell - which is where the row above ends - so it covers the top of the note
+                 rather than pushing it down, and it is placed sideways in the code-behind, under the
+                 pen that opened it. It is the last child of the cell, so it lies over the note; the
+                 ring is a child of the page and stays above both.
+                 Every control in here writes into that same pen: there is one pen and one set of
+                 controls for it, not a setting beside a pen, so the slot in the row and this flyout
+                 can never disagree. The order runs from the least to the most effort - the colours
+                 that were just used, the palette, a code, and then the two things a code cannot say:
+                 which hue and how wide. The square and the bar are drawn here rather than bought in,
+                 because a picker is a rectangle of colours and a mark on it. -->
+            <Border x:Name="PenFlyout"
                     IsVisible="False"
                     HorizontalOptions="Start"
                     VerticalOptions="Start"
-                    Padding="10,8"
+                    Padding="14,12"
+                    WidthRequest="272"
                     Style="{StaticResource CardBorder}">
-                <VerticalStackLayout Spacing="6">
-                    <Label Text="{markup:Translate PenThicknessTitle}"
-                           HorizontalOptions="Center"
-                           Style="{StaticResource CaptionLabel}" />
-                    <!-- The rungs are put in from the ladder in the code-behind, together with the gap
-                         between them, so the two widths the flyout is placed by are both known there. -->
-                    <HorizontalStackLayout x:Name="ThicknessLadder" HorizontalOptions="Center" />
-                </VerticalStackLayout>
+                <ScrollView VerticalScrollBarVisibility="Never">
+                    <VerticalStackLayout Spacing="10">
+                        <!-- Which pen this is. Set in the code-behind, because it is the pen's number
+                             and that is not known here. -->
+                        <Label x:Name="PenFlyoutTitle" Style="{StaticResource BodyLabel}" />
+
+                        <Label Text="{markup:Translate PenRecentColors}" Style="{StaticResource CaptionLabel}" />
+                        <HorizontalStackLayout x:Name="RecentColors" Spacing="8" />
+
+                        <Label Text="{markup:Translate PenPalette}" Style="{StaticResource CaptionLabel}" />
+                        <!-- Filled in from the same palette the ring draws, so a colour is in the same
+                             place whichever of the two was used. -->
+                        <FlexLayout x:Name="PenPalette" Wrap="Wrap" Direction="Row" />
+
+                        <!-- A colour from anywhere: what the palette cannot hold. The swatch beside the
+                             field is the colour the code says, so it can be checked before it is used.
+                             A code that cannot be read is not applied - the pen keeps what it had - and
+                             the field says so underneath instead. -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" RowDefinitions="Auto,Auto">
+                            <Border Grid.Row="0" Grid.Column="0" Padding="10,0" Style="{StaticResource InputSurface}">
+                                <Entry x:Name="PenHexEntry"
+                                       Placeholder="{markup:Translate PenHexPlaceholder}"
+                                       TextChanged="OnPenHexChanged" />
+                            </Border>
+                            <Border x:Name="PenHexSwatch"
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    WidthRequest="34"
+                                    HeightRequest="34"
+                                    StrokeShape="RoundRectangle 8"
+                                    StrokeThickness="1"
+                                    Stroke="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+                            <Label x:Name="PenHexError"
+                                   Grid.Row="1"
+                                   Grid.ColumnSpan="2"
+                                   IsVisible="False"
+                                   Text="{markup:Translate PenHexInvalid}"
+                                   Style="{StaticResource PenHexError}" />
+                        </Grid>
+
+                        <!-- The hue, then how strong and how bright it is. Both mark where the pen's
+                             colour is now, and both write back into the pen while they are dragged. -->
+                        <controls:HueStripView x:Name="HueStrip" HeightRequest="26" />
+                        <controls:ColorAreaView x:Name="ColorArea" HeightRequest="112" />
+
+                        <Label Text="{markup:Translate PenThicknessTitle}" Style="{StaticResource CaptionLabel}" />
+                        <!-- The width, continuously: there are no steps to land between, so the slider
+                             is the whole range and the number beside it says where in it the pen is.
+                             The pen next to them is the same drawing the row shows, so the width that
+                             is set can be read off it as it is dragged. -->
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                            <Slider x:Name="ThicknessSlider"
+                                    Grid.Column="0"
+                                    VerticalOptions="Center"
+                                    ValueChanged="OnThicknessSliderChanged" />
+                            <Label x:Name="ThicknessValue"
+                                   Grid.Column="1"
+                                   VerticalOptions="Center"
+                                   Style="{StaticResource BodyLabel}" />
+                            <controls:PenGlyphView x:Name="ThicknessPreview"
+                                                   Grid.Column="2"
+                                                   WidthRequest="26"
+                                                   HeightRequest="48"
+                                                   Style="{StaticResource PenGlyph}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </ScrollView>
             </Border>
         </Grid>
 

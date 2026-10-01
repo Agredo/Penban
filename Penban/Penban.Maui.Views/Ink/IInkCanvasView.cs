@@ -32,6 +32,14 @@ public interface IInkCanvasView
     bool CanRedo { get; }
 
     /// <summary>
+    /// Removes every stroke, as one edit that <see cref="Undo"/> brings back in full. Unlike
+    /// <see cref="Clear"/>, which throws the history away because the stroke set is about to be
+    /// replaced from somewhere else, this is a change the user made and can take back.
+    /// </summary>
+    /// <returns>Whether there was anything to remove.</returns>
+    bool EraseAll();
+
+    /// <summary>
     /// When true, touch input removes whole strokes under the touch point instead of drawing
     /// new ones - a simple, forgiving "eraser" that matches how a real pen/eraser feels on paper.
     /// </summary>

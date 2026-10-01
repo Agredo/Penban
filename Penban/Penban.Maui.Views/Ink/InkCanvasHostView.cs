@@ -226,6 +226,8 @@ public class InkCanvasHostView : ContentView
 
     public bool CanRedo => activeRenderer.CanRedo;
 
+    public bool EraseAll() => activeRenderer.EraseAll();
+
     /// <summary>
     /// Hands the stylus tilt reported by a platform input handler down to the renderer. Only the Skia
     /// renderer stores tilt; the toolkit renderer has nowhere to put it and ignores this.
