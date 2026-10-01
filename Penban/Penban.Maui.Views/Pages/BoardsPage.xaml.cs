@@ -154,7 +154,7 @@ public partial class BoardsPage : ContentPage
             }
 
             lastOpenedBoardId = boardId;
-            await Navigation.PushAsync(new BoardPage(board, settingsViewModel, feedbackViewModel, preferences, transferCoordinator, openCardId));
+            await Navigation.PushAsync(new BoardPage(board, settingsViewModel, feedbackViewModel, preferences, transferCoordinator, searchViewModel, openCardId));
         }
         finally
         {

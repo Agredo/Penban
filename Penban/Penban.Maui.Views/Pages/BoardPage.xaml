@@ -8,7 +8,7 @@
              Title="{Binding Title}"
              Shell.NavBarIsVisible="False"
              Style="{StaticResource AppPage}">
-    <Grid RowDefinitions="Auto,*" Padding="12" RowSpacing="12">
+    <Grid RowDefinitions="Auto,Auto,*" Padding="12" RowSpacing="12">
 
         <!-- Own header instead of the Shell nav bar: the Windows Shell nav bar renders no back
              button, so the app draws its own and every platform gets the same way back.
@@ -18,7 +18,7 @@
              to a column, and it is what the board shows on the overview and on the home screen.
              The settings button is the same one as on the overview: the drawing settings are tried
              out on a note, so they have to be reachable without leaving the board. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="6">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="6">
             <Button Grid.Column="0"
                     Text="&#xf15c;"
                     Style="{StaticResource GhostIconButton}"
@@ -29,7 +29,15 @@
                    Style="{StaticResource TitleLabel}"
                    LineBreakMode="TailTruncation"
                    VerticalOptions="Center" />
-            <Button Grid.Column="2"
+            <!-- Search = U+F690. Opens the bar below the header that searches and filters this board;
+                 accent while a search or a tag filter is narrowing the board down. -->
+            <Button x:Name="FilterButton"
+                    Grid.Column="2"
+                    Text="&#xf690;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnFilterClicked"
+                    SemanticProperties.Description="{markup:Translate SearchTitle}" />
+            <Button Grid.Column="3"
                     Text="&#xf6b0;"
                     Style="{StaticResource GhostIconButton}"
                     Clicked="OnShareClicked"
@@ -37,22 +45,35 @@
             <!-- Note = U+F56C. Accent while the board carries a note, so the header says at a glance
                  whether there is one without the button having to be pressed. -->
             <Button x:Name="BoardNoteButton"
-                    Grid.Column="3"
+                    Grid.Column="4"
                     Text="&#xf56c;"
                     Style="{StaticResource GhostIconButton}"
                     Clicked="OnBoardNoteClicked"
                     SemanticProperties.Description="{markup:Translate BoardNote}" />
-            <Button Grid.Column="4"
+            <Button Grid.Column="5"
                     Text="&#xf588;"
                     Style="{StaticResource GhostIconButton}"
                     Clicked="OnSettingsClicked"
                     SemanticProperties.Description="{markup:Translate Settings}" />
-            <Button Grid.Column="5"
+            <Button Grid.Column="6"
                     Text="&#xf2fd;"
                     Style="{StaticResource AccentIconButton}"
                     Command="{Binding AddColumnCommand}"
                     SemanticProperties.Description="{markup:Translate AddColumn}" />
         </Grid>
+
+        <!-- Search and tag filter of this board. Notes that do not match are left off the board; the
+             tags are the same ones the editor pins, and a note stays when it carries any chosen one. -->
+        <VerticalStackLayout x:Name="FilterBar" Grid.Row="1" IsVisible="False" Spacing="6">
+            <Border Padding="10,0" Style="{StaticResource InputSurface}">
+                <Entry x:Name="FilterEntry"
+                       Placeholder="{markup:Translate SearchPlaceholder}"
+                       TextChanged="OnFilterTextChanged" />
+            </Border>
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout x:Name="FilterTagRow" Spacing="4" />
+            </ScrollView>
+        </VerticalStackLayout>
 
         <!-- ColumnWidth is only the starting value: BoardPage recomputes it on resize so the
              columns fill the window, never dropping below the 180 that keeps a note writable.
@@ -61,7 +82,7 @@
              the width that was asked for, would be cut off at the side of the column.
              The notes themselves are as wide as their column. -->
         <kanban:SfKanban x:Name="BoardKanban"
-                         Grid.Row="1"
+                         Grid.Row="2"
                          AutoGenerateColumns="False"
                          ColumnMappingPath="Category"
                          ColumnWidth="180"
