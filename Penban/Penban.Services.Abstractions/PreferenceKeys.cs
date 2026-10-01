@@ -23,11 +23,27 @@ public static class PreferenceKeys
     public const string PressureSensitiveWidth = "Draw.PressureSensitiveWidth";
 
     /// <summary>
-    /// Width of new strokes, in note units, as written by the pen width picker. Stored as the width
-    /// itself rather than as a rung of the ladder, so a stroke drawn earlier keeps its width even if
-    /// the ladder is ever changed.
+    /// Width of new strokes, in note units. Kept as the width itself rather than as a step of the
+    /// slider, so a stroke drawn earlier keeps its width even if the range is ever changed. It is the
+    /// width of the pen that is drawing, and follows <see cref="PenSlots"/> as that pen is edited.
     /// </summary>
     public const string PenThickness = "Draw.PenThickness";
+
+    /// <summary>
+    /// The pens on the editor's toolbar, written by <c>PenSlots.Format</c>: one colour and one width
+    /// per pen, in the order they stand in the row.
+    /// </summary>
+    public const string PenSlots = "Draw.PenSlots";
+
+    /// <summary>Which of the pens of <see cref="PenSlots"/> is drawing, as an index into the row.</summary>
+    public const string ActivePenSlot = "Draw.ActivePenSlot";
+
+    /// <summary>
+    /// The colours used last, newest first, written by <c>PenColorHistory.Format</c>: the row of
+    /// swatches at the head of the pen flyout, so a colour that was mixed once can be picked again
+    /// without mixing it a second time.
+    /// </summary>
+    public const string PenRecentColors = "Draw.PenRecentColors";
 
     /// <summary>
     /// Which of the two ways of reaching the drawing tools is in use, as a member of

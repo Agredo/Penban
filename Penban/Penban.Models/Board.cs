@@ -18,7 +18,8 @@ public class Board : SyncableEntity
     /// <summary>
     /// Paper colour the user picked for <see cref="NoteStrokes"/>, or <c>null</c> while the colour is
     /// still derived from <see cref="SyncableEntity.Id"/> - the same rule a card's
-    /// <see cref="Card.NoteColorIndex"/> follows.
+    /// <see cref="Card.NoteColorIndex"/> follows. A picked colour is kept when the note is emptied
+    /// again; only dropping the note gives it up.
     /// </summary>
     public int? NoteColorIndex { get; set; }
 }

@@ -79,6 +79,31 @@ public class ToolkitInkCanvasView : ContentView, IInkCanvasView
 
     public bool CanRedo => redoable.Count > 0;
 
+    /// <summary>
+    /// See the class remarks: <see cref="DrawingView"/> cannot put a line back on its surface that it
+    /// did not capture itself, so this renderer clears the surface and keeps the strokes for
+    /// <see cref="Redo"/> in the order they were drawn in.
+    /// </summary>
+    public bool EraseAll()
+    {
+        if (Strokes.Count == 0)
+        {
+            return false;
+        }
+
+        // Reversed, because Redo takes from the end of the list: the first stroke drawn is then also
+        // the first one to come back.
+        for (var index = Strokes.Count - 1; index >= 0; index--)
+        {
+            redoable.Add(Strokes[index]);
+        }
+
+        Strokes.Clear();
+        drawingView.Lines.Clear();
+        StrokeCompleted?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
     public void Undo()
     {
         if (drawingView.Lines.Count > 0)
@@ -133,6 +158,10 @@ public class ToolkitInkCanvasView : ContentView, IInkCanvasView
         {
             Color = ToHex(e.LastDrawingLine.LineColor),
             Thickness = ToDocumentLength(e.LastDrawingLine.LineWidth),
+            // This surface takes no pressure from the platform at all - every point below is recorded at
+            // full pressure - so the stroke says so instead of letting a later renderer guess a width
+            // from numbers that were never measured.
+            PressureSensitiveWidth = false,
         };
 
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();

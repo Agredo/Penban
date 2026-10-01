@@ -36,6 +36,13 @@ public partial class BoardPage : ContentPage
     private const double NoteColumnFill = 0.8;
 
     /// <summary>
+    /// Gap the Kanban control keeps between two columns. It is not configurable, so it is mirrored
+    /// here: the width a column is given has to leave room for it, or the columns hang over the right
+    /// edge of the control and the last of them is cut off.
+    /// </summary>
+    private const double KanbanColumnSpacing = 5;
+
+    /// <summary>
     /// Smallest note the content-driven sizing may produce. Below this a note would no longer be
     /// big enough to write on comfortably.
     /// </summary>
@@ -69,6 +76,12 @@ public partial class BoardPage : ContentPage
     private BoardViewModel? viewModel;
     private bool isLoaded;
     private bool suppressCardRebuild;
+
+    /// <summary>
+    /// The column width the control was last given, so that a layout pass that leaves the width
+    /// alone does not write the same three values into the control again.
+    /// </summary>
+    private double appliedColumnWidth = double.NaN;
 
     /// <summary>
     /// A note to open as soon as the board is loaded, or <c>null</c> for a board that was opened for
@@ -348,6 +361,13 @@ public partial class BoardPage : ContentPage
     /// while never going below <see cref="MinColumnWidth"/>. The note size follows the column width,
     /// so a new column width is also a new note size.
     /// </summary>
+    /// <remarks>
+    /// The control takes the width it is given only as long as it fits between its own bounds, and
+    /// those are 250 and 450 unless they are set: on a window wide enough for two columns to be wider
+    /// than that, every column stopped at 450 while the notes went on being sized for the width that
+    /// had been asked for - and they were cut off at the side of the column. The bounds are therefore
+    /// moved along with the width instead of being left at their defaults.
+    /// </remarks>
     private void UpdateColumnWidth()
     {
         if (viewModel is null || viewModel.Columns.Count == 0 || BoardKanban.Width <= 0)
@@ -355,10 +375,26 @@ public partial class BoardPage : ContentPage
             return;
         }
 
-        var computed = BoardKanban.Width / viewModel.Columns.Count;
-        BoardKanban.ColumnWidth = Math.Max(MinColumnWidth, computed);
+        var computed = ColumnWidthFor(BoardKanban.Width, viewModel.Columns.Count);
+        if (computed != appliedColumnWidth)
+        {
+            appliedColumnWidth = computed;
+            BoardKanban.MinimumColumnWidth = computed;
+            BoardKanban.MaximumColumnWidth = computed;
+            BoardKanban.ColumnWidth = computed;
+        }
+
         RefreshCardSizes();
     }
+
+    /// <summary>
+    /// Width one column gets from the width the control has to offer: the width split over the
+    /// columns, less the gaps between them, and never below <see cref="MinColumnWidth"/> - a board
+    /// with more columns than fit scrolls sideways instead of squeezing the notes down to a size that
+    /// can no longer be written on.
+    /// </summary>
+    private static double ColumnWidthFor(double availableWidth, int columnCount) =>
+        Math.Max(MinColumnWidth, (availableWidth - ((columnCount - 1) * KanbanColumnSpacing)) / columnCount);
 
     /// <summary>
     /// Drops the title subscriptions from the previous column set. <see cref="RebuildKanbanColumns"/>

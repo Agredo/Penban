@@ -49,6 +49,15 @@ public static class IconFont
     /// <summary>The radial menu itself: the rings of the menu as a picture of them.</summary>
     public const string RadialMenu = "\uf07a5";
 
+    /// <summary>Wipes the note: the broom beside the pens, not the eraser that rubs out one stroke.</summary>
+    public const string Clear = "\uf201";
+
+    /// <summary>
+    /// The mark at the foot of the pen that is drawing, where its own settings open from - the same
+    /// thing the mark under a menu item says.
+    /// </summary>
+    public const string ChevronDown = "\uf2a1";
+
     /// <summary>Name of the font file inside the app package, next to its registration in the head app.</summary>
     private const string TypefaceFile = "FluentSystemIcons-Regular.ttf";
 

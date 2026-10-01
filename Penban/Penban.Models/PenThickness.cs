@@ -1,56 +1,61 @@
+using System.Globalization;
+
 namespace Penban.Models;
 
 /// <summary>
-/// The pen widths the app offers, in document units - the same unit <see cref="InkDocument"/> uses,
-/// so a width means the same thing on a phone and on a tablet.
+/// How wide a pen writes, in document units - the same unit <see cref="InkDocument"/> uses, so a width
+/// means the same thing on a phone and on a tablet.
 /// <para>
-/// The ladder is deliberately short: it is meant to be walked through with three fingers sliding
-/// over the note, so every rung has to be felt rather than read off a number.
+/// The width is a continuous value rather than a ladder of presets: it is set on a slider in the pen
+/// flyout and by sliding a finger along the ring's width block, and both of those walk through the
+/// range in small steps instead of jumping between a handful of widths.
 /// </para>
 /// </summary>
 public static class PenThickness
 {
+    /// <summary>
+    /// Thinnest pen. Not zero: with pressure-sensitive width a stroke is drawn down to
+    /// <c>MinPressureWidthShare</c> (0.4) of its width at the lightest touch, so a pen thinner than
+    /// this would come out as a broken line wherever the pen was lifted a little.
+    /// </summary>
+    public const float Minimum = 1.5f;
+
+    /// <summary>Widest pen: a marker.</summary>
+    public const float Maximum = 16f;
+
     /// <summary>Width a pen starts with when nothing has been chosen yet.</summary>
     public const float Default = 4f;
 
-    /// <summary>The widths on offer, from a hairline to a marker.</summary>
-    public static IReadOnlyList<float> Presets { get; } = [2.5f, 4f, 7f, 11f, 16f];
-
-    /// <summary>Number of widths on the ladder.</summary>
-    public static int Count => Presets.Count;
-
-    /// <summary>Keeps a stored width inside the range the picker can show.</summary>
-    public static float Clamp(float thickness) =>
-        Math.Clamp(thickness, Presets[0], Presets[Count - 1]);
-
-    /// <summary>Keeps an index inside the ladder.</summary>
-    public static int ClampIndex(int index) => Math.Clamp(index, 0, Count - 1);
-
-    /// <summary>Width at <paramref name="index"/>, clamped to the ladder.</summary>
-    public static float ValueAt(int index) => Presets[ClampIndex(index)];
-
-    /// <summary>Index of the width closest to <paramref name="thickness"/>.</summary>
-    public static int NearestIndex(float thickness)
-    {
-        var nearest = 0;
-        var shortest = float.MaxValue;
-
-        for (var index = 0; index < Count; index++)
-        {
-            var distance = Math.Abs(Presets[index] - thickness);
-            if (distance < shortest)
-            {
-                shortest = distance;
-                nearest = index;
-            }
-        }
-
-        return nearest;
-    }
+    /// <summary>Step the flyout's slider walks in, in document units.</summary>
+    public const float SliderStep = 0.1f;
 
     /// <summary>
-    /// Moves <paramref name="steps"/> rungs up or down the ladder, stopping at either end: running
-    /// out of ladder says more than jumping to the opposite extreme.
+    /// Step the ring's width block walks in: coarser than the slider, because it is picked by sliding
+    /// a finger across a wedge rather than by dragging a handle.
     /// </summary>
-    public static int StepIndex(int index, int steps) => ClampIndex(index + steps);
+    public const float RadialStep = 0.5f;
+
+    /// <summary>Keeps a stored width inside the range a pen can be set to.</summary>
+    public static float Clamp(float thickness) => Math.Clamp(thickness, Minimum, Maximum);
+
+    /// <summary>Rounds a width onto the nearest step, and keeps it inside the range.</summary>
+    public static float Snap(float thickness, float step) =>
+        Clamp(Minimum + (MathF.Round((thickness - Minimum) / step) * step));
+
+    /// <summary>Number of steps a block of the given step offers, ends included.</summary>
+    public static int Steps(float step) => (int)MathF.Round((Maximum - Minimum) / step) + 1;
+
+    /// <summary>The width at <paramref name="index"/> of a block of the given step.</summary>
+    public static float ValueAt(int index, float step) => Clamp(Minimum + (index * step));
+
+    /// <summary>Index of the width closest to <paramref name="thickness"/> in a block of the given step.</summary>
+    public static int NearestIndex(float thickness, float step) =>
+        (int)MathF.Round((Clamp(thickness) - Minimum) / step);
+
+    /// <summary>
+    /// The width as it is read out to the user, in the current culture's decimal mark. The unit is not
+    /// part of it - that is the resource string it is put into.
+    /// </summary>
+    public static string Format(float thickness) =>
+        thickness.ToString("0.0", CultureInfo.CurrentCulture);
 }

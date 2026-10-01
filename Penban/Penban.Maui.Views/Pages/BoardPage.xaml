@@ -56,6 +56,9 @@
 
         <!-- ColumnWidth is only the starting value: BoardPage recomputes it on resize so the
              columns fill the window, never dropping below the 180 that keeps a note writable.
+             It also sets MinimumColumnWidth and MaximumColumnWidth, without which the control
+             cuts every column down to its own default maximum of 450 - and the notes, sized for
+             the width that was asked for, would be cut off at the side of the column.
              The notes themselves are as wide as their column. -->
         <kanban:SfKanban x:Name="BoardKanban"
                          Grid.Row="1"

@@ -32,32 +32,85 @@ public partial class BoardsViewModel : ObservableObject
     {
         var boards = await boardService.GetBoardsAsync();
 
-        // Every row is complete before the first of them is shown. Reading a board's summary no longer
-        // blocks, so a row added up front would sit there with an empty summary until its own load
-        // came round - and the list would build itself up in visible steps.
+        // A row that is already there is brought up to date rather than built again, and every row is
+        // complete before the first of them is shown: reading a board's summary no longer blocks, so a
+        // row added up front would sit there with an empty summary until its own load came round - and
+        // the list would build itself up in visible steps.
         var loaded = new List<BoardViewModel>(boards.Count);
         foreach (var board in boards)
         {
-            var viewModel = new BoardViewModel(board, boardService, cardService, dialogService);
-            await viewModel.LoadSummaryAsync();
-            loaded.Add(viewModel);
+            var existing = Boards.FirstOrDefault(b => b.Id == board.Id);
+            if (existing is null)
+            {
+                var viewModel = new BoardViewModel(board, boardService, cardService, dialogService);
+                await viewModel.LoadSummaryAsync();
+                loaded.Add(viewModel);
+            }
+            else
+            {
+                await existing.RefreshAsync(board);
+                loaded.Add(existing);
+            }
         }
 
-        Boards.Clear();
-        foreach (var viewModel in loaded)
-        {
-            Boards.Add(viewModel);
-        }
+        // Ordered by the date each row prints, which counts the notes written on the board as well as
+        // the board itself - the same rule the caption under the title follows, so the list cannot
+        // disagree with the dates written in it.
+        loaded.Sort(CompareRows);
+
+        MergeRows(loaded);
 
         // Raised once at the end: the empty state must not flash while the rows are still loading.
         OnPropertyChanged(nameof(HasBoards));
+    }
+
+    private static int CompareRows(BoardViewModel left, BoardViewModel right)
+    {
+        var byDate = right.LastEditedUtc.CompareTo(left.LastEditedUtc);
+        return byDate != 0
+            ? byDate
+            : string.Compare(left.Title, right.Title, StringComparison.CurrentCultureIgnoreCase);
+    }
+
+    /// <summary>
+    /// Puts the freshly read rows into <see cref="Boards"/> without taking out the ones that are
+    /// already there. Emptying the list and filling it again raises a reset, and a reset sends the
+    /// overview back to the top: the reader would lose the place they had scrolled to every time a
+    /// board was opened and closed. Only the rows that really moved, appeared or went away raise an
+    /// event here, and a row that stays where it is raises none at all.
+    /// </summary>
+    private void MergeRows(IReadOnlyList<BoardViewModel> ordered)
+    {
+        for (var index = 0; index < ordered.Count; index++)
+        {
+            var viewModel = ordered[index];
+            var current = Boards.IndexOf(viewModel);
+
+            if (current < 0)
+            {
+                Boards.Insert(index, viewModel);
+            }
+            else if (current != index)
+            {
+                Boards.Move(current, index);
+            }
+        }
+
+        while (Boards.Count > ordered.Count)
+        {
+            Boards.RemoveAt(Boards.Count - 1);
+        }
     }
 
     private async Task AddBoardViewModelAsync(Board board)
     {
         var viewModel = new BoardViewModel(board, boardService, cardService, dialogService);
         await viewModel.LoadSummaryAsync();
-        Boards.Add(viewModel);
+
+        // At the top, where the overview keeps the board that was touched last: a board that was just
+        // created is the most recently changed one, so appending it would show it in the wrong place
+        // until the next load sorted it.
+        Boards.Insert(0, viewModel);
     }
 
     [RelayCommand]

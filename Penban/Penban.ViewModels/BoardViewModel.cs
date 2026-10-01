@@ -11,7 +11,7 @@ namespace Penban.ViewModels;
 /// <summary>Represents a single board, including its ordered columns.</summary>
 public partial class BoardViewModel : ObservableObject
 {
-    private readonly Board board;
+    private Board board;
     private readonly IBoardService boardService;
     private readonly ICardService cardService;
     private readonly IDialogService dialogService;
@@ -34,8 +34,13 @@ public partial class BoardViewModel : ObservableObject
 
     public Guid Id { get; }
 
-    /// <summary>Paper colour of this board's note; stable for the lifetime of the board.</summary>
-    public int NoteColorIndex => NoteStyle.PaperIndexFor(Id);
+    /// <summary>
+    /// Paper colour of this board's note: the colour the user picked, or - as long as there is none -
+    /// the one derived from the id, which stays the same for the lifetime of the board. The lanes of
+    /// the board card and the notes of its stack both read this, so a picked colour cannot end up on
+    /// one of them and not on the other.
+    /// </summary>
+    public int NoteColorIndex => board.NoteColorIndex ?? NoteStyle.PaperIndexFor(Id);
 
     /// <summary>Tilt of this board's note in degrees.</summary>
     public double NoteTilt => NoteStyle.TiltFor(Id);
@@ -109,6 +114,29 @@ public partial class BoardViewModel : ObservableObject
     public ObservableCollection<ColumnViewModel> Columns { get; } = new();
 
     /// <summary>
+    /// Brings this row up to date with the board as it was just read from the database, without
+    /// giving up the view model itself. The overview holds on to its rows so that the list keeps the
+    /// place the reader scrolled to (see <c>BoardsViewModel.LoadBoardsAsync</c>), so what a row shows
+    /// has to be rebuilt here instead of by building a new row: a board that was opened and closed
+    /// again may have gained or lost lanes, cards and a note of its own since the last visit, and the
+    /// board page gets its columns from this very view model.
+    /// </summary>
+    public async Task RefreshAsync(Board board)
+    {
+        this.board = board;
+        Title = board.Title;
+        LastEditedUtc = board.UpdatedAtUtc;
+
+        var columns = board.Columns
+            .OrderBy(c => c.SortOrder)
+            .Select(c => new ColumnViewModel(c, cardService, dialogService))
+            .ToList();
+        Replace(Columns, columns);
+
+        await LoadSummaryAsync();
+    }
+
+    /// <summary>
     /// Loads the lightweight summary shown on the board overview (last edit, card count per lane,
     /// ink of the first few notes) without populating the column card collections used by the board
     /// page.
@@ -153,8 +181,10 @@ public partial class BoardViewModel : ObservableObject
         if (previews.Count == 0 && !hasNote)
         {
             // A board nobody has written on still gets a note to look at: blank, but in the paper
-            // colour and tilt of the board itself, since both are derived from the id.
-            previews.Add(new Card { Id = Id });
+            // colour and tilt of the board itself, since both are derived from the id. A colour the
+            // user picked for the board's note counts as the board's own, so the empty note is drawn
+            // in it rather than in a derived one the board no longer shows anywhere else.
+            previews.Add(new Card { Id = Id, NoteColorIndex = board.NoteColorIndex });
         }
 
         var notes = new List<BoardNotePreview>();
