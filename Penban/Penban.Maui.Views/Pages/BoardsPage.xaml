@@ -9,67 +9,103 @@
              Title="{markup:Translate BoardsTitle}"
              Shell.NavBarIsVisible="False"
              Style="{StaticResource AppPage}">
-    <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
+    <ContentPage.Resources>
+        <!-- Two layouts for a board card: side by side where there is room, stacked on a narrow screen.
+             The page picks one by its width; a card cannot rearrange itself, because changing the layout of
+             a live grid in a list takes WinUI down. -->
+                <DataTemplate x:Key="WideBoardCard">
+                    <Border Style="{StaticResource CardBorder}" Padding="14" Margin="0,6">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnBoardTapped" />
+                        </Border.GestureRecognizers>
 
-        <!-- Header: logo + page title + search + settings + whole-database transfer + primary add action -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="6">
-            <Image Grid.Column="0"
-                   Source="penban_logo.png"
-                   WidthRequest="36"
-                   HeightRequest="36"
-                   Margin="0,0,6,0"
-                   VerticalOptions="Center"
-                   SemanticProperties.Description="Penban" />
-            <Label Grid.Column="1"
-                   Text="{markup:Translate BoardsTitle}"
-                   Style="{StaticResource LargeTitleLabel}"
-                   VerticalOptions="Center" />
-            <Button Grid.Column="2"
-                    Text="&#xf690;"
-                    Style="{StaticResource GhostIconButton}"
-                    Clicked="OnSearchClicked"
-                    SemanticProperties.Description="{markup:Translate SearchTitle}"
-                    VerticalOptions="Center" />
-            <Button Grid.Column="3"
-                    Text="&#xf588;"
-                    Style="{StaticResource GhostIconButton}"
-                    Clicked="OnSettingsClicked"
-                    SemanticProperties.Description="{markup:Translate Settings}"
-                    VerticalOptions="Center" />
-            <Button Grid.Column="4"
-                    Text="&#xe467;"
-                    Style="{StaticResource GhostIconButton}"
-                    Clicked="OnTransferClicked"
-                    SemanticProperties.Description="{markup:Translate TransferTitle}"
-                    VerticalOptions="Center" />
-            <Button Grid.Column="5"
-                    Text="&#xf10a;"
-                    Style="{StaticResource AccentIconButton}"
-                    Command="{Binding AddBoardCommand}"
-                    SemanticProperties.Description="{markup:Translate AddBoard}"
-                    VerticalOptions="Center" />
-        </Grid>
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="20">
 
-        <!-- Empty state (only visible when no boards exist) -->
-        <VerticalStackLayout Grid.Row="1"
-                             Spacing="14"
-                             VerticalOptions="Center"
-                             IsVisible="{Binding HasBoards, Converter={toolkit:InvertedBoolConverter}}">
-            <Label Text="&#xf1e3;"
-                   Style="{StaticResource IconLabel}"
-                   FontSize="56"
-                   TextColor="{AppThemeBinding Light={StaticResource TextTertiaryLight}, Dark={StaticResource TextTertiaryDark}}"
-                   HorizontalTextAlignment="Center" />
-            <Label Text="{markup:Translate NoBoardsYet}"
-                   Style="{StaticResource CaptionLabel}"
-                   FontSize="{StaticResource FontSizeBody}"
-                   HorizontalTextAlignment="Center" />
-        </VerticalStackLayout>
+                            <!-- Thumbnail: this board's own notes, fanned out like a hand of them.
+                                 The frame is deliberately bigger than one note, so the outer notes
+                                 and their shadows have room inside the row. -->
+                            <Grid Grid.Column="0"
+                                  WidthRequest="196"
+                                  HeightRequest="146"
+                                  VerticalOptions="Center"
+                                  BindableLayout.ItemsSource="{Binding PreviewNotes}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate>
+                                        <controls:StickyNoteBorder NoteColorIndex="{Binding NoteColorIndex}"
+                                                                   NoteTilt="{Binding Tilt}"
+                                                                   TranslationX="{Binding OffsetX}"
+                                                                   TranslationY="{Binding OffsetY}"
+                                                                   Padding="10"
+                                                                   HeightRequest="110"
+                                                                   WidthRequest="110"
+                                                                   HorizontalOptions="Center"
+                                                                   VerticalOptions="Center">
+                                            <controls:InkPreviewView HorizontalOptions="Fill"
+                                                                     VerticalOptions="Fill"
+                                                                     BackgroundColor="Transparent"
+                                                                     StrokesSource="{Binding Strokes}" />
+                                        </controls:StickyNoteBorder>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </Grid>
 
-        <!-- Board cards -->
-        <CollectionView x:Name="BoardsList" Grid.Row="1" ItemsSource="{Binding Boards}">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
+                            <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                                <Label Text="{Binding Title}" Style="{StaticResource SubtitleLabel}" />
+
+                                <!-- When it was last touched and how much sits on it -->
+                                <Label Text="{Binding SummaryText}" Style="{StaticResource CaptionLabel}" />
+
+                                <!-- Load bar: one chip per lane, as wide as the lane's share of the
+                                     cards, so the overview shows where the work piles up. -->
+                                <FlexLayout IsVisible="{Binding HasColumns}"
+                                            Direction="Row"
+                                            JustifyContent="Start"
+                                            AlignItems="Center"
+                                            BindableLayout.ItemsSource="{Binding ColumnSummary}">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate>
+                                            <controls:StickyNoteBorder NoteColorIndex="{Binding NoteColorIndex}"
+                                                                       Opacity="{Binding ChipOpacity}"
+                                                                       FlexLayout.Basis="0"
+                                                                       FlexLayout.Grow="{Binding Share}"
+                                                                       MinimumWidthRequest="30"
+                                                                       Margin="0,0,3,0"
+                                                                       Padding="0,4">
+                                                <!-- Ink on paper stays dark in both themes: the chip is a
+                                                     bright note even in dark mode, where the shared caption
+                                                     colour would sit at barely readable contrast on it. -->
+                                                <Label Text="{Binding CountText}"
+                                                       Style="{StaticResource CaptionLabel}"
+                                                       HorizontalTextAlignment="Center"
+                                                       VerticalTextAlignment="Center"
+                                                       TextColor="#1E2230"
+                                                       FontFamily="OpenSansSemibold" />
+                                            </controls:StickyNoteBorder>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </FlexLayout>
+                            </VerticalStackLayout>
+
+                            <HorizontalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
+                                <Button Text="&#xf6b0;"
+                                        Style="{StaticResource GhostIconButton}"
+                                        Clicked="OnShareBoardClicked"
+                                        SemanticProperties.Description="{markup:Translate ShareBoard}" />
+                                <Button Text="&#xf3de;"
+                                        Style="{StaticResource GhostIconButton}"
+                                        Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.RenameBoardCommand}"
+                                        CommandParameter="{Binding Id}"
+                                        SemanticProperties.Description="{markup:Translate RenameBoard}" />
+                                <Button Text="&#xf34d;"
+                                        Style="{StaticResource DangerGhostIconButton}"
+                                        Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DeleteBoardCommand}"
+                                        CommandParameter="{Binding Id}"
+                                        SemanticProperties.Description="{markup:Translate Delete}" />
+                            </HorizontalStackLayout>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+                <DataTemplate x:Key="NarrowBoardCard">
                     <Border Style="{StaticResource CardBorder}" Padding="14" Margin="0,6">
                         <Border.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnBoardTapped" />
@@ -162,7 +198,65 @@
                         </Grid>
                     </Border>
                 </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+    </ContentPage.Resources>
+    <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
+
+        <!-- Header: logo + page title + search + settings + whole-database transfer + primary add action -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="6">
+            <Image Grid.Column="0"
+                   Source="penban_logo.png"
+                   WidthRequest="36"
+                   HeightRequest="36"
+                   Margin="0,0,6,0"
+                   VerticalOptions="Center"
+                   SemanticProperties.Description="Penban" />
+            <Label Grid.Column="1"
+                   Text="{markup:Translate BoardsTitle}"
+                   Style="{StaticResource LargeTitleLabel}"
+                   VerticalOptions="Center" />
+            <Button Grid.Column="2"
+                    Text="&#xf690;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnSearchClicked"
+                    SemanticProperties.Description="{markup:Translate SearchTitle}"
+                    VerticalOptions="Center" />
+            <Button Grid.Column="3"
+                    Text="&#xf588;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnSettingsClicked"
+                    SemanticProperties.Description="{markup:Translate Settings}"
+                    VerticalOptions="Center" />
+            <Button Grid.Column="4"
+                    Text="&#xe467;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnTransferClicked"
+                    SemanticProperties.Description="{markup:Translate TransferTitle}"
+                    VerticalOptions="Center" />
+            <Button Grid.Column="5"
+                    Text="&#xf10a;"
+                    Style="{StaticResource AccentIconButton}"
+                    Command="{Binding AddBoardCommand}"
+                    SemanticProperties.Description="{markup:Translate AddBoard}"
+                    VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Empty state (only visible when no boards exist) -->
+        <VerticalStackLayout Grid.Row="1"
+                             Spacing="14"
+                             VerticalOptions="Center"
+                             IsVisible="{Binding HasBoards, Converter={toolkit:InvertedBoolConverter}}">
+            <Label Text="&#xf1e3;"
+                   Style="{StaticResource IconLabel}"
+                   FontSize="56"
+                   TextColor="{AppThemeBinding Light={StaticResource TextTertiaryLight}, Dark={StaticResource TextTertiaryDark}}"
+                   HorizontalTextAlignment="Center" />
+            <Label Text="{markup:Translate NoBoardsYet}"
+                   Style="{StaticResource CaptionLabel}"
+                   FontSize="{StaticResource FontSizeBody}"
+                   HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
+
+        <!-- Board cards -->
+        <CollectionView x:Name="BoardsList" Grid.Row="1" ItemsSource="{Binding Boards}" />
     </Grid>
 </ContentPage>
