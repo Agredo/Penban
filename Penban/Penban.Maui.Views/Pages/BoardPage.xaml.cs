@@ -71,6 +71,13 @@ public partial class BoardPage : ContentPage
     private readonly IPreferences preferences;
     private readonly TransferCoordinator transferCoordinator;
     private readonly List<(ColumnViewModel Column, PropertyChangedEventHandler Handler)> titleSubscriptions = [];
+    private readonly SearchViewModel? searchViewModel;
+    private readonly HashSet<string> filterTags = [];
+    private readonly Dictionary<string, Button> filterTagButtons = [];
+    private CancellationTokenSource? filterSearch;
+
+    /// <summary>Notes whose text matches the typed search, or <c>null</c> while nothing is typed.</summary>
+    private HashSet<Guid>? textMatches;
 
     private ObservableCollection<BoardKanbanCard> kanbanCards = new();
     private BoardViewModel? viewModel;
@@ -108,6 +115,7 @@ public partial class BoardPage : ContentPage
         FeedbackViewModel feedbackViewModel,
         IPreferences preferences,
         TransferCoordinator transferCoordinator,
+        SearchViewModel? searchViewModel = null,
         Guid? openCardId = null)
     {
         InitializeComponent();
@@ -116,6 +124,8 @@ public partial class BoardPage : ContentPage
         this.preferences = preferences;
         this.transferCoordinator = transferCoordinator;
         this.openCardId = openCardId;
+        this.searchViewModel = searchViewModel;
+        BuildFilterTags();
         BindingContext = this.viewModel = viewModel;
         BoardKanban.ItemsSource = kanbanCards;
         BoardKanban.DragEnd += OnKanbanDragEnd;
@@ -189,7 +199,7 @@ public partial class BoardPage : ContentPage
             // is re-read first so that it also takes effect without restarting the app.
             autoSizeCards = ReadAutoSizeCards();
 
-            if (RemoveDeletedCards() | RefreshCardSizes())
+            if (RemoveDeletedCards() | RefreshCardSizes() | IsFiltering)
             {
                 RebuildKanbanCards();
             }
@@ -329,6 +339,7 @@ public partial class BoardPage : ContentPage
                 Title = column.Title,
                 Categories = new List<object> { column.Id.ToString() },
                 PlaceholderStyle = placeholderStyle,
+                AllowDrag = !IsFiltering,
                 // Replaces the control's stark white default column panel.
                 Background = columnBrush,
             };
@@ -423,6 +434,11 @@ public partial class BoardPage : ContentPage
         {
             foreach (var card in column.Cards.OrderBy(c => c.SortOrder))
             {
+                if (!MatchesFilter(card))
+                {
+                    continue;
+                }
+
                 nextCards.Add(new BoardKanbanCard
                 {
                     CardId = card.Id,
@@ -436,6 +452,101 @@ public partial class BoardPage : ContentPage
 
         kanbanCards = nextCards;
         BoardKanban.ItemsSource = kanbanCards;
+    }
+
+    private bool IsFiltering => filterTags.Count > 0 || textMatches is not null;
+
+    private bool MatchesFilter(CardViewModel card) =>
+        (textMatches is null || textMatches.Contains(card.Id))
+        && (filterTags.Count == 0 || card.Tags.Any(filterTags.Contains));
+
+    /// <summary>One toggle per tag the editor offers; a chosen one narrows the board to the notes that carry it.</summary>
+    private void BuildFilterTags()
+    {
+        foreach (var tag in CardTags.Palette)
+        {
+            var button = new Button
+            {
+                Text = tag,
+                FontSize = 20,
+                Style = (Style)Application.Current!.Resources["GhostIconButton"],
+            };
+            button.Clicked += (_, _) =>
+            {
+                if (!filterTags.Remove(tag))
+                {
+                    filterTags.Add(tag);
+                }
+
+                button.BackgroundColor = filterTags.Contains(tag) ? Color.FromArgb("#33808080") : Colors.Transparent;
+                ApplyFilter();
+            };
+            filterTagButtons[tag] = button;
+            FilterTagRow.Add(button);
+        }
+    }
+
+    /// <summary>Shows or hides the bar; hiding it also lifts the filter, so a board is never left narrowed with no sign of why.</summary>
+    private void OnFilterClicked(object? sender, EventArgs e)
+    {
+        FilterBar.IsVisible = !FilterBar.IsVisible;
+        if (FilterBar.IsVisible)
+        {
+            FilterEntry.Focus();
+            return;
+        }
+
+        FilterEntry.Text = string.Empty;
+        filterTags.Clear();
+        foreach (var button in filterTagButtons.Values)
+        {
+            button.BackgroundColor = Colors.Transparent;
+        }
+
+        textMatches = null;
+        ApplyFilter();
+    }
+
+    private async void OnFilterTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        filterSearch?.Cancel();
+        var text = e.NewTextValue?.Trim() ?? string.Empty;
+        if (text.Length == 0 || searchViewModel is null)
+        {
+            textMatches = null;
+            ApplyFilter();
+            return;
+        }
+
+        var source = filterSearch = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(300, source.Token);
+            var matches = await searchViewModel.FindCardIdsAsync(text);
+            if (source.IsCancellationRequested)
+            {
+                return;
+            }
+
+            textMatches = matches;
+            ApplyFilter();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        FilterButton.Style = (Style)Application.Current!.Resources[IsFiltering ? "AccentIconButton" : "GhostIconButton"];
+
+        // The drop index of a drag is a position among the notes that are shown, which is not a
+        // position in the column while some of them are left out.
+        foreach (var column in BoardKanban.Columns)
+        {
+            column.AllowDrag = !IsFiltering;
+        }
+        RebuildKanbanCards();
     }
 
     private bool ReadAutoSizeCards() =>

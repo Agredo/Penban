@@ -170,6 +170,16 @@ public partial class SearchViewModel : ObservableObject
     }
 
     /// <summary>
+    /// The ids of every note whose recognised text contains <paramref name="text"/>, for narrowing
+    /// down one board rather than listing results; no cap, because a board is filtered by it.
+    /// </summary>
+    public async Task<HashSet<Guid>> FindCardIdsAsync(string text)
+    {
+        var matches = await recognition().SearchAsync(text.Trim(), int.MaxValue);
+        return matches.Select(match => match.CardId).ToHashSet();
+    }
+
+    /// <summary>
     /// The empty state follows from the result list and from the two flags, so it is announced once
     /// the list is complete - not while it is still being filled, which would flash the empty state
     /// over a search that is about to find something.
