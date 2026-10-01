@@ -12,10 +12,10 @@ public readonly record struct PenSlot(string ColorHex, float Thickness)
     /// <summary>Colour the first pen starts with: the ink a note is written in by default.</summary>
     public const string FirstColorHex = "#000000";
 
-    /// <summary>Colour the second pen starts with, so the two are told apart at a glance.</summary>
+    /// <summary>Colour the second pen starts with, so the first two are told apart at a glance.</summary>
     public const string SecondColorHex = "#C62828";
 
-    /// <summary>Width the second pen starts with: wider than the first, so the pair reads as two pens.</summary>
+    /// <summary>Width the second pen starts with: wider than the first, so the pens read as different ones.</summary>
     public const float SecondThickness = 7f;
 }
 
@@ -26,7 +26,7 @@ public readonly record struct PenSlot(string ColorHex, float Thickness)
 public static class PenSlots
 {
     /// <summary>Number of pens the toolbar shows.</summary>
-    public const int Count = 2;
+    public const int Count = 5;
 
     private const char SlotSeparator = ';';
     private const char FieldSeparator = '|';
@@ -36,6 +36,9 @@ public static class PenSlots
     [
         new(PenSlot.FirstColorHex, PenThickness.Default),
         new(PenSlot.SecondColorHex, PenSlot.SecondThickness),
+        new("#1B4FD8", 2.5f),
+        new("#1B7F3B", 4f),
+        new("#E07000", 11f),
     ];
 
     /// <summary>Writes the pens as one value: <c>#RRGGBB|width;#RRGGBB|width</c>.</summary>
