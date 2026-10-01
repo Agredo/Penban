@@ -11,6 +11,12 @@ namespace Penban.Maui.Views.Widget;
 /// </summary>
 public static class WidgetSnapshotFactory
 {
+    /// <summary>
+    /// Raise whenever the drawing of a widget changes without its data changing: the widget shows
+    /// pre-rendered images, and a fingerprint of the data alone would keep the old pictures.
+    /// </summary>
+    private const int DrawVersion = 2;
+
     /// <summary>Builds the snapshot, including the fingerprint of the data it was built from.</summary>
     public static WidgetSnapshot Create(IReadOnlyList<BoardViewModel> boards, Guid? preferredBoardId = null)
     {
@@ -142,7 +148,8 @@ public static class WidgetSnapshotFactory
     {
         var text = new StringBuilder();
 
-        text.Append(board.Title).Append('|')
+        text.Append(DrawVersion).Append('|')
+            .Append(board.Title).Append('|')
             .Append(board.WidgetSummaryText).Append('|')
             .Append(board.CardCount).Append('|')
             .Append(board.HasNote).Append('|')

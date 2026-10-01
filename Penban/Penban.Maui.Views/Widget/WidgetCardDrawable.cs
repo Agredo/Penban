@@ -8,7 +8,7 @@ namespace Penban.Maui.Views.Widget;
 /// <summary>The three widget sizes, which differ in what they have room for.</summary>
 public enum WidgetCardKind
 {
-    /// <summary>The square widget: the stack of notes, and nothing else.</summary>
+    /// <summary>The square widget: a small stack of notes with the load bar below it.</summary>
     Square,
 
     /// <summary>The wide widget: stack beside title, caption and load bar.</summary>
@@ -41,6 +41,9 @@ public sealed class WidgetCardDrawable : IDrawable
 
     /// <summary>Room around the notes in the square widget, whose whole surface is the card.</summary>
     public const float SquareInset = 12f;
+
+    /// <summary>Room between the stack and the load bar in the square widget.</summary>
+    public const float SquareChipGap = 8f;
 
     /// <summary>Narrowest a lane chip is drawn; below this the number on it stops reading.</summary>
     public const float MinimumChipWidth = 30f;
@@ -144,11 +147,15 @@ public sealed class WidgetCardDrawable : IDrawable
         if (kind == WidgetCardKind.Square)
         {
             // The square widget has no room for a word of text, so there is nothing for a card to
-            // separate: the whole surface is the card, which gives the notes the room instead of
-            // shrinking them into a thumbnail.
+            // separate: the whole surface is the card. The load bar sits under a smaller stack, which
+            // is how the widget still says how many notes each column holds.
             canvas.FillColor = palette.Surface;
             canvas.FillRectangle(frame);
-            new NoteStackDrawable(notes).Draw(canvas, Inset(frame, SquareInset));
+
+            var content = Inset(frame, SquareInset);
+            var stackHeight = content.Height - ChipHeight - SquareChipGap;
+            new NoteStackDrawable(notes).Draw(canvas, new RectF(content.X, content.Y, content.Width, stackHeight));
+            DrawChips(canvas, new RectF(content.X, content.Bottom - ChipHeight, content.Width, ChipHeight));
         }
         else
         {
