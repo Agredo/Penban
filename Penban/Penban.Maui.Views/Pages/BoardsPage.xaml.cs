@@ -39,6 +39,35 @@ public partial class BoardsPage : ContentPage
         BindingContext = viewModel;
     }
 
+    /// <summary>Page width from which a board card keeps its thumbnail beside its text.</summary>
+    private const double WideCardPageWidth = 700;
+
+    private bool? wideCards;
+
+    /// <summary>
+    /// Gives the list the card layout that fits the page. A card cannot rearrange itself - changing
+    /// the layout of a live grid in the list takes WinUI down - so the list swaps templates instead,
+    /// which only happens where the page crosses the width, not on every resize.
+    /// </summary>
+    protected override void OnSizeAllocated(double width, double height)
+    {
+        base.OnSizeAllocated(width, height);
+
+        if (width <= 0)
+        {
+            return;
+        }
+
+        var wide = width >= WideCardPageWidth;
+        if (wide == wideCards)
+        {
+            return;
+        }
+
+        wideCards = wide;
+        var key = wide ? "WideBoardCard" : "NarrowBoardCard";
+        BoardsList.ItemTemplate = (DataTemplate)Resources[key];
+    }
     protected override async void OnAppearing()
     {
         base.OnAppearing();
