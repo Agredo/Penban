@@ -221,6 +221,7 @@ public class DataTransferService : IDataTransferService
         ColumnId = columnId,
         SortOrder = sortOrder,
         NoteColorIndex = source.NoteColorIndex,
+        Tags = source.Tags ?? [],
         Strokes = source.Strokes,
         UpdatedAtUtc = source.UpdatedAtUtc,
     };

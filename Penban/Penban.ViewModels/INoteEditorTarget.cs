@@ -20,6 +20,15 @@ public interface INoteEditorTarget
     /// </summary>
     int NoteColorIndex { get; set; }
 
+    /// <summary>True when the note can carry tags; the board's own note cannot.</summary>
+    bool SupportsTags { get; }
+
+    /// <summary>The tags pinned to the note.</summary>
+    IReadOnlyList<string> Tags { get; }
+
+    /// <summary>Pins the tag, or takes it off when it is there. Returns false when the note is full.</summary>
+    bool ToggleTag(string tag);
+
     /// <summary>True once the user has confirmed and completed deletion, so the editor stops writing.</summary>
     bool IsDeleted { get; }
 

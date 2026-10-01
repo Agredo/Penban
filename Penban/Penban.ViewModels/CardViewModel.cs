@@ -51,6 +51,26 @@ public partial class CardViewModel : ObservableObject, INoteEditorTarget
         }
     }
 
+    public bool SupportsTags => true;
+
+    public IReadOnlyList<string> Tags => card.Tags;
+
+    /// <summary>The tags as the one line drawn on the note.</summary>
+    public string TagsText => CardTags.Join(card.Tags);
+
+    public bool ToggleTag(string tag)
+    {
+        card.Tags ??= [];
+        if (!CardTags.Toggle(card.Tags, tag))
+        {
+            return false;
+        }
+
+        OnPropertyChanged(nameof(Tags));
+        OnPropertyChanged(nameof(TagsText));
+        return true;
+    }
+
     /// <summary>Tilt of this card's note in degrees.</summary>
     public double NoteTilt => NoteStyle.TiltFor(card.Id);
 

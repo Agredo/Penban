@@ -96,6 +96,14 @@
                              Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
                     <!-- Paper colours, filled in from the palette so a swatch is the note itself. -->
                     <HorizontalStackLayout x:Name="ColorPicker" Spacing="10" Padding="2" VerticalOptions="Center" />
+                    <!-- Tags: emoji pinned to the note, filled in from CardTags.Palette in the
+                         code-behind. Hidden for the board's own note, which cannot carry any. -->
+                    <BoxView x:Name="TagSeparator"
+                             WidthRequest="1"
+                             HeightRequest="24"
+                             VerticalOptions="Center"
+                             Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+                    <HorizontalStackLayout x:Name="TagPicker" Spacing="4" VerticalOptions="Center" />
                 </HorizontalStackLayout>
             </ScrollView>
 

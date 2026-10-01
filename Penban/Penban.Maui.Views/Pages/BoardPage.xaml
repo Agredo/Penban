@@ -135,11 +135,19 @@
                             <controls:StickyNoteBorder.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnCardTapped" />
                             </controls:StickyNoteBorder.GestureRecognizers>
-                            <controls:InkPreviewView HorizontalOptions="Fill"
-                                                     VerticalOptions="Fill"
-                                                     BackgroundColor="Transparent"
-                                                     SourceRect="{Binding NoteSource}"
-                                                     StrokesSource="{Binding Card.InkCanvas.Strokes}" />
+                            <Grid>
+                                <controls:InkPreviewView HorizontalOptions="Fill"
+                                                         VerticalOptions="Fill"
+                                                         BackgroundColor="Transparent"
+                                                         SourceRect="{Binding NoteSource}"
+                                                         StrokesSource="{Binding Card.InkCanvas.Strokes}" />
+                                <!-- The tags pinned to the note, in its lower right corner. -->
+                                <Label Text="{Binding Card.TagsText}"
+                                       FontSize="16"
+                                       HorizontalOptions="End"
+                                       VerticalOptions="End"
+                                       InputTransparent="True" />
+                            </Grid>
                         </controls:StickyNoteBorder>
                     </Grid>
                 </DataTemplate>
