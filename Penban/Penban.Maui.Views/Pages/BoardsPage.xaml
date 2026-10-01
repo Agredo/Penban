@@ -75,17 +75,15 @@
                             <TapGestureRecognizer Tapped="OnBoardTapped" />
                         </Border.GestureRecognizers>
 
-                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="6">
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
 
                             <!-- Thumbnail: this board's own notes, fanned out like a hand of them.
                                  The frame is deliberately bigger than one note, so the outer notes
                                  and their shadows have room inside the row. -->
-                            <Grid Grid.Row="1" Grid.Column="0" WidthRequest="147" HeightRequest="110" VerticalOptions="Center">
-                            <Grid WidthRequest="196"
+                            <Grid Grid.Row="1" Grid.ColumnSpan="2"
+                                  WidthRequest="196"
                                   HeightRequest="146"
                                   HorizontalOptions="Center"
-                                  VerticalOptions="Center"
-                                  Scale="0.75"
                                   BindableLayout.ItemsSource="{Binding PreviewNotes}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate>
@@ -106,11 +104,10 @@
                                     </DataTemplate>
                                 </BindableLayout.ItemTemplate>
                             </Grid>
-                            </Grid>
 
-                            <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Text="{Binding Title}" Style="{StaticResource SubtitleLabel}" VerticalOptions="Center" LineBreakMode="TailTruncation" MaxLines="2" Margin="0,0,132,0" />
+                            <Label Grid.Row="0" Grid.Column="0" Text="{Binding Title}" Style="{StaticResource SubtitleLabel}" VerticalOptions="Center" LineBreakMode="TailTruncation" MaxLines="2" />
 
-                            <VerticalStackLayout Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Spacing="6" VerticalOptions="Center">
+                            <VerticalStackLayout Grid.Row="2" Grid.ColumnSpan="2" Spacing="6">
 
                                 <!-- When it was last touched and how much sits on it -->
                                 <Label Text="{Binding SummaryText}" Style="{StaticResource CaptionLabel}" />
@@ -146,7 +143,7 @@
                                 </FlexLayout>
                             </VerticalStackLayout>
 
-                            <HorizontalStackLayout Grid.Row="0" Grid.Column="2" Spacing="4" HorizontalOptions="End" VerticalOptions="Center">
+                            <HorizontalStackLayout Grid.Row="0" Grid.Column="1" Spacing="4" HorizontalOptions="End" VerticalOptions="Center">
                                 <Button Text="&#xf6b0;"
                                         Style="{StaticResource GhostIconButton}"
                                         Clicked="OnShareBoardClicked"
