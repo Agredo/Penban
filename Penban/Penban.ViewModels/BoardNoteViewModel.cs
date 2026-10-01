@@ -51,6 +51,12 @@ public partial class BoardNoteViewModel : ObservableObject, INoteEditorTarget
         }
     }
 
+    public bool SupportsTags => false;
+
+    public IReadOnlyList<string> Tags => [];
+
+    public bool ToggleTag(string tag) => false;
+
     /// <summary>
     /// Set once the note has been cleared. The note belongs to the board rather than to the editor,
     /// so there is nothing left to write afterwards - the board simply has no note any more.

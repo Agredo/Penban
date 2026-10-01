@@ -136,6 +136,7 @@ public partial class CardInkEditorPage : ContentPage
     private readonly SettingsViewModel settingsViewModel;
     private readonly FeedbackViewModel feedbackViewModel;
     private readonly List<StickyNoteBorder> swatches = [];
+    private readonly Dictionary<string, Button> tagButtons = [];
     private readonly List<Border> penSlotFrames = [];
     private readonly List<PenGlyphView> penSlotGlyphs = [];
     private readonly List<Label> penSlotChevrons = [];
@@ -229,6 +230,7 @@ public partial class CardInkEditorPage : ContentPage
         recentColors = PenColorHistory.Parse(preferences.Get(PreferenceKeys.PenRecentColors, string.Empty));
         activePenSlot = ReadActivePenSlot();
         BuildColorPicker();
+        BuildTagPicker();
         BuildPenSlots();
         BuildPenFlyout();
         ApplyPenSlot();
@@ -318,6 +320,51 @@ public partial class CardInkEditorPage : ContentPage
         }
 
         UpdateColorPicker();
+    }
+
+    /// <summary>Fills the tag row with one button per emoji; a pinned tag wears a tinted background.</summary>
+    private void BuildTagPicker()
+    {
+        TagSeparator.IsVisible = noteTarget.SupportsTags;
+        TagPicker.IsVisible = noteTarget.SupportsTags;
+        if (!noteTarget.SupportsTags)
+        {
+            return;
+        }
+
+        foreach (var tag in CardTags.Palette)
+        {
+            var button = new Button
+            {
+                Text = tag,
+                FontSize = 20,
+                Style = (Style)Application.Current!.Resources["GhostIconButton"],
+            };
+            button.Clicked += (_, _) => ApplyTag(tag);
+            tagButtons[tag] = button;
+            TagPicker.Add(button);
+        }
+
+        UpdateTagPicker();
+    }
+
+    private void ApplyTag(string tag)
+    {
+        if (!noteTarget.ToggleTag(tag))
+        {
+            return;
+        }
+
+        UpdateTagPicker();
+        QueueSave();
+    }
+
+    private void UpdateTagPicker()
+    {
+        foreach (var (tag, button) in tagButtons)
+        {
+            button.BackgroundColor = noteTarget.Tags.Contains(tag) ? Color.FromArgb("#33808080") : Colors.Transparent;
+        }
     }
 
     /// <summary>Repaints the writing surface and remembers the choice on the card.</summary>

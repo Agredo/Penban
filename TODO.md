@@ -33,7 +33,8 @@ Taken from the "Penban Feedback" board, grouped by column. `[x]` = done, `[~]` =
 - [ ] Shape recognition: draw and hold makes lines, rectangles/squares, circles/ellipses; hold and drag to resize. Maybe just straight lines at the beginning.
 - [ ] Board tags for grouping and filtering.
 - [ ] Widget with multiple boards: select by tag and last edited. Probably wait for board tags.
-- [ ] Card pins = tags (bonus: a hand-drawn set per board).
+- [~] Card tags/pins: emoji, stickers or hand-drawn pins as tags on cards (one set per board). Emoji tags (fixed set, max 4 per card) can be pinned in the editor and show on the note; stickers, hand-drawn/per-board sets are missing.
+  - Later: filter/group cards by these tags.
 - [ ] Share selected columns/cards.
 - [ ] Gesture: three-finger drag changes the pen thickness.
 - [ ] Group/filter cards by colour and by search text.

@@ -21,6 +21,9 @@ public class Card : SyncableEntity
     /// </summary>
     public int? NoteColorIndex { get; set; }
 
+    /// <summary>Emoji tags pinned to the note. Empty for cards written before tags existed.</summary>
+    public List<string> Tags { get; set; } = new();
+
     /// <summary>
     /// The <see cref="InkDocument"/> space version <see cref="Strokes"/> were captured in. Cards written
     /// before the coordinate space was fixed read <c>0</c> and are converted once on load; new cards are
