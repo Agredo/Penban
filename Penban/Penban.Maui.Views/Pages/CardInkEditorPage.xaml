@@ -152,6 +152,18 @@
                 </controls:StickyNoteBorder>
             </Border>
 
+            <!-- The layer that takes a tap outside the flyout. It lies over the note but under the
+                 flyout, and it is up exactly while the flyout is: a tap on the note puts the flyout
+                 away instead of drawing, which is what makes the flyout behave like the popup it is
+                 rather than one that has to be dismissed by pressing its own pen a second time. -->
+            <Grid x:Name="PenFlyoutBackdrop"
+                  IsVisible="False"
+                  BackgroundColor="Transparent">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnPenFlyoutBackdropTapped" />
+                </Grid.GestureRecognizers>
+            </Grid>
+
             <!-- The pen flyout: what the pen that is drawing is made of, opened by pressing that pen
                  a second time - the first press takes the other one up. It hangs downward from the top
                  of this cell - which is where the row above ends - so it covers the top of the note

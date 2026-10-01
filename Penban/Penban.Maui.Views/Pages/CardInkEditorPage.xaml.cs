@@ -566,8 +566,15 @@ public partial class CardInkEditorPage : ContentPage
             RecentColors.Add(swatch);
         }
 
-        ThicknessSlider.Minimum = PenThickness.Minimum;
-        ThicknessSlider.Maximum = PenThickness.Maximum;
+        // Giving the slider its range moves its value: it starts at zero, which is below the narrowest
+        // width there is, and the range pulls it up onto that minimum. The move is reported like a drag
+        // of the control, so without the mark the narrowest width there is would be written into the pen
+        // in hand and stored as its own - which is what made a width that was set fail to come back.
+        WithoutFlyoutFeedback(() =>
+        {
+            ThicknessSlider.Minimum = PenThickness.Minimum;
+            ThicknessSlider.Maximum = PenThickness.Maximum;
+        });
 
         HueStrip.HueChanged += OnHueChanged;
         ColorArea.ColorChanged += OnColorAreaChanged;
@@ -652,28 +659,45 @@ public partial class CardInkEditorPage : ContentPage
     {
         var slot = penSlots[activePenSlot];
 
-        isUpdatingPenFlyout = true;
-
-        PenFlyoutTitle.Text = string.Format(CultureInfo.CurrentCulture, Strings.PenSlotTitleFormat, activePenSlot + 1);
-
-        PenHexSwatch.BackgroundColor = Color.FromArgb(slot.ColorHex);
-        PenHexError.IsVisible = false;
-
-        ThicknessValue.Text = FormatThickness(slot.Thickness);
-        ThicknessPreview.Color = Color.FromArgb(slot.ColorHex);
-        ThicknessPreview.Thickness = slot.Thickness;
-
-        if (!keepControls)
+        WithoutFlyoutFeedback(() =>
         {
-            PenHexEntry.Text = slot.ColorHex;
-            ThicknessSlider.Value = slot.Thickness;
-            HueStrip.Hue = PenColor.ToHsv(slot.ColorHex).Hue;
-            ColorArea.SetColor(slot.ColorHex);
-        }
+            PenFlyoutTitle.Text = string.Format(CultureInfo.CurrentCulture, Strings.PenSlotTitleFormat, activePenSlot + 1);
 
-        isUpdatingPenFlyout = false;
+            PenHexSwatch.BackgroundColor = Color.FromArgb(slot.ColorHex);
+            PenHexError.IsVisible = false;
+
+            ThicknessValue.Text = FormatThickness(slot.Thickness);
+            ThicknessPreview.Color = Color.FromArgb(slot.ColorHex);
+            ThicknessPreview.Thickness = slot.Thickness;
+
+            if (!keepControls)
+            {
+                PenHexEntry.Text = slot.ColorHex;
+                ThicknessSlider.Value = slot.Thickness;
+                HueStrip.Hue = PenColor.ToHsv(slot.ColorHex).Hue;
+                ColorArea.SetColor(slot.ColorHex);
+            }
+        });
 
         UpdatePenColorMarks(slot.ColorHex);
+    }
+
+    /// <summary>
+    /// Writes to the flyout's controls without the writes being read back as choices. Every one of them
+    /// reports a value that is put into it the same way it reports one a finger moves - and giving the
+    /// width slider its range does move its value, from zero onto the narrowest width there is.
+    /// </summary>
+    private void WithoutFlyoutFeedback(Action write)
+    {
+        isUpdatingPenFlyout = true;
+        try
+        {
+            write();
+        }
+        finally
+        {
+            isUpdatingPenFlyout = false;
+        }
     }
 
     /// <summary>
@@ -737,8 +761,17 @@ public partial class CardInkEditorPage : ContentPage
 
         UpdatePenFlyout();
         PenFlyout.IsVisible = true;
+        PenFlyoutBackdrop.IsVisible = true;
         PlacePenFlyout();
     }
+
+    /// <summary>
+    /// A tap outside the flyout - anywhere on the note, or on the cell around it - puts it away. The
+    /// layer that catches the tap lies over the note, so the tap that dismisses the flyout does not
+    /// draw on it: the first tap belongs to the flyout, which is what a popup that covers part of its
+    /// own surface has to do.
+    /// </summary>
+    private void OnPenFlyoutBackdropTapped(object? sender, TappedEventArgs e) => ClosePenFlyout();
 
     /// <summary>
     /// Puts the flyout under the pen it belongs to, centred on it, with both edges of the cell
@@ -761,7 +794,11 @@ public partial class CardInkEditorPage : ContentPage
     /// Puts the flyout away. The colour and the width that were taken stay set and the flyout stays
     /// where it was, so asking for the same pen again opens it in the same place.
     /// </summary>
-    private void ClosePenFlyout() => PenFlyout.IsVisible = false;
+    private void ClosePenFlyout()
+    {
+        PenFlyout.IsVisible = false;
+        PenFlyoutBackdrop.IsVisible = false;
+    }
 
     /// <summary>
     /// Wipes the note in one edit, so a single undo brings the whole of it back - the same button that
