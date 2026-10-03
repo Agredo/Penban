@@ -129,11 +129,33 @@ public partial class BoardViewModel : ObservableObject
 
         var columns = board.Columns
             .OrderBy(c => c.SortOrder)
-            .Select(c => new ColumnViewModel(c, cardService, dialogService))
+            .Select(ToColumnViewModel)
             .ToList();
         Replace(Columns, columns);
 
         await LoadSummaryAsync();
+    }
+
+    /// <summary>
+    /// The view model for one lane of the board as it was just read, reusing the instance that is
+    /// already there for a lane that is still on the board.
+    /// <para>
+    /// A fresh instance would come with an empty card collection, and the board page - which is
+    /// showing these very lanes - answers that by reading every note of the lane again. On a board
+    /// that is open while the overview is refreshed (which is the case for the board that was just
+    /// opened, see <c>BoardsPage.OpenBoardAsync</c>) that is a second, needless pass over all of its
+    /// notes, one lane at a time, on the way to the board the reader asked for.
+    /// </para>
+    /// </summary>
+    private ColumnViewModel ToColumnViewModel(BoardColumn column)
+    {
+        if (Columns.FirstOrDefault(existing => existing.Id == column.Id) is { } kept)
+        {
+            kept.Update(column);
+            return kept;
+        }
+
+        return new ColumnViewModel(column, cardService, dialogService);
     }
 
     /// <summary>
@@ -270,18 +292,24 @@ public partial class BoardViewModel : ObservableObject
     /// Replacing and removing one at a time raises an event per place instead, which the same
     /// controller handles without tearing the layout down.
     /// </para>
+    /// <para>
+    /// A place that already holds this very item is left alone. Writing it would raise a replace
+    /// event for a change that did not happen, and the board page answers those by reading the
+    /// lane's cards again - so re-reading a board that did not change would cost a full pass over
+    /// its notes.
+    /// </para>
     /// </summary>
     private static void Replace<T>(ObservableCollection<T> target, IReadOnlyList<T> items)
     {
         for (var index = 0; index < items.Count; index++)
         {
-            if (index < target.Count)
-            {
-                target[index] = items[index];
-            }
-            else
+            if (index >= target.Count)
             {
                 target.Add(items[index]);
+            }
+            else if (!ReferenceEquals(target[index], items[index]))
+            {
+                target[index] = items[index];
             }
         }
 

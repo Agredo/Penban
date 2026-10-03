@@ -5,7 +5,7 @@
 #   scripts/ios-widget.sh build [Debug|Release]   Extension bauen und ablegen (Standard: Release)
 #   scripts/ios-widget.sh clean                   Build-Ordner der Extension löschen
 #
-# VERSION=0.5.0 und BUILD=12 setzen die Version der Extension; sie muss der App entsprechen, sonst
+# VERSION=0.5.2 und BUILD=14 setzen die Version der Extension; sie muss der App entsprechen, sonst
 # lehnt App Store Connect das Paket ab (90473). Ohne die Variablen gelten die Werte aus project.yml.
 # scripts/ios-testflight.sh reicht hier automatisch die Version durch, die es in die App schreibt.
 #

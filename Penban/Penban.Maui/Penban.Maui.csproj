@@ -18,8 +18,8 @@
 
     <ApplicationTitle>Penban</ApplicationTitle>
     <ApplicationId>com.agredoapplication.panban</ApplicationId>
-    <ApplicationDisplayVersion>0.5.0</ApplicationDisplayVersion>
-    <ApplicationVersion>12</ApplicationVersion>
+    <ApplicationDisplayVersion>0.5.2</ApplicationDisplayVersion>
+    <ApplicationVersion>14</ApplicationVersion>
     <!-- The platform SDKs derive Version/PackageVersion from ApplicationDisplayVersion inside each
          target framework, but the outer cross-targeting build keeps the 1.0.0 default. NuGet's
          Visual Studio restore reads both and fails with NU1105 ("PackageVersion should have a single
@@ -52,18 +52,33 @@
          dotnet build Penban.Maui.csproj -f net10.0-windows10.0.19041.0 -c Release -p:PenbanMsix=true
        The single-project MSIX tooling is opt-in through EnableMsixTooling; GenerateAppxPackageOnBuild
        makes the build itself write the package instead of only Visual Studio's Package and Publish.
-       All of this has to stand in the project file, not in a Directory.Build.targets: the MSIX targets
-       read these properties while they are evaluated, and those targets are imported before
-       Directory.Build.targets. The result lands in AppxPackageDir, which defaults to AppPackages\ next
-       to the project - pass -p:AppxPackageDir=<path> to put it somewhere else.
+       All of this has to stand in the project file, not in a Directory.Build.targets: the MAUI, Windows
+       App SDK and MSIX targets read these properties while they are evaluated, so setting them in
+       Directory.Build.targets would be too late. The result lands in AppxPackageDir, which defaults to
+       AppPackages\ next to the project - pass -p:AppxPackageDir=<path> to put it somewhere else.
 
-       A bundle covering both architectures needs one build per architecture and then a bundle pass,
-       because AppxBundlePlatforms may only name packages that already exist on disk:
-         -p:RuntimeIdentifier=win-x64   -p:PlatformTarget=x64   -p:Platform=x64
-         -p:RuntimeIdentifier=win-arm64 -p:PlatformTarget=arm64 -p:Platform=arm64
-         -p:AppxBundlePlatforms=x64|arm64
-       Each per-architecture pass records its package in BundleArtifacts\<arch>.txt, and the bundle
-       pass consumes those lists.
+       The target architecture is selected with -p:Platform alone: Directory.Build.props turns it into
+       RuntimeIdentifier=win-<Platform> and PlatformTarget=<Platform> for every Windows TFM. Never pass
+       -p:RuntimeIdentifier or -p:PlatformTarget by hand. Without that the RuntimeIdentifier does not
+       follow Platform - the MAUI SDK would fall back to the *build host*, and the bundle pass below
+       would leak its own RuntimeIdentifier into the nested build for the other architecture. That is
+       how the arm64 package of Penban 0.5.0 ended up with an x64 app host and an x64 Windows App SDK
+       bootstrapper next to arm64 managed assemblies: the package installed fine and then never started
+       (FileLoadException while the CLR loaded the first assembly).
+       PenbanValidateWindowsArchitecture in Directory.Build.targets fails the build if the compiled
+       binaries do not match Platform.
+
+       A bundle covering both architectures needs one build per architecture and then a bundle pass:
+         -p:Platform=x64
+         -p:Platform=arm64
+         -p:Platform=arm64 -p:AppxBundlePlatforms=x64|arm64
+       The bundle pass has to run with the Platform named last in AppxBundlePlatforms, because that
+       is the platform the bundle itself is produced for. It then builds the remaining platforms
+       itself, through a nested MSBuild call that only passes Platform and never restores - which is
+       why Directory.Build.props asks for both Windows RuntimeIdentifiers as soon as PenbanMsix is
+       set: without them the nested build fails with NETSDK1047 ("project.assets.json has no target
+       for .../win-x64"). Each per-architecture build records its package in
+       BundleArtifacts\<arch>.txt.
 
        Sideload builds are signed with the local "Penban Local" certificate, whose public half ships
        as Penban\dist\penban-local.cer and which must also sit in the trusted root store. The

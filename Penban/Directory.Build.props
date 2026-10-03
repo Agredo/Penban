@@ -24,4 +24,40 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!-- Target architecture for the Windows head and everything it references.
+
+       `Platform` is the single source of truth for the target architecture: the MSIX
+       recipe passes -p:Platform=<x64|arm64>. Without the block below the RuntimeIdentifier
+       does not follow Platform:
+
+         * the MAUI SDK falls back to the *host* architecture, so the machine that builds a
+           package would decide what ends up inside it, and
+         * the bundle pass builds the architecture it is not running for through a nested
+           MSBuild call that only overrides Platform, so that nested build inherits the
+           RuntimeIdentifier of the architecture the bundle is produced for.
+
+       That is what produced the arm64 package of Penban 0.5.0: it shipped an x64 app host
+       (Penban.Maui.exe) and an x64 Microsoft.WindowsAppRuntime.Bootstrap.dll next to arm64
+       managed assemblies, byte-identical to the ones in the x64 package. The CLR then
+       refuses to start the app with FileLoadException "the assembly architecture is not
+       compatible with the current process architecture" and the window never appears.
+
+       Applying it in Directory.Build.props (instead of only in the head project) also keeps
+       referenced projects' output paths in sync, which is what the PRI/packaging targets
+       expect when the head project is built for a specific RID. -->
+  <PropertyGroup Condition="'$(TargetFramework)' != '' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' and ('$(Platform)' == 'x64' or '$(Platform)' == 'arm64' or '$(Platform)' == 'x86')">
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$(Platform)</RuntimeIdentifier>
+    <PlatformTarget>$(Platform)</PlatformTarget>
+  </PropertyGroup>
+
+  <!-- MSIX bundles: the bundle pass builds the architectures it does not build itself through a
+       nested MSBuild call that only passes Platform and never restores. Every project in that
+       graph therefore has to know both Windows RuntimeIdentifiers up front, otherwise the nested
+       build fails with NETSDK1047 ("project.assets.json has no target for .../win-x64").
+       Restore only: RuntimeIdentifier (singular, derived from Platform above) decides what is
+       actually built. -->
+  <PropertyGroup Condition="'$(PenbanMsix)' == 'true' and '$(TargetFramework)' != '' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
 </Project>
