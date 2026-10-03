@@ -39,11 +39,42 @@ public interface IInkCanvasView
     /// <returns>Whether there was anything to remove.</returns>
     bool EraseAll();
 
+    /// <summary>Which of the tools a contact on the surface is taken as - see <see cref="InkTool"/>.</summary>
+    InkTool Tool { get; set; }
+
+    /// <summary>
+    /// Raised when <see cref="Tool"/> changes, whatever changed it: a button of the toolbar, the
+    /// Apple Pencil's own double-tap, or a pen button that is only down for the length of a press.
+    /// </summary>
+    event EventHandler? ToolChanged;
+
     /// <summary>
     /// When true, touch input removes whole strokes under the touch point instead of drawing
     /// new ones - a simple, forgiving "eraser" that matches how a real pen/eraser feels on paper.
+    /// <para>
+    /// This is <see cref="Tool"/> being the eraser, and it stays because the two have to agree
+    /// whichever of them a caller writes: reading it is how code that only knows of the two tools
+    /// asks which one is drawing.
+    /// </para>
     /// </summary>
     bool IsEraserMode { get; set; }
+
+    /// <summary>How many strokes the lasso has picked up - see <see cref="DeleteSelection"/>.</summary>
+    int SelectionCount { get; }
+
+    /// <summary>
+    /// Raised when the set of picked-up strokes changes: a lasso was closed around a different
+    /// set, one was taken away, or the set was dropped because the strokes underneath were replaced
+    /// (an undo, a load, a wipe).
+    /// </summary>
+    event EventHandler? SelectionChanged;
+
+    /// <summary>
+    /// Removes the strokes the lasso picked up, as one edit that <see cref="Undo"/> brings back in
+    /// full. The selection is then empty again, because what it named is gone.
+    /// </summary>
+    /// <returns>Whether there was a selection to remove.</returns>
+    bool DeleteSelection();
 
     /// <summary>
     /// Colour of strokes drawn from now on, as <c>#RRGGBB</c> - the same format as

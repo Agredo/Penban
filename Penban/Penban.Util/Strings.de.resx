@@ -145,6 +145,12 @@
   <data name="Eraser" xml:space="preserve">
     <value>Radiergummi</value>
   </data>
+  <data name="Lasso" xml:space="preserve">
+    <value>Lasso</value>
+  </data>
+  <data name="DeleteSelection" xml:space="preserve">
+    <value>Auswahl löschen</value>
+  </data>
   <data name="Pen" xml:space="preserve">
     <value>Stift</value>
   </data>
@@ -199,6 +205,9 @@
   <data name="PressureSensitiveWidth" xml:space="preserve">
     <value>Strichbreite folgt dem Stiftdruck</value>
   </data>
+  <data name="ShapeRecognition" xml:space="preserve">
+    <value>Linie, Rechteck und Ellipse nach kurzem Halten begradigen</value>
+  </data>
   <data name="PressureWidthOn" xml:space="preserve">
     <value>Strichbreite folgt dem Stiftdruck</value>
   </data>
@@ -210,6 +219,9 @@
   </data>
   <data name="PenTailEraser" xml:space="preserve">
     <value>Radieren mit der Stift-Rückseite</value>
+  </data>
+  <data name="PenButtonLasso" xml:space="preserve">
+    <value>Stift-Taste halten, um zu markieren</value>
   </data>
   <data name="TiltDetectionEnabled" xml:space="preserve">
     <value>Strichbreite folgt der Stiftneigung</value>

@@ -19,8 +19,9 @@ public partial class SettingsPage : ContentPage
         BindingContext = viewModel;
 
         // Only Windows reports which end of the pen is against the surface, so the row would be a
-        // dead switch anywhere else.
+        // dead switch anywhere else. The same goes for the button on the pen itself.
         PenTailEraserRow.IsVisible = OperatingSystem.IsWindows();
+        PenButtonLassoRow.IsVisible = OperatingSystem.IsWindows();
     }
 
     protected override void OnAppearing()

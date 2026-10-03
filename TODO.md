@@ -3,7 +3,9 @@
 Taken from the "Penban Feedback" board, grouped by column. `[x]` = done, `[~]` = partly done.
 The QoL and "Future cool stuff" columns are written out in German as well, with the file and the
 symbol behind every verdict: [docs/feedback-qol-cool-stuff.md](docs/feedback-qol-cool-stuff.md).
-QoL 1, 2, 3, 4 and 7 are built (PR #48) but not released yet.
+QoL 1, 2, 3, 4 and 7 are built (PR #48) but not released yet; the lasso and the shape recognition sit
+on top of that (PR #49), also not released. Both are written out in German, with the files and symbols
+behind them: [docs/lasso-und-formen.md](docs/lasso-und-formen.md).
 
 ## Bugs
 
@@ -38,7 +40,14 @@ QoL 1, 2, 3, 4 and 7 are built (PR #48) but not released yet.
 
 ## Future cool stuff
 
-- [ ] Shape recognition: draw and hold makes lines, rectangles/squares, circles/ellipses; hold and drag to resize. Maybe just straight lines at the beginning.
+- [~] Shape recognition: draw and hold makes lines, rectangles/squares, circles/ellipses; trimming a
+  drawn shape back to hand-drawn ink is in on top of that. Hold and drag to resize is missing — after
+  the hold the shape is finished; pick it up with the lasso to move it. See
+  [docs/lasso-und-formen.md](docs/lasso-und-formen.md).
+- [x] Lasso: a loop around strokes picks them up as a group, which can then be carried elsewhere or
+  thrown away, each in a single undo step. Chosen with the button in the toolbar; the button on a
+  Windows pen and the Apple Pencil double-tap/squeeze reach it as well (see
+  [docs/lasso-und-formen.md](docs/lasso-und-formen.md)).
 - [ ] Board tags for grouping and filtering.
 - [~] Widget with multiple boards: every widget picks its board, and the long press in the overview is only the suggestion. Selecting by tag and by last edited is missing.
 - [ ] Share selected columns/cards (the export knows the whole board or all of its cards, nothing in between).

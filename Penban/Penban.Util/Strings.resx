@@ -145,6 +145,12 @@
   <data name="Eraser" xml:space="preserve">
     <value>Eraser</value>
   </data>
+  <data name="Lasso" xml:space="preserve">
+    <value>Lasso</value>
+  </data>
+  <data name="DeleteSelection" xml:space="preserve">
+    <value>Delete selection</value>
+  </data>
   <data name="Pen" xml:space="preserve">
     <value>Pen</value>
   </data>
@@ -199,6 +205,9 @@
   <data name="PressureSensitiveWidth" xml:space="preserve">
     <value>Line width follows pen pressure</value>
   </data>
+  <data name="ShapeRecognition" xml:space="preserve">
+    <value>Straighten line, rectangle and ellipse after a short hold</value>
+  </data>
   <data name="PressureWidthOn" xml:space="preserve">
     <value>Line width follows pen pressure</value>
   </data>
@@ -210,6 +219,9 @@
   </data>
   <data name="PenTailEraser" xml:space="preserve">
     <value>Erase with the back of the pen</value>
+  </data>
+  <data name="PenButtonLasso" xml:space="preserve">
+    <value>Hold the pen button to select ink</value>
   </data>
   <data name="TiltDetectionEnabled" xml:space="preserve">
     <value>Line width follows pen tilt</value>

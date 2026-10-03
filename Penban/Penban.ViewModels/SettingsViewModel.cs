@@ -75,10 +75,12 @@ public partial class SettingsViewModel : ObservableObject
             SelectedInkToolUiIndex = ReadInkToolUiIndex();
             PencilDoubleTapEnabled = ReadBool(PreferenceKeys.PencilDoubleTapEnabled, true);
             PenTailEraserEnabled = ReadBool(PreferenceKeys.PenTailEraserEnabled, true);
+            PenButtonLassoEnabled = ReadBool(PreferenceKeys.PenButtonLassoEnabled, true);
             PressureSensitiveWidth = ReadBool(PreferenceKeys.PressureSensitiveWidth, true);
             AutoSizeCards = ReadBool(PreferenceKeys.AutoSizeCards, false);
             TiltDetectionEnabled = ReadBool(PreferenceKeys.TiltDetectionEnabled, false);
             TiltRenderingEffect = ReadBool(PreferenceKeys.TiltRenderingEffect, false);
+            ShapeRecognitionEnabled = ReadBool(PreferenceKeys.ShapeRecognitionEnabled, true);
             TwoFingerTapUndoEnabled = ReadBool(PreferenceKeys.TwoFingerTapUndoEnabled, true);
             ThreeFingerTapRedoEnabled = ReadBool(PreferenceKeys.ThreeFingerTapRedoEnabled, true);
             RecognitionEnabled = ReadBool(PreferenceKeys.RecognitionEnabled, true);
@@ -128,6 +130,16 @@ public partial class SettingsViewModel : ObservableObject
 
     partial void OnPenTailEraserEnabledChanged(bool value) => Persist(PreferenceKeys.PenTailEraserEnabled, value);
 
+    /// <summary>
+    /// Picking strokes up with the button on the pen itself. Which button that is only Windows can
+    /// say, so the settings page hides the row everywhere else. The pen button is what the eraser-end
+    /// switch above is not: the tool is not changed for good but only for as long as it is held.
+    /// </summary>
+    [ObservableProperty]
+    private bool penButtonLassoEnabled;
+
+    partial void OnPenButtonLassoEnabledChanged(bool value) => Persist(PreferenceKeys.PenButtonLassoEnabled, value);
+
     [ObservableProperty]
     private bool pressureSensitiveWidth;
 
@@ -165,6 +177,17 @@ public partial class SettingsViewModel : ObservableObject
     private bool tiltRenderingEffect;
 
     partial void OnTiltRenderingEffectChanged(bool value) => Persist(PreferenceKeys.TiltRenderingEffect, value);
+
+    /// <summary>
+    /// Whether a stroke that is left standing for a moment is read as the shape it was drawn as and
+    /// replaced by it. On by default: it only ever answers a stroke that was left alone for longer
+    /// than writing one takes, so a note that is only written in never sees it.
+    /// </summary>
+    [ObservableProperty]
+    private bool shapeRecognitionEnabled;
+
+    partial void OnShapeRecognitionEnabledChanged(bool value) =>
+        Persist(PreferenceKeys.ShapeRecognitionEnabled, value);
 
     [ObservableProperty]
     private bool autoSizeCards;

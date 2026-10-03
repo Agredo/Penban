@@ -1,4 +1,6 @@
+using Microsoft.Maui.Dispatching;
 using Penban.Models;
+using Penban.Recognition;
 using SkiaSharp;
 using SkiaSharp.Views.Maui;
 using SkiaSharp.Views.Maui.Controls;
@@ -69,6 +71,48 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// finger moved, or has it only been put down and taken up again?
     /// </summary>
     private const float MenuTapSlop = SwipeSlop;
+
+    /// <summary>
+    /// How far the pen has to travel before another point of the lasso is kept, in document units.
+    /// The loop is only ever read as a shape - which points it encloses - so a point per reported
+    /// position would cost a great deal of testing later on and show nothing more than one every few
+    /// units does.
+    /// </summary>
+    private const float LassoPointSpacing = 5f;
+
+    /// <summary>Width of the dotted frame drawn around the picked-up strokes, in document units.</summary>
+    private const float SelectionFrameWidth = 3f;
+
+    /// <summary>
+    /// How far the frame around a picked-up group stands off the strokes themselves, in document
+    /// units. It is also how far outside the group a contact may start and still count as being on
+    /// the selection, so it has to be wide enough to be hit on purpose.
+    /// </summary>
+    private const float SelectionFrameMargin = 14f;
+
+    /// <summary>Corner radius of that frame.</summary>
+    private const float SelectionFrameCorner = 12f;
+
+    /// <summary>Dash and gap of the frame and of the loop being drawn, in document units.</summary>
+    private const float SelectionDash = 16f;
+    private const float SelectionGap = 12f;
+
+    /// <summary>Width of the loop being drawn, in document units.</summary>
+    private const float LassoLoopWidth = 2.5f;
+
+    /// <summary>
+    /// How long a stroke has to be left alone after the pen is lifted before it is read as a shape -
+    /// see <see cref="StartShapeHold"/>. Long enough that going straight on to the next letter, which
+    /// never leaves a gap this long, cancels the reading; short enough that someone waiting for a
+    /// shape to appear does not think the note missed it.
+    /// </summary>
+    private static readonly TimeSpan ShapeHoldDelay = TimeSpan.FromMilliseconds(700);
+
+    /// <summary>
+    /// Colour of the frame and of the loop. Deliberately not one of the pen colours: these mark a
+    /// selection rather than being written, so they must never be mistaken for ink.
+    /// </summary>
+    private static readonly SKColor SelectionColor = SKColor.Parse("#1B4FD8").WithAlpha(150);
 
     private readonly SKCanvasView canvasView;
     private readonly InkCommandStack commands;
@@ -171,6 +215,38 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// <summary>Where that finger went down, in document units.</summary>
     private SKPoint menuTapOrigin;
 
+    /// <summary>Which of the tools a contact is taken as - see <see cref="Tool"/>.</summary>
+    private InkTool tool = InkTool.Pen;
+
+    /// <summary>
+    /// The loop the lasso is drawing right now, in document units, and whether one is being drawn at
+    /// all. Kept while the contact is down so the loop can be seen - it is the only hint of where the
+    /// selection will end up - and read once the contact ends, which is when it picks the strokes up.
+    /// </summary>
+    private readonly List<SKPoint> lassoPath = new();
+    private bool isLassoDrawing;
+
+    /// <summary>The contact that is drawing that loop, for as long as there is one.</summary>
+    private long lassoContactId;
+
+    /// <summary>The strokes the lasso has picked up. Held as the strokes themselves, so a selection
+    /// survives the set around it being added to or erased from.</summary>
+    private readonly HashSet<InkStroke> selection = new();
+
+    /// <summary>What is being carried right now, or <c>null</c> when nothing is - see
+    /// <see cref="BeginSelectionDrag"/>.</summary>
+    private SelectionDrag? selectionDrag;
+
+    /// <summary>
+    /// The stroke whose shape is still being waited for - see <see cref="StartShapeHold"/> - and the
+    /// timer that waits for it. The stroke is kept rather than found again when the timer runs out,
+    /// because by then the pen may have written over it: the wait belongs to the stroke that started
+    /// it, not to whatever is on top of the note at the time.
+    /// </summary>
+    private InkStroke? shapeHoldStroke;
+
+    private IDispatcherTimer? shapeHoldTimer;
+
     public SkiaInkCanvasView()
     {
         canvasView = new SKCanvasView { EnableTouchEvents = true };
@@ -214,7 +290,115 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// <summary>Width of new strokes, in document units.</summary>
     public float StrokeThickness { get; set; } = DefaultStrokeThickness;
 
-    public bool IsEraserMode { get; set; }
+    /// <summary>
+    /// Which tool a contact on the surface is taken as. Both the eraser and the lasso stay on until
+    /// another tool is picked, unlike the button on the pen itself, which is only down for as long as
+    /// it is held - that one changes this for the length of the press and puts it back.
+    /// </summary>
+    public InkTool Tool
+    {
+        get => tool;
+        set
+        {
+            if (tool == value)
+            {
+                return;
+            }
+
+            // A loop that is still being drawn belongs to the tool that is being left, and a group that
+            // is being carried is put down where it stands: carrying it was already a change, and the
+            // new tool must not make the note forget it. See EndSelectionDrag.
+            LeaveLasso();
+
+            tool = value;
+            ToolChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public event EventHandler? ToolChanged;
+
+    /// <summary>
+    /// The eraser, seen the way the two-tool world of the buttons and of the pen's own double-tap
+    /// still speaks of it: <c>false</c> writes again. The lasso is not reachable through this - it is
+    /// a tool of its own and only the lasso button, the ring and the pen's button ask for it.
+    /// </summary>
+    public bool IsEraserMode
+    {
+        get => Tool == InkTool.Eraser;
+        set => Tool = value ? InkTool.Eraser : InkTool.Pen;
+    }
+
+    public int SelectionCount => selection.Count;
+
+    /// <summary>
+    /// Raised whenever the picked-up group changes, so a page can offer to throw it away - see
+    /// <see cref="DeleteSelection"/>.
+    /// </summary>
+    public event EventHandler? SelectionChanged;
+
+    /// <summary>
+    /// Takes the picked-up strokes off the note, as one edit - undoing it brings back every one of
+    /// them, in the place it had. What the selection named is gone with it, so the selection is empty
+    /// afterwards.
+    /// </summary>
+    public bool DeleteSelection()
+    {
+        if (selection.Count == 0)
+        {
+            return false;
+        }
+
+        // A stroke that was waiting to be read as a shape is taken off the note here, so the wait is
+        // given up with it.
+        CancelShapeHold();
+
+        // Ascending, and carrying the position each stroke has right now, which is the same shape an
+        // "erase everything" records its strokes in - see EraseAll.
+        var removed = new List<InkStrokePlacement>(selection.Count);
+        for (var index = 0; index < Strokes.Count; index++)
+        {
+            if (selection.Contains(Strokes[index]))
+            {
+                removed.Add(new InkStrokePlacement(index, Strokes[index]));
+            }
+        }
+
+        if (removed.Count == 0)
+        {
+            ClearSelection();
+            return false;
+        }
+
+        foreach (var placement in removed)
+        {
+            Strokes.Remove(placement.Stroke);
+        }
+
+        commands.RecordErased(removed);
+
+        // The strokes the selection named are gone, so there is nothing left to frame or to carry.
+        ClearSelection();
+        canvasView.InvalidateSurface();
+
+        // The note changed, so this is raised the way any other change to the stroke set is.
+        StrokeCompleted?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>
+    /// Drops the picked-up group without changing the note. The strokes stay where they are; only the
+    /// mark around them and the offer to throw them away go.
+    /// </summary>
+    public void ClearSelection()
+    {
+        if (selection.Count == 0)
+        {
+            return;
+        }
+
+        selection.Clear();
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>
     /// When false, a finger only scrolls and pans; only a pen or the mouse draws. Useful when the
@@ -259,6 +443,100 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// device that reports no tilt draws exactly as before.
     /// </summary>
     public bool TiltRenderingEffect { get; set; }
+
+    /// <summary>
+    /// Whether a stroke that is left to stand for a moment is read as the shape it was drawn as - a
+    /// line, a rectangle or an ellipse - and replaced by that shape. Off leaves every stroke exactly
+    /// as it was written, which is what someone drawing a deliberately rough diagram wants.
+    /// </summary>
+    public bool ShapeRecognition { get; set; } = true;
+
+    /// <summary>
+    /// Waits, after the pen has been lifted, for the stroke to be left alone - see
+    /// <see cref="ShapeHoldDelay"/>. Held as long as that, it is taken to have been drawn as a shape
+    /// rather than written, and is replaced by the shape it was read as.
+    /// <para>
+    /// The wait is what makes this liveable-with: someone writing a letter that happens to be round -
+    /// an "o", a "0", the loop of a "g" - is already on to the next stroke by then, and that next
+    /// stroke is what cancels the wait. Only someone who has stopped writing, and is waiting for the
+    /// shape to appear, gets one.
+    /// </para>
+    /// </summary>
+    private void StartShapeHold(InkStroke stroke)
+    {
+        CancelShapeHold();
+
+        if (!ShapeRecognition || stroke.Points.Count < 2 || !Strokes.Contains(stroke))
+        {
+            return;
+        }
+
+        shapeHoldStroke = stroke;
+
+        if (shapeHoldTimer is null)
+        {
+            shapeHoldTimer = Dispatcher.CreateTimer();
+            shapeHoldTimer.IsRepeating = false;
+            shapeHoldTimer.Tick += OnShapeHoldElapsed;
+        }
+
+        shapeHoldTimer.Interval = ShapeHoldDelay;
+        shapeHoldTimer.Start();
+    }
+
+    /// <summary>
+    /// Gives up the wait for a shape. Called wherever the note is changed from somewhere other than
+    /// the pen - an undo, an erase, a load - because the stroke that was waiting to be read as a shape
+    /// is no longer the stroke that was written.
+    /// </summary>
+    private void CancelShapeHold()
+    {
+        shapeHoldTimer?.Stop();
+        shapeHoldStroke = null;
+    }
+
+    private void OnShapeHoldElapsed(object? sender, EventArgs e)
+    {
+        shapeHoldTimer?.Stop();
+
+        var stroke = shapeHoldStroke;
+        shapeHoldStroke = null;
+
+        if (stroke is not null)
+        {
+            RecognizeShape(stroke);
+        }
+    }
+
+    /// <summary>
+    /// Replaces <paramref name="stroke"/> by the shape it was read as, if it was read as one. The
+    /// stroke object itself stays and only its points are written over: the group the lasso picked up
+    /// holds the stroke itself, the history names it, and the note is saved from the set - so a stroke
+    /// that was read as a shape is the very stroke that was written, drawn differently.
+    /// </summary>
+    private void RecognizeShape(InkStroke stroke)
+    {
+        if (!Strokes.Contains(stroke))
+        {
+            return;
+        }
+
+        var shape = ShapeRecognizer.Recognize(stroke.Points);
+        if (shape is null)
+        {
+            return;
+        }
+
+        // Recorded as a move rather than as an erase and a write: nothing was taken off the note and
+        // nothing was put on it, only where the ink of one stroke lies. That is also what makes undoing
+        // a shape bring the stroke back as it was written, in a single step.
+        var before = stroke.Points.ToList();
+        stroke.Points = shape.Points.ToList();
+        commands.RecordMoved([new InkStrokeMove(stroke, before, stroke.Points)]);
+
+        canvasView.InvalidateSurface();
+        StrokeCompleted?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>
     /// Tilt and lean direction the stylus currently reports, fed in by the platform input handler.
@@ -378,6 +656,14 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             return;
         }
 
+        if (Tool == InkTool.Lasso)
+        {
+            // The loop starts from the press the pen made before the platform named it, not from where
+            // the pen has got to by now - the same reason the stroke starts there.
+            HandleLassoTouch(press);
+            return;
+        }
+
         StartStroke(press, isFinger: false);
     }
 
@@ -437,22 +723,32 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     public void Undo()
     {
+        // A shape that has not appeared yet must not appear on a note that has just been wound back: the
+        // stroke it would be read from may be gone, or may have been put back as it was first written.
+        CancelShapeHold();
+
         if (!commands.Undo())
         {
             return;
         }
 
+        // What the selection named may have just been taken off the note or put back on it, and the
+        // strokes it holds are not the ones that were carried anywhere by that edit.
+        ClearSelection();
         canvasView.InvalidateSurface();
         StrokeCompleted?.Invoke(this, EventArgs.Empty);
     }
 
     public void Redo()
     {
+        CancelShapeHold();
+
         if (!commands.Redo())
         {
             return;
         }
 
+        ClearSelection();
         canvasView.InvalidateSurface();
         StrokeCompleted?.Invoke(this, EventArgs.Empty);
     }
@@ -479,6 +775,11 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     {
         currentStroke = null;
 
+        // A stroke that was waiting to be read as a shape belongs to the set that is being replaced,
+        // and the history is being reset alongside this - reading it now would record an edit for a
+        // stroke the history no longer knows about.
+        CancelShapeHold();
+
         // A sweep that was being remembered belongs to the set that has just been replaced, so it is
         // dropped rather than recorded - the same reason the press behind it is.
         eraseSession = null;
@@ -500,11 +801,26 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         // with it. The named contacts are not dropped: those are contacts that are still down, and
         // only the platform's own end report can say otherwise.
         unnamedPresses.Clear();
+
+        // So does anything the lasso was in the middle of: a loop named strokes of the set that is
+        // gone, and a group that was being carried is gone with it. Nothing is recorded for either of
+        // them - the history is being reset alongside this, so an edit here would name strokes that
+        // are no longer anywhere.
+        CancelLasso();
+        ClearSelection();
     }
 
     private void OnTouch(object? sender, SKTouchEventArgs e)
     {
         var isStylus = IsStylusContact(e);
+
+        // The pen - or the finger - has come back to the surface, which answers the question the shape
+        // wait was asking, whatever it came back to do: picking up a group, erasing, writing. Nothing
+        // was read as a shape then - see StartShapeHold.
+        if (e.ActionType == SKTouchAction.Pressed)
+        {
+            CancelShapeHold();
+        }
 
         // A drawing surface has nothing else to do with the right mouse button, so on a desktop that
         // is how the menu is asked for: there is no finger to tap with and the pen is drawing.
@@ -560,9 +876,23 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             return;
         }
 
-        if (IsEraserMode || isPenTailErasing)
+        // The eraser end of the pen comes first whatever else is chosen: which tool is picked says
+        // nothing about which end of the pen is against the surface.
+        if (isPenTailErasing)
         {
             HandleEraseTouch(e);
+            return;
+        }
+
+        if (IsEraserMode)
+        {
+            HandleEraseTouch(e);
+            return;
+        }
+
+        if (Tool == InkTool.Lasso)
+        {
+            HandleLassoTouch(e);
             return;
         }
 
@@ -587,10 +917,15 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             case SKTouchAction.Cancelled:
                 if (currentStroke is not null)
                 {
+                    var finished = currentStroke;
                     currentStroke = null;
                     currentStrokeContactId = 0;
                     canvasView.InvalidateSurface();
                     StrokeCompleted?.Invoke(this, EventArgs.Empty);
+
+                    // The stroke is written; whether it was drawn as a shape is decided by what happens
+                    // over the next moment - see StartShapeHold.
+                    StartShapeHold(finished);
                 }
 
                 // The contact is over, so what was learned about it is over too: Apple hands the same
@@ -918,6 +1253,11 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                         {
                             DropCurrentStroke();
                         }
+
+                        // A loop that this finger was drawing belongs to a touch that has just turned
+                        // out to be a gesture: nothing is picked up by it, and a group it had already
+                        // picked up and was carrying is put down where it stands.
+                        LeaveLasso();
                     }
                 }
                 else if (!PlatformNamesStylusContacts)
@@ -1194,6 +1534,395 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     }
 
     /// <summary>
+    /// Follows a contact of the lasso: while it is down it draws a loop, and when it comes up the loop
+    /// picks up the strokes it encloses. A contact that starts on what is already picked up carries
+    /// that group instead, which is how a group is taken somewhere else on the note.
+    /// <para>
+    /// The loop is only ever read when the contact ends, so a loop that is abandoned - the contact
+    /// cancelled, a second finger turning the touch into a gesture, another tool being picked - picks
+    /// up nothing at all and leaves the selection as it was.
+    /// </para>
+    /// </summary>
+    private void HandleLassoTouch(SKTouchEventArgs e)
+    {
+        if (IsLeftToTheScroll(e))
+        {
+            e.Handled = false;
+            return;
+        }
+
+        // Either the contact is over or it is still down and somewhere else; there is nothing else a
+        // touch can be.
+        if (!e.InContact || e.ActionType is SKTouchAction.Released or SKTouchAction.Cancelled)
+        {
+            EndLassoContact();
+            e.Handled = true;
+            return;
+        }
+
+        var touch = ToDocument(e.Location);
+
+        switch (e.ActionType)
+        {
+            case SKTouchAction.Pressed:
+
+                // One contact is one thing at a time: a loop that is still open - its end was never
+                // reported - is settled before this contact starts its own.
+                EndLassoContact();
+
+                if (selection.Count > 0 && IsInsideSelection(touch))
+                {
+                    BeginSelectionDrag(touch);
+                }
+                else
+                {
+                    BeginLasso(e.Id, touch);
+                }
+
+                break;
+
+            case SKTouchAction.Moved:
+
+                if (selectionDrag is not null)
+                {
+                    DragSelection(touch);
+                }
+                else if (isLassoDrawing)
+                {
+                    AddLassoPoint(touch);
+                }
+
+                break;
+        }
+
+        canvasView.InvalidateSurface();
+        e.Handled = true;
+    }
+
+    /// <summary>Ends the contact that is down: what it drew is read, or what it carried is recorded.</summary>
+    private void EndLassoContact()
+    {
+        if (selectionDrag is not null)
+        {
+            EndSelectionDrag();
+            return;
+        }
+
+        if (!isLassoDrawing)
+        {
+            return;
+        }
+
+        isLassoDrawing = false;
+        lassoContactId = 0;
+
+        var picked = StrokesInsideLoop();
+        lassoPath.Clear();
+
+        if (Select(picked))
+        {
+            canvasView.InvalidateSurface();
+        }
+    }
+
+    /// <summary>
+    /// Puts down whatever the lasso is in the middle of. A group that is being carried is recorded as
+    /// a move - its points have already been written over, so dropping it would leave the note changed
+    /// with nothing to undo - and a loop that is being drawn is thrown away.
+    /// </summary>
+    private void LeaveLasso()
+    {
+        EndSelectionDrag();
+        CancelLasso();
+    }
+
+    /// <summary>
+    /// Drops the loop being drawn and the drag underway without recording either. Only for what the
+    /// lasso was working on being gone anyway - the stroke set replaced underneath it, the history
+    /// reset with it - where an edit would name strokes that are nowhere.
+    /// </summary>
+    private void CancelLasso()
+    {
+        isLassoDrawing = false;
+        lassoContactId = 0;
+        lassoPath.Clear();
+        selectionDrag = null;
+    }
+
+    private void BeginLasso(long contactId, SKPoint from)
+    {
+        lassoContactId = contactId;
+        isLassoDrawing = true;
+        lassoPath.Clear();
+        lassoPath.Add(from);
+    }
+
+    /// <summary>
+    /// Keeps a point of the loop, close enough to the last one to describe the same shape. A pen
+    /// reports far more positions than a loop needs, and every point of it is tested against every
+    /// point of every stroke once the loop is read.
+    /// </summary>
+    private void AddLassoPoint(SKPoint point)
+    {
+        if (lassoPath.Count > 0)
+        {
+            var last = lassoPath[^1];
+            if (Distance(last.X, last.Y, point.X, point.Y) < LassoPointSpacing)
+            {
+                return;
+            }
+        }
+
+        lassoPath.Add(point);
+    }
+
+    /// <summary>
+    /// The strokes the loop encloses: every point of a stroke has to lie inside it, so a stroke that
+    /// crosses the loop is not picked up - it is not inside it, it only goes through it.
+    /// </summary>
+    private HashSet<InkStroke> StrokesInsideLoop()
+    {
+        var picked = new HashSet<InkStroke>();
+
+        // Three points are the least that can enclose anything at all.
+        if (lassoPath.Count < 3)
+        {
+            return picked;
+        }
+
+        var bounds = LoopBounds();
+        foreach (var stroke in Strokes)
+        {
+            if (stroke.Points.Count == 0)
+            {
+                continue;
+            }
+
+            var inside = true;
+            foreach (var point in stroke.Points)
+            {
+                // The loop is a plain polygon, so the box around it settles most points without
+                // walking its edges for each of them.
+                if (point.X < bounds.Left || point.X > bounds.Right || point.Y < bounds.Top || point.Y > bounds.Bottom
+                    || !IsInsideLoop(point.X, point.Y))
+                {
+                    inside = false;
+                    break;
+                }
+            }
+
+            if (inside)
+            {
+                picked.Add(stroke);
+            }
+        }
+
+        return picked;
+    }
+
+    /// <summary>Whether one point lies inside the loop drawn by the pen - the usual ray test.</summary>
+    private bool IsInsideLoop(float x, float y)
+    {
+        var inside = false;
+
+        for (int i = 0, j = lassoPath.Count - 1; i < lassoPath.Count; j = i++)
+        {
+            var a = lassoPath[i];
+            var b = lassoPath[j];
+
+            // Counted only by edges that straddle the line through the point, and then only when the
+            // crossing lies to its right.
+            if ((a.Y > y) != (b.Y > y) && x < ((b.X - a.X) * (y - a.Y) / (b.Y - a.Y)) + a.X)
+            {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    private SKRect LoopBounds()
+    {
+        var left = float.MaxValue;
+        var top = float.MaxValue;
+        var right = float.MinValue;
+        var bottom = float.MinValue;
+
+        foreach (var point in lassoPath)
+        {
+            left = MathF.Min(left, point.X);
+            top = MathF.Min(top, point.Y);
+            right = MathF.Max(right, point.X);
+            bottom = MathF.Max(bottom, point.Y);
+        }
+
+        return new SKRect(left, top, right, bottom);
+    }
+
+    /// <summary>
+    /// Picks a set of strokes up, or reports that the selection is already exactly that. Reading the
+    /// loop is what makes this the moment the selection changes - which the page is told, because the
+    /// offer to throw the selection away stands and falls with it.
+    /// </summary>
+    /// <returns>Whether the selection changed.</returns>
+    private bool Select(HashSet<InkStroke> picked)
+    {
+        if (selection.Count == picked.Count && selection.SetEquals(picked))
+        {
+            return false;
+        }
+
+        selection.Clear();
+        selection.UnionWith(picked);
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>Whether the contact started on the picked-up group rather than outside it.</summary>
+    private bool IsInsideSelection(SKPoint point) =>
+        TryBounds(selection, SelectionFrameMargin, out var bounds)
+        && point.X >= bounds.Left && point.X <= bounds.Right
+        && point.Y >= bounds.Top && point.Y <= bounds.Bottom;
+
+    /// <summary>
+    /// Starts carrying the picked-up group from this point. Where every stroke stood is kept as it is
+    /// now, because undo has to bring the group back exactly there - see <see cref="EndSelectionDrag"/>.
+    /// </summary>
+    private void BeginSelectionDrag(SKPoint from)
+    {
+        var drag = new SelectionDrag { Start = from };
+
+        foreach (var stroke in selection)
+        {
+            drag.Strokes.Add(stroke);
+            drag.Before.Add(stroke.Points.ToList());
+        }
+
+        selectionDrag = drag;
+    }
+
+    /// <summary>
+    /// Carries the picked-up group by however far the contact has moved since it touched down. The
+    /// points are written over as the contact moves - that is what makes the group follow the pen
+    /// without the note being redrawn from a copy of it - and the points the group had are the ones
+    /// from the moment it was picked up, not from the move before this one.
+    /// </summary>
+    private void DragSelection(SKPoint to)
+    {
+        if (selectionDrag is not { } drag)
+        {
+            return;
+        }
+
+        var dx = to.X - drag.Start.X;
+        var dy = to.Y - drag.Start.Y;
+
+        if (dx == 0 && dy == 0)
+        {
+            return;
+        }
+
+        drag.Moved = true;
+
+        for (var s = 0; s < drag.Strokes.Count; s++)
+        {
+            // Every point is worked out from the one the group had when it was picked up plus how far
+            // the contact has come since, rather than from the move before this one: the group then
+            // stands exactly where the pen is however many moves it took to get there.
+            var before = drag.Before[s];
+            var points = drag.Strokes[s].Points;
+
+            for (var i = 0; i < before.Count && i < points.Count; i++)
+            {
+                var point = before[i];
+                point.X += dx;
+                point.Y += dy;
+                points[i] = point;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Ends a drag: the group is where it was carried to, and the move goes into the history as one
+    /// edit, however far it went and however many strokes it carried. A contact that carried the group
+    /// nowhere but touched down on it is not a move at all and leaves no entry behind.
+    /// </summary>
+    private void EndSelectionDrag()
+    {
+        if (selectionDrag is not { } drag)
+        {
+            return;
+        }
+
+        selectionDrag = null;
+
+        if (!drag.Moved)
+        {
+            return;
+        }
+
+        var moves = new List<InkStrokeMove>(drag.Strokes.Count);
+        for (var i = 0; i < drag.Strokes.Count; i++)
+        {
+            moves.Add(new InkStrokeMove(drag.Strokes[i], drag.Before[i], drag.Strokes[i].Points.ToList()));
+        }
+
+        commands.RecordMoved(moves);
+
+        // The strokes are the same ones in the same places of the set, but where on the note they are
+        // has changed, so this is a change to the note like any other.
+        StrokeCompleted?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>An axis-aligned box around a set of strokes, in document units, wide enough to take in
+    /// the width they are drawn in and standing <paramref name="margin"/> off them.</summary>
+    private static bool TryBounds(IEnumerable<InkStroke> strokes, float margin, out SKRect bounds)
+    {
+        var left = float.MaxValue;
+        var top = float.MaxValue;
+        var right = float.MinValue;
+        var bottom = float.MinValue;
+        var any = false;
+
+        foreach (var stroke in strokes)
+        {
+            var reach = margin + (stroke.Thickness / 2f);
+
+            foreach (var point in stroke.Points)
+            {
+                left = MathF.Min(left, point.X - reach);
+                top = MathF.Min(top, point.Y - reach);
+                right = MathF.Max(right, point.X + reach);
+                bottom = MathF.Max(bottom, point.Y + reach);
+                any = true;
+            }
+        }
+
+        bounds = any ? new SKRect(left, top, right, bottom) : SKRect.Empty;
+        return any;
+    }
+
+    /// <summary>
+    /// A group that is being carried, together with where every stroke of it stood when it was picked
+    /// up. Kept as a plain object rather than as an entry in the history: it only becomes an edit once
+    /// the contact ends - see <see cref="EndSelectionDrag"/>.
+    /// </summary>
+    private sealed class SelectionDrag
+    {
+        /// <summary>Where the contact that carries the group touched down, in document units.</summary>
+        public SKPoint Start { get; init; }
+
+        /// <summary>The strokes being carried, in the order their own points were copied.</summary>
+        public List<InkStroke> Strokes { get; } = new();
+
+        /// <summary>The points each of them had when it was picked up.</summary>
+        public List<List<InkPoint>> Before { get; } = new();
+
+        /// <summary>Whether the group went anywhere at all.</summary>
+        public bool Moved { get; set; }
+    }
+
+    /// <summary>
     /// The surface the touch coordinates arrive in. Before the first paint the surface size is not
     /// known yet, so the layout size stands in for it - a very early touch would otherwise be stored
     /// as a coordinate far outside the document.
@@ -1399,7 +2128,69 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             }
         }
 
+        // Both of these mark what the lasso is doing rather than write anything, so they go over the
+        // ink and never into it - see DrawSelectionFrame and DrawLassoLoop.
+        DrawSelectionFrame(canvas);
+        DrawLassoLoop(canvas);
+
         canvas.Restore();
+    }
+
+    /// <summary>
+    /// Puts a dashed frame around the strokes the lasso has picked up, so what a drag is about to
+    /// carry - and what the row's bin would take away - is visible on the note itself rather than only
+    /// in the row above it.
+    /// </summary>
+    private void DrawSelectionFrame(SKCanvas canvas)
+    {
+        if (selection.Count == 0 || !TryBounds(selection, SelectionFrameMargin, out var bounds))
+        {
+            return;
+        }
+
+        using var frame = new SKPaint
+        {
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = SelectionFrameWidth,
+            Color = SelectionColor,
+            PathEffect = SKPathEffect.CreateDash(new[] { SelectionDash, SelectionGap }, 0f),
+        };
+
+        canvas.DrawRoundRect(bounds, SelectionFrameCorner, SelectionFrameCorner, frame);
+    }
+
+    /// <summary>
+    /// Draws the loop the pen is making while it is still down. The closing edge is drawn with it: that
+    /// edge is what decides which strokes are inside, and it would otherwise appear only after the pen
+    /// has been lifted, which is exactly when it is too late to change anything about it.
+    /// </summary>
+    private void DrawLassoLoop(SKCanvas canvas)
+    {
+        if (lassoPath.Count < 2)
+        {
+            return;
+        }
+
+        using var builder = new SKPathBuilder();
+        builder.MoveTo(lassoPath[0]);
+        for (var i = 1; i < lassoPath.Count; i++)
+        {
+            builder.LineTo(lassoPath[i]);
+        }
+
+        using var path = builder.Detach();
+        using var loop = new SKPaint
+        {
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = LassoLoopWidth,
+            Color = SelectionColor,
+            PathEffect = SKPathEffect.CreateDash(new[] { SelectionDash, SelectionGap }, 0f),
+        };
+
+        canvas.DrawPath(path, loop);
+        canvas.DrawLine(lassoPath[^1], lassoPath[0], loop);
     }
 
     /// <summary>

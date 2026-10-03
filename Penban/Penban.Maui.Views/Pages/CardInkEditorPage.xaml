@@ -44,7 +44,8 @@
                          to the other one. The glyph of the two (pen U+E8D8, finger U+E6D8) and the
                          words it is read out with are put on in the code-behind, because that is what
                          tells the two modes apart. Eraser = U+E5E5, undo = U+F19A, redo = U+F16F,
-                         clear = U+F201, radial menu = U+F07A5, pressure follows the pen = U+EF76. -->
+                         clear = U+F201, radial menu = U+F07A5, pressure follows the pen = U+EF76,
+                         lasso = U+F4C9, throwing the picked-up ink away = U+F34D. -->
                     <Button x:Name="DrawModeButton"
                             FontSize="20"
                             Style="{StaticResource GhostIconButton}"
@@ -55,6 +56,23 @@
                             Style="{StaticResource GhostIconButton}"
                             Clicked="OnEraserClicked"
                             SemanticProperties.Description="{markup:Translate Eraser}" />
+                    <!-- The lasso: it draws a loop around ink while it is the tool in use, and what the
+                         loop encloses is picked up to be carried elsewhere on the note. The button
+                         beside it throws the picked-up ink away and stands only while there is any, so
+                         the row says both what the tool is for and that it holds something. -->
+                    <Button x:Name="LassoButton"
+                            Text="&#xf4c9;"
+                            FontSize="20"
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnLassoClicked"
+                            SemanticProperties.Description="{markup:Translate Lasso}" />
+                    <Button x:Name="SelectionDeleteButton"
+                            Text="&#xf34d;"
+                            FontSize="20"
+                            IsVisible="False"
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnSelectionDeleteClicked"
+                            SemanticProperties.Description="{markup:Translate DeleteSelection}" />
                     <Button x:Name="UndoButton"
                             Text="&#xf19a;"
                             FontSize="20"

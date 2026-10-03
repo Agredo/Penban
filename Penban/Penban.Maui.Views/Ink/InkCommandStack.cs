@@ -10,6 +10,9 @@ public enum InkEditKind
 
     /// <summary>The strokes were taken out of the set.</summary>
     Erased,
+
+    /// <summary>The strokes were carried somewhere else, without leaving the set.</summary>
+    Moved,
 }
 
 /// <summary>A stroke together with the position it had in the stroke set.</summary>
@@ -17,18 +20,49 @@ public enum InkEditKind
 /// <param name="Stroke">The stroke itself.</param>
 public readonly record struct InkStrokePlacement(int Index, InkStroke Stroke);
 
+/// <summary>
+/// Where one stroke stood before a move and where it was carried to. The stroke itself is the same
+/// object in both: it never leaves the set, only its points are written over, which is what makes a
+/// move something other than an erase followed by a write.
+/// </summary>
+/// <param name="Stroke">The stroke that was carried, as it stands in the set.</param>
+/// <param name="Before">Its points as they were before the move began.</param>
+/// <param name="After">Its points as they are once the move is over.</param>
+public sealed class InkStrokeMove
+{
+    public InkStrokeMove(InkStroke stroke, IReadOnlyList<InkPoint> before, IReadOnlyList<InkPoint> after)
+    {
+        Stroke = stroke;
+        Before = before;
+        After = after;
+    }
+
+    public InkStroke Stroke { get; }
+
+    public IReadOnlyList<InkPoint> Before { get; }
+
+    public IReadOnlyList<InkPoint> After { get; }
+}
+
 /// <summary>One reversible change to a stroke set.</summary>
 public sealed class InkEdit
 {
-    public InkEdit(InkEditKind kind, IReadOnlyList<InkStrokePlacement> placements)
+    public InkEdit(
+        InkEditKind kind,
+        IReadOnlyList<InkStrokePlacement> placements,
+        IReadOnlyList<InkStrokeMove>? moves = null)
     {
         Kind = kind;
         Placements = placements;
+        Moves = moves ?? [];
     }
 
     public InkEditKind Kind { get; }
 
     public IReadOnlyList<InkStrokePlacement> Placements { get; }
+
+    /// <summary>What a <see cref="InkEditKind.Moved"/> edit carried where; empty for the other kinds.</summary>
+    public IReadOnlyList<InkStrokeMove> Moves { get; }
 }
 
 /// <summary>
@@ -72,6 +106,20 @@ public sealed class InkCommandStack
         }
 
         Push(new InkEdit(InkEditKind.Erased, placements.ToList()));
+    }
+
+    /// <summary>
+    /// Records strokes that have just been carried somewhere else. The strokes stay in the set, so
+    /// only their points are written back on undo and redo.
+    /// </summary>
+    public void RecordMoved(IReadOnlyList<InkStrokeMove> moves)
+    {
+        if (moves.Count == 0)
+        {
+            return;
+        }
+
+        Push(new InkEdit(InkEditKind.Moved, [], moves.ToList()));
     }
 
     /// <summary>
@@ -147,6 +195,18 @@ public sealed class InkCommandStack
 
     private void Apply(InkEdit edit, bool forward)
     {
+        // A move leaves the set alone; only the points of the strokes that were carried change
+        // place, and which set of points that is depends on the direction.
+        if (edit.Kind == InkEditKind.Moved)
+        {
+            foreach (var move in edit.Moves)
+            {
+                move.Stroke.Points = (forward ? move.After : move.Before).ToList();
+            }
+
+            return;
+        }
+
         // "Added" inserts when it is replayed forwards and removes when it is undone; "Erased" is
         // the other way round. Both directions therefore share the same two operations.
         var insert = (edit.Kind == InkEditKind.Added) == forward;
