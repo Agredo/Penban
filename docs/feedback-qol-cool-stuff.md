@@ -11,7 +11,7 @@ wirklich fehlt.
 Nachgezogen bis PR #48: die QoL-Karten 1, 2, 3, 4 und 7 sind damit gebaut (noch nicht
 veröffentlicht) und stehen unten unter „Nicht mehr auf der Liste".
 
-Nachgezogen bis zum Lassotool und der Formerkennung: **Future 1** ist damit von „offen" auf
+Nachgezogen bis PR #49 (Lassowerkzeug und Formerkennung): **Future 1** ist damit von „offen" auf
 „teilweise" gerutscht — die Formen sind gebaut, das Ziehen nach dem Halten fehlt noch. Dazu kommt das
 Lassowerkzeug, das auf keiner Karte steht und deshalb nur im Abschnitt „Ohne Karte dazu" (ganz unten)
 und in [docs/lasso-und-formen.md](lasso-und-formen.md) auftaucht.
@@ -203,9 +203,9 @@ Erledigt und deshalb aus der Liste gestrichen:
 
 ## Ohne Karte dazu
 
-Das **Lassowerkzeug** stand auf keiner Karte des Boards; es kam als eigene Bitte dazu. Ein Knopf in
-der Zeichenleiste (`LassoButton`, `CardInkEditorPage.xaml:63`) macht es zum Werkzeug, eine gezogene
-Schleife nimmt alle Striche auf, die ganz in ihr liegen, und die Gruppe lässt sich als Ganzes
+Das **Lassowerkzeug** stand auf keiner Karte des Boards; es kam als eigene Bitte dazu (PR #49). Ein
+Knopf in der Zeichenleiste (`LassoButton`, `CardInkEditorPage.xaml:63`) macht es zum Werkzeug, eine
+gezogene Schleife nimmt alle Striche auf, die ganz in ihr liegen, und die Gruppe lässt sich als Ganzes
 verschieben oder mit dem Papierkorb im Werkzeug wegwerfen — je ein Rückgängig-Schritt
 (`SkiaInkCanvasView`: `HandleLassoTouch`, `StrokesInsideLoop`, `SelectionDrag`, `DeleteSelection`).
 
