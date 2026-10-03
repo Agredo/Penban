@@ -1247,11 +1247,17 @@ public partial class CardInkEditorPage : ContentPage
 
     /// <summary>
     /// The lasso on or off again, the same way the eraser is. Nothing is picked up by choosing it: the
-    /// loop is what picks ink up, and what it picked up before is still held until a new loop is drawn
-    /// or the tool is left behind.
+    /// loop is what picks ink up. What an earlier loop picked up is put down here, so the button that
+    /// picked the group up is also the one that lets go of it, and a group is never held with no way of
+    /// putting it down. The button on a pen is not this: it holds the lasso only for as long as it is
+    /// down, and a group it picked up is carried by the pen afterwards - see HandlePickedUpTouch.
     /// </summary>
-    private void OnLassoClicked(object? sender, EventArgs e) =>
+    private void OnLassoClicked(object? sender, EventArgs e)
+    {
+        InkHost.ClearSelection();
+
         InkHost.Tool = InkHost.Tool == InkTool.Lasso ? InkTool.Pen : InkTool.Lasso;
+    }
 
     /// <summary>
     /// Throws the picked-up ink away as one edit, so undo brings all of it back at once - the same

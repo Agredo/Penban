@@ -49,7 +49,8 @@ written out in German, with the files and symbols behind them:
   thrown away, each in a single undo step. Chosen with the button in the toolbar; the button on a
   Windows pen picks it up while it is held, and the Apple Pencil double-tap reaches it only where
   iOS's own double-tap setting is "previous tool" (see
-  [docs/lasso-und-formen.md](docs/lasso-und-formen.md)).
+  [docs/lasso-und-formen.md](docs/lasso-und-formen.md)). A group that is picked up is carried by the
+  pen tip whatever tool is in hand, and a contact away from it puts it down first.
 - [ ] Board tags for grouping and filtering.
 - [~] Widget with multiple boards: every widget picks its board, and the long press in the overview is only the suggestion. Selecting by tag and by last edited is missing.
 - [ ] Share selected columns/cards (the export knows the whole board or all of its cards, nothing in between).

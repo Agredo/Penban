@@ -77,6 +77,14 @@ public interface IInkCanvasView
     bool DeleteSelection();
 
     /// <summary>
+    /// Drops the picked-up group without touching the note: the strokes stay where they are and only
+    /// the mark around them and the offer to throw them away go. This is the lasso being let go of,
+    /// which the button that picked the group up is also the one to ask for - a group that is held is
+    /// never held without a way of putting it down.
+    /// </summary>
+    void ClearSelection();
+
+    /// <summary>
     /// Colour of strokes drawn from now on, as <c>#RRGGBB</c> - the same format as
     /// <see cref="InkStroke.Color"/>, so it survives the round trip through the database.
     /// </summary>

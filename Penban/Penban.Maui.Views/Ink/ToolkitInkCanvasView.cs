@@ -105,6 +105,12 @@ public class ToolkitInkCanvasView : ContentView, IInkCanvasView
     /// anything to throw away.</summary>
     public bool DeleteSelection() => false;
 
+    /// <summary>See the class remarks: this renderer never picks anything up, so there is never a
+    /// group to put down.</summary>
+    public void ClearSelection()
+    {
+    }
+
     /// <summary>See the class remarks: <see cref="DrawingView"/> cannot tell input devices apart.</summary>
     public bool AllowFingerDrawing { get; set; } = true;
 

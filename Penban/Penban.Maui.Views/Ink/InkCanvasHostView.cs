@@ -349,6 +349,9 @@ public class InkCanvasHostView : ContentView
     /// <summary>Throws the picked-up strokes away as one undoable edit.</summary>
     public bool DeleteSelection() => activeRenderer.DeleteSelection();
 
+    /// <summary>Puts the picked-up group down without touching the note.</summary>
+    public void ClearSelection() => activeRenderer.ClearSelection();
+
     /// <summary>Colour of new strokes as <c>#RRGGBB</c>.</summary>
     public string StrokeColor
     {
