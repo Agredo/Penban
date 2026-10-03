@@ -19,9 +19,11 @@ public partial class SettingsPage : ContentPage
         BindingContext = viewModel;
 
         // Only Windows reports which end of the pen is against the surface, so the row would be a
-        // dead switch anywhere else. The same goes for the button on the pen itself.
+        // dead switch anywhere else. The same goes for the button on the pen itself, and for the
+        // Apple Pencil's own double-tap, which is iOS only.
         PenTailEraserRow.IsVisible = OperatingSystem.IsWindows();
         PenButtonLassoRow.IsVisible = OperatingSystem.IsWindows();
+        PencilTapRow.IsVisible = OperatingSystem.IsIOS();
     }
 
     protected override void OnAppearing()

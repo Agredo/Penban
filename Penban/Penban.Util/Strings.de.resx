@@ -215,7 +215,7 @@
     <value>Strichbreite folgt dem Stiftdruck nicht</value>
   </data>
   <data name="PencilDoubleTapEnabled" xml:space="preserve">
-    <value>Apple-Pencil-Doppeltipp wechselt zum Radiergummi</value>
+    <value>Apple-Pencil-Doppeltipp und -Drücken folgen der iOS-Einstellung</value>
   </data>
   <data name="PenTailEraser" xml:space="preserve">
     <value>Radieren mit der Stift-Rückseite</value>

@@ -46,7 +46,8 @@ behind them: [docs/lasso-und-formen.md](docs/lasso-und-formen.md).
   [docs/lasso-und-formen.md](docs/lasso-und-formen.md).
 - [x] Lasso: a loop around strokes picks them up as a group, which can then be carried elsewhere or
   thrown away, each in a single undo step. Chosen with the button in the toolbar; the button on a
-  Windows pen and the Apple Pencil double-tap/squeeze reach it as well (see
+  Windows pen picks it up while it is held, and the Apple Pencil double-tap reaches it only where
+  iOS's own double-tap setting is "previous tool" (see
   [docs/lasso-und-formen.md](docs/lasso-und-formen.md)).
 - [ ] Board tags for grouping and filtering.
 - [~] Widget with multiple boards: every widget picks its board, and the long press in the overview is only the suggestion. Selecting by tag and by last edited is missing.

@@ -215,7 +215,7 @@
     <value>Line width does not follow pen pressure</value>
   </data>
   <data name="PencilDoubleTapEnabled" xml:space="preserve">
-    <value>Apple Pencil double-tap switches to the eraser</value>
+    <value>Apple Pencil double-tap and squeeze follow the iOS setting</value>
   </data>
   <data name="PenTailEraser" xml:space="preserve">
     <value>Erase with the back of the pen</value>
