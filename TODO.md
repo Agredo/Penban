@@ -1,6 +1,8 @@
 # Penban TODO
 
 Taken from the "Penban Feedback" board, grouped by column. `[x]` = done, `[~]` = partly done.
+The QoL and "Future cool stuff" columns are written out in German as well, with the file and the
+symbol behind every verdict: [docs/feedback-qol-cool-stuff.md](docs/feedback-qol-cool-stuff.md).
 
 ## Bugs
 
@@ -17,27 +19,36 @@ Taken from the "Penban Feedback" board, grouped by column. `[x]` = done, `[~]` =
 
 ## QoL
 
+- [~] Pen thickness flyout: tapping beside it closes it, and the width can be read off the pen, the
+  number and the ring. Missing: the width directly in the toolbar when there is room for it.
 - [ ] Undo after erase should restore all strokes erased since the pen went down, not only the last one.
 - [ ] Picking a colour automatically switches to the pen.
 - [ ] Delete cards directly from the board view (e.g. a trash can when dragging a card).
 - [ ] Board overview: show only the title card instead of laying it on top of the card stack.
   - Fit it to size so the title card is easier to tell apart from a normal card stack.
   - Keep the card stack when no title card is given.
-- [ ] Connect the title card's background colour with the board colour (the card used for the card count in the column overview).
-- [ ] Add a pen pressure toggle to the card draw toolbar.
-- [x] Scroll to the board after exiting to the main menu.
-- [~] Reorder/sort boards in the list. The list is sorted by last change; tags and creation date are missing.
+- [~] Pen pressure toggle in the card draw toolbar: the switch is there, but only in the settings,
+  and it is not in the row of tools itself.
+- [ ] Reorder/sort boards in the list. The list is sorted by last change; a manual order and other
+      sort keys are missing.
 
 ## Future cool stuff
 
 - [ ] Shape recognition: draw and hold makes lines, rectangles/squares, circles/ellipses; hold and drag to resize. Maybe just straight lines at the beginning.
 - [ ] Board tags for grouping and filtering.
-- [ ] Widget with multiple boards: select by tag and last edited. Probably wait for board tags.
-- [~] Card tags/pins: emoji, stickers or hand-drawn pins as tags on cards (one set per board). Emoji tags (fixed set, max 4 per card) can be pinned in the editor and show on the note; stickers, hand-drawn/per-board sets are missing.
-  - The board header has a filter button (tag icons slide in beside it) and a search button (search field slides in beside it): filter by tag (any chosen tag) and search the recognised text. Grouping is missing.
-- [ ] Share selected columns/cards.
+- [~] Widget with multiple boards: every widget picks its board, and the long press in the overview is only the suggestion. Selecting by tag and by last edited is missing.
+- [ ] Share selected columns/cards (the export knows the whole board or all of its cards, nothing in between).
+- [~] Card pins: emoji tags (fixed set, max 4 per card) are in and can be filtered in the board header. Hand-drawn pins and a set per board are missing.
+- [~] Group/filter cards: text search and the tag filter are in the board header. The colour filter and grouping are missing.
+- [ ] Radial menu: activate by dragging (drag activates, release confirms) and choose which actions the ring holds.
+- [ ] Change the card colour from the board view: a palette at hand, or a palette change reaching every card of that colour.
 - [ ] Gesture: three-finger drag changes the pen thickness.
-- [~] Group/filter cards by colour and by search text. Text search and tag filter exist in the board header; colour filter and grouping are missing.
+- [ ] Legend: shows what a colour means.
+- [ ] Pen smoothing.
+- [ ] Hide columns.
+- [ ] More flexible card placement in columns: cards beside each other or half stacked, empty space, "move all below this line up/down".
+- [ ] Linux support. Not possible with MAUI as it stands: it would need a second desktop branch (Avalonia) and its drawing surface.
+- [ ] Sync across devices. `LocalOnlySyncService` is a placeholder that keeps everything local; `SyncableEntity` and `SyncVersionTag` are only prepared.
 
 ## UI / UX
 
