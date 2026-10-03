@@ -11,10 +11,11 @@ Historie, also mit einem Rückgängig wieder weg.
 | --- | --- |
 | Leiste → Lassoknopf (`LassoButton`, `CardInkEditorPage.xaml:63`) | Macht das Lasso zum Werkzeug. Es bleibt, bis ein anderes Werkzeug gewählt wird. |
 | Schleife ziehen | Alle Striche, die **ganz** in der Schleife liegen, werden aufgenommen und blau umrahmt. Ein Strich, der die Schleife nur durchquert, gehört nicht dazu. |
-| Auf der Auswahl ziehen | Trägt die ganze Gruppe; wo sie losgelassen wird, steht sie. |
-| Auf eine leere Stelle tippen/ziehen | Zeichnet eine neue Schleife, die alte Auswahl fällt weg. |
+| Auf der Auswahl ziehen | Trägt die ganze Gruppe; wo sie losgelassen wird, steht sie. Das gilt für **jedes** Werkzeug: solange etwas aufgenommen ist, trägt die Stiftspitze die Gruppe auch dann, wenn in der Hand längst wieder der Stift ist — siehe unten. |
+| Auf eine leere Stelle tippen/ziehen | Legt die Auswahl ab. Mit dem Lasso in der Hand beginnt hier die nächste Schleife, mit dem Stift ein neuer Strich (oder der Radierer) — beides erst, nachdem die Gruppe abgelegt ist, also ohne sie mitzunehmen. |
 | Papierkorb im Werkzeug (`SelectionDeleteButton`) | Steht nur, solange etwas aufgenommen ist, und wirft die Auswahl weg. |
-| Stift-Taste (**Windows**) | So lange der Knopf am Stift gedrückt ist, ist das Lasso im Einsatz; loslassen bringt das vorherige Werkzeug zurück. |
+| Lassoknopf noch einmal | Legt die Auswahl ab und nimmt das Lasso weg: der Knopf, der die Gruppe aufgenommen hat, lässt sie auch wieder los. |
+| Stift-Taste (**Windows**) | So lange der Knopf am Stift gedrückt ist, ist das Lasso im Einsatz; loslassen bringt das vorherige Werkzeug zurück. Eine aufgenommene Gruppe bleibt dabei aufgenommen und wird von der Stiftspitze weitergetragen. |
 | Stift-Doppeltipp und -Drücken (**iOS**) | Entscheidet nur, **welches** Werkzeug im Einsatz ist — gezeichnet und die Schleife gezogen wird mit der Stiftspitze. Die App folgt dabei der iOS-Einstellung für den Doppeltipp (und beim Pencil Pro ab iOS 17.5 fürs Drücken): „Zum Radiergummi wechseln" (der iOS-Standard) schaltet Radierer ⇄ Stift, „Vorheriges Werkzeug" nimmt das zuletzt benutzte — nur so wird das Lasso mit dem Stift erreichbar. Siehe unten. |
 | Einstellungen → *Zeichnen* | „Stift-Taste halten, um zu markieren" (nur Windows) und „Apple-Pencil-Doppeltipp und -Drücken folgen der iOS-Einstellung" (nur iOS) schalten das ab. |
 
@@ -27,6 +28,19 @@ Rückgängig-Schritt bleiben der gewöhnliche Lasso-Weg (`PencilTapBehavior.cs`,
 (`PointerPointProperties.IsBarrelButtonPressed`), in SkiaSharp ist es nicht enthalten; auf iOS aus
 `UIPencilInteraction`, weil MAUI dafür keine Schnittstelle hat. Android meldet nichts Vergleichbares —
 dort führt nur der Knopf in der Leiste zum Lasso.
+
+**Wer etwas aufgenommen hat, trägt es mit der Spitze — unabhängig davon, welches Werkzeug in der Hand
+ist.** Der Knopf am Stift hält das Lasso nur, solange er gedrückt ist; danach ist wieder der Stift das
+Werkzeug, die Gruppe aber noch aufgenommen. Ein Kontakt auf der Gruppe zieht sie deshalb auch dann,
+wenn eigentlich gezeichnet würde, und ein Kontakt daneben legt sie ab, bevor er zeichnet oder radiert
+(`HandlePickedUpTouch`). Ohne das wäre eine aufgenommene Gruppe mit dem Stift nicht mehr zu erreichen:
+jeder Strich daneben bliebe stehen und jeder Strich darauf wäre ein neuer Strich, statt die Gruppe
+dorthin zu tragen, wo sie hingehört. Mit dem Finger gilt das nur, wenn das Zeichnen mit dem Finger an
+ist — ein Finger, der scrollt, hat auf der Notiz nichts zu sagen.
+
+Der Preis dafür: ein Strich, der **auf** der Gruppe begonnen wird, zieht die Gruppe, statt zu zeichnen.
+Wer auf einer aufgenommenen Gruppe schreiben will, legt sie vorher ab — mit einem Tipp daneben oder mit
+dem Lassoknopf.
 
 ### Was der Doppeltipp auf iOS wirklich tut
 
@@ -49,10 +63,10 @@ wegzubekommen, ohne die Hand zur Leiste zu führen. Auf einem Pencil **Pro** gib
 getrennt — Doppeltipp auf Radiergummi *und* Drücken auf „Vorheriges Werkzeug" — auf einem Pencil 2 nur
 den Doppeltipp.
 
-Im Quelltext: `SkiaInkCanvasView` (`HandleLassoTouch`, `StrokesInsideLoop`, `IsInsideLoop`,
-`SelectionDrag`), das Werkzeug selbst ist `InkTool.Lasso` (`Ink/InkTool.cs`), und die Zeichenfläche
-reicht `Tool` und `SelectionCount` über `IInkCanvasView`/`InkCanvasHostView` an die Seite, die daraus
-den Papierkorb ein- und ausblendet.
+Im Quelltext: `SkiaInkCanvasView` (`HandleLassoTouch`, `HandlePickedUpTouch`, `StrokesInsideLoop`,
+`IsInsideLoop`, `SelectionDrag`), das Werkzeug selbst ist `InkTool.Lasso` (`Ink/InkTool.cs`), und die
+Zeichenfläche reicht `Tool`, `SelectionCount` und `ClearSelection` über
+`IInkCanvasView`/`InkCanvasHostView` an die Seite, die daraus den Papierkorb ein- und ausblendet.
 
 > **Der Ersatz-Renderer kann das nicht.** In den Einstellungen lässt sich die Zeichenfläche auf die
 > `DrawingView` aus dem CommunityToolkit umstellen. Diese Fläche hat keinen Zugriff auf die Berührungen,

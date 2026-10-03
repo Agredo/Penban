@@ -890,6 +890,13 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             return;
         }
 
+        // A group that the lasso has picked up is carried by the pen whatever tool is in hand - see
+        // HandlePickedUpTouch - so the lasso itself only ever reads its own loop here.
+        if (Tool != InkTool.Lasso && HandlePickedUpTouch(e, isStylus))
+        {
+            return;
+        }
+
         if (Tool == InkTool.Lasso)
         {
             HandleLassoTouch(e);
@@ -1531,6 +1538,70 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         var dx = x1 - x2;
         var dy = y1 - y2;
         return MathF.Sqrt((dx * dx) + (dy * dy));
+    }
+
+    /// <summary>
+    /// Follows a contact on a note that holds a picked-up group: on the group itself the contact
+    /// carries it, and anywhere else it says the group is done with.
+    /// <para>
+    /// A picked-up group is carried by the pen whatever tool is in hand, because the button on a pen
+    /// only holds the lasso for as long as it is down. The flow that button starts - a loop around the
+    /// ink, the button let go, the group carried where it belongs - would otherwise hand the note back
+    /// to the pen with the group still picked up and nothing but a new stroke to touch it with, which
+    /// is the one thing a group that is being carried is not for. Taking hold of the group with the
+    /// pen is also what makes the lasso a tool that can be left behind: a tap or a stroke away from
+    /// the group is the note being written on again, and it puts the group down first.
+    /// </para>
+    /// </summary>
+    /// <returns>
+    /// Whether the contact was taken over. A contact that lands away from the group is handed back to
+    /// the tool in hand, with the group put down on the way, so it goes on to draw or to erase as it
+    /// would have with nothing picked up.
+    /// </returns>
+    private bool HandlePickedUpTouch(SKTouchEventArgs e, bool isStylus)
+    {
+        // A finger only carries a group where it draws at all: a finger that is left to the scroll has
+        // nothing to say about what is on the note.
+        if (selection.Count == 0 || (!isStylus && !AllowFingerDrawing))
+        {
+            return false;
+        }
+
+        if (e.ActionType == SKTouchAction.Pressed)
+        {
+            var touch = ToDocument(e.Location);
+
+            if (!IsInsideSelection(touch))
+            {
+                // Anywhere but the group itself puts it down before the contact does its own work, so
+                // the stroke this press is about to start is drawn and not added to the group.
+                ClearSelection();
+                canvasView.InvalidateSurface();
+                return false;
+            }
+
+            BeginSelectionDrag(touch);
+        }
+        else if (selectionDrag is null)
+        {
+            // Nothing is being carried, so a contact that is not the press that takes hold of the
+            // group is none of this one's business.
+            return false;
+        }
+        else if (e.ActionType == SKTouchAction.Moved && e.InContact)
+        {
+            DragSelection(ToDocument(e.Location));
+        }
+        else if (!e.InContact || e.ActionType is SKTouchAction.Released or SKTouchAction.Cancelled)
+        {
+            // The contact that was carrying the group is over, so the group is where it was carried
+            // to and the move is recorded - see EndSelectionDrag.
+            EndSelectionDrag();
+        }
+
+        canvasView.InvalidateSurface();
+        e.Handled = true;
+        return true;
     }
 
     /// <summary>
