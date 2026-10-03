@@ -15,8 +15,8 @@ Historie, also mit einem Rückgängig wieder weg.
 | Auf eine leere Stelle tippen/ziehen | Zeichnet eine neue Schleife, die alte Auswahl fällt weg. |
 | Papierkorb im Werkzeug (`SelectionDeleteButton`) | Steht nur, solange etwas aufgenommen ist, und wirft die Auswahl weg. |
 | Stift-Taste (**Windows**) | So lange der Knopf am Stift gedrückt ist, ist das Lasso im Einsatz; loslassen bringt das vorherige Werkzeug zurück. |
-| Stift-Doppeltipp und -Drücken (**iOS**) | Folgt der iOS-Einstellung für den Doppeltipp bzw. (Pencil Pro, iOS 17.5+) fürs Drücken. Auf „Vorheriges Werkzeug" gestellt führt der Weg über das Lassowerkzeug, wenn dieses zuletzt in Gebrauch war. |
-| Einstellungen → *Zeichnen* | „Stift-Taste halten, um zu markieren" (nur Windows) und „Apple-Pencil-Doppeltipp …" (nur iOS) schalten das ab. |
+| Stift-Doppeltipp und -Drücken (**iOS**) | Entscheidet nur, **welches** Werkzeug im Einsatz ist — gezeichnet und die Schleife gezogen wird mit der Stiftspitze. Die App folgt dabei der iOS-Einstellung für den Doppeltipp (und beim Pencil Pro ab iOS 17.5 fürs Drücken): „Zum Radiergummi wechseln" (der iOS-Standard) schaltet Radierer ⇄ Stift, „Vorheriges Werkzeug" nimmt das zuletzt benutzte — nur so wird das Lasso mit dem Stift erreichbar. Siehe unten. |
+| Einstellungen → *Zeichnen* | „Stift-Taste halten, um zu markieren" (nur Windows) und „Apple-Pencil-Doppeltipp und -Drücken folgen der iOS-Einstellung" (nur iOS) schalten das ab. |
 
 Die Schleife wird **so gelesen, wie sie gezogen wurde** — sie wird nicht von selbst geschlossen. Wer
 sie nicht zubekommt, nimmt nichts auf.
@@ -27,6 +27,27 @@ Rückgängig-Schritt bleiben der gewöhnliche Lasso-Weg (`PencilTapBehavior.cs`,
 (`PointerPointProperties.IsBarrelButtonPressed`), in SkiaSharp ist es nicht enthalten; auf iOS aus
 `UIPencilInteraction`, weil MAUI dafür keine Schnittstelle hat. Android meldet nichts Vergleichbares —
 dort führt nur der Knopf in der Leiste zum Lasso.
+
+### Was der Doppeltipp auf iOS wirklich tut
+
+Der Doppeltipp ist **kein zweiter Weg zum Radiergummi**, den die App mit dem Lasso teilen müsste — er
+ist der Griff, mit dem iOS **ein** Werkzeug auswählen lässt. Apple erwartet, dass eine App das befolgt,
+was der Benutzer dort eingestellt hat; deshalb liest `PencilTapBehavior` bei jedem Tipp
+`UIPencilInteraction.PreferredTapAction` (beim Pencil Pro ab iOS 17.5 beim Drücken
+`PreferredSqueezeAction`) und setzt um, was dort steht:
+
+| iOS-Einstellung | Was die App tut |
+| --- | --- |
+| „Zum Radiergummi wechseln" (**Standard**) | Radierer ⇄ Stift. Das ist die Belegung, die die meisten Pencils haben, und sie bleibt unangetastet. |
+| „Vorheriges Werkzeug" | Zurück zum zuletzt benutzten Werkzeug, hin und her — damit lässt sich zwischen Stift und Lasso umschalten, wenn das Lasso vorher mit dem Knopf gewählt wurde. |
+| „Farbpalette anzeigen", „Stiftattribute anzeigen" | Nichts: eine Notiz hat keine solche Palette, und ein zweites Farbmenü neben der Leiste wäre nur verwirrend. |
+| „Aus" | Nichts. |
+
+Der Knopf in der Leiste ist deshalb der normale Weg zum Lasso: man tippt ihn, wählt damit das
+Werkzeug und zieht die Schleife mit dem Stiftspitzen-Ende. Der Doppeltipp hilft nur, das Lasso wieder
+wegzubekommen, ohne die Hand zur Leiste zu führen. Auf einem Pencil **Pro** gibt es beide Griffe
+getrennt — Doppeltipp auf Radiergummi *und* Drücken auf „Vorheriges Werkzeug" — auf einem Pencil 2 nur
+den Doppeltipp.
 
 Im Quelltext: `SkiaInkCanvasView` (`HandleLassoTouch`, `StrokesInsideLoop`, `IsInsideLoop`,
 `SelectionDrag`), das Werkzeug selbst ist `InkTool.Lasso` (`Ink/InkTool.cs`), und die Zeichenfläche
@@ -116,7 +137,13 @@ Nach dem Halten ist die Form fertig; sie lässt sich über das Lasso aufnehmen u
 | --- | --- | --- | --- |
 | Linie, Rechteck und Ellipse nach kurzem Halten begradigen | `Draw.ShapeRecognitionEnabled` | an | alle |
 | Stift-Taste halten, um zu markieren | `Draw.PenButtonLassoEnabled` | an | Windows |
-| Apple-Pencil-Doppeltipp wechselt zum Radiergummi | `Draw.PencilDoubleTapEnabled` | an | iOS |
+| Apple-Pencil-Doppeltipp und -Drücken folgen der iOS-Einstellung | `Draw.PencilDoubleTapEnabled` | an | iOS |
 
-Die Formerkennung gilt für Stift und Finger gleichermaßen; das Lasso wird nur über den Knopf in der
-Leiste gewählt, die Tastengriffe des Stifts sind der kurze Weg dahin.
+Alle drei Reihen in den Einstellungen hängen an der Plattform, deren Stift sie beschreiben: der
+Stiftknopf ist eine Windows-Sache, der Doppeltipp eine iOS-Sache — auf den anderen Plattformen steht
+die Reihe gar nicht erst da. `Draw.PencilDoubleTapEnabled` schaltet den Stift **nicht** auf Radierer
+fest, sondern nur, ob die App befolgt, was in iOS eingestellt ist (siehe
+„Was der Doppeltipp auf iOS wirklich tut").
+
+Die Formerkennung gilt für Stift und Finger gleichermaßen; das Lasso wird mit dem Knopf in der Leiste
+gewählt, die Griffe des Stifts sind der kurze Weg dorthin.
