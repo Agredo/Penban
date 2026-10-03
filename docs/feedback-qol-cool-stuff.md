@@ -8,57 +8,18 @@ Abgeglichen mit `main` (`f52ee4e`, Version 0.5.2, TestFlight-Build 14). Jeder Pu
 was davon schon da ist und wo im Quelltext das steht — damit die Liste nur noch das enthält, was
 wirklich fehlt.
 
+Nachgezogen bis PR #48: die QoL-Karten 1, 2, 3, 4 und 7 sind damit gebaut (noch nicht
+veröffentlicht) und stehen unten unter „Nicht mehr auf der Liste".
+
 Legende: **offen** = nichts davon ist gebaut · **teilweise** = ein Teil ist gebaut, der Rest steht
 dabei · **erledigt** = der Punkt ist abgehakt und steht nur noch unter
 „Nicht mehr auf der Liste" (ganz unten).
 
 ## QoL
 
-Auf der Liste bleiben 7 der 9 Karten: fünf ganz offen, zwei teilweise. Die Nummern sind die Karten
-des Boards, deshalb fehlen hier QoL 5 und QoL 8 — sie stehen unten unter
+Auf der Liste bleiben 2 der 9 Karten: beide ganz offen. Die Nummern sind die Karten des Boards,
+deshalb fehlen hier QoL 1, 2, 3, 4, 5, 7 und 8 — sie stehen unten unter
 „Nicht mehr auf der Liste".
-
-### QoL 1 (Karte 1) – Stiftdicken-Untermenü · **teilweise**
-
-> Pen thickness sub-menu a bit annoying – doesn't close when tapping with pen/finger outside;
-> doesn't show which thickness is selected; should (IMO) be removed when display has space to
-> display directly in toolbar.
-
-Erledigt: Ein Tipp neben das Flyout schließt es (`PenFlyoutBackdrop` in
-`Penban.Maui.Views/Pages/CardInkEditorPage.xaml:159`, `OnPenFlyoutBackdropTapped`), und die
-eingestellte Dicke ist ablesbar — Zahl neben dem Regler, Vorschau-Stift im Flyout und die
-Klingenbreite im Stift-Slot der Leiste (`PenSlotRow`, `:81`). Beides kam mit 0.5.2 (a33a081, PR #45).
-
-Offen: Die Dicke direkt in der Zeichenleiste, wenn Platz ist. Die Leiste zeigt die Stifte, die
-Breite ändert aber weiterhin nur das Flyout (oder der Ring).
-
-### QoL 2 (Karte 2) – Radieren und Rückgängig · **offen**
-
-> Undo after erase should undo all erased strokes since placing pen down instead of only the last
-> erased stroke.
-
-Jeder Radier-Treffer legt einen eigenen Eintrag in der Historie ab
-(`SkiaInkCanvasView.cs:425` für die Stift-Rückseite, `:1057` für den Radierer, jeweils
-`commands.RecordErased(removed)`), also nimmt ein „Rückgängig" nur den letzten Strich zurück statt
-alles seit dem Aufsetzen des Stifts. Die Historie selbst kann Erase-Einträge
-(`InkCommandStack`, `InkEditKind.Erased`).
-
-### QoL 3 (Karte 3) – Farbe wählen wechselt zum Stift · **offen**
-
-> Picking color auto switch to pen.
-
-Weder die Farbfelder der Leiste noch der Farbblock des Rings wechseln die Zeichenart: `SetPenColor`
-bzw. `ApplyRadialMenuChoice` (`CardInkEditorPage.xaml.cs`, `RadialMenuHitKind.Entry`) setzen nur die
-Farbe. Ist der Radierer aktiv, bleibt er aktiv, und der nächste Strich radiert statt zu schreiben.
-
-### QoL 4 (Karte 4) – Karten direkt im Board löschen · **offen**
-
-> Delete cards from board view directly – trashcan when dragging card?
-
-Ein gezogener Kartenwechsel endet in `OnKanbanDragEnd` (`BoardPage.xaml.cs`) und schreibt nur die
-neue Spalte und Reihenfolge (`MoveCardCommand`). Es gibt weder einen Papierkorb beim Ziehen noch ein
-Kontextmenü oder eine Wischgeste auf der Karte; gelöscht wird eine Karte nur aus der Notiz heraus
-(`DeleteButton`).
 
 ### QoL 6 (Karte 6) – Übersicht zeigt nur die Titelkarte · **offen**
 
@@ -70,14 +31,6 @@ Die Notiz des Boards führt den Stapel an und nimmt einen der drei Plätze ein, 
 füllen den Rest (`BoardViewModel.LoadSummaryAsync`, `:173` ff., `PreviewNoteLimit = 3`) — sie liegt
 also weiterhin **auf** dem Stapel statt allein zu stehen. Das zweite, kleinere Anliegen der Karte
 (größer, damit man die Titelkarte vom Stapel unterscheiden kann) fehlt ebenfalls.
-
-### QoL 7 (Karte 7) – Druck-Schalter in der Zeichenleiste · **teilweise**
-
-> Add pen pressure toggle to card draw toolbar.
-
-Der Schalter existiert, aber nur in den Einstellungen → Zeichnen
-(`SettingsPage.xaml`, `PressureSensitiveWidth`, Vorgabe an). Aus der Notiz heraus ist er über den
-Einstellungsknopf erreichbar, in der Zeichenleiste selbst steht er nicht.
 
 ### QoL 9 (Karte 9) – Boards in der Liste sortieren · **offen**
 
@@ -222,17 +175,21 @@ Erledigt und deshalb aus der Liste gestrichen:
 
 | Punkt | Stand |
 | --- | --- |
+| QoL 1 – „Pen thickness sub-menu" | Der Tipp daneben schließt das Flyout, und die Dicke ist am Stift, an der Zahl und im Ring zu sehen (0.5.2, PR #45). Seit PR #48 steht sie zusätzlich direkt in der Leiste: Regler und Zahl neben den Stiften (`ToolbarThicknessSlider`/`ToolbarThicknessValue`, `CardInkEditorPage.xaml:89`), der Bereich kommt aus `PenThickness`; der Stift in der Hand verstellt sie unterwegs (`OnPenSlotPanned`). |
+| QoL 2 – „Undo after erase" | Ein Radierkontakt ist ein Edit: `EraseSession` sammelt den ganzen Zug und legt ihn einmal in die Historie — für den Radierer und für die Rückseite des Stifts (PR #48, `SkiaInkCanvasView.cs`). |
+| QoL 3 – „Picking color auto switch to pen" | Eine gewählte Farbe legt den Radierer weg: Palette, Ring und Farbbänder setzen `InkHost.IsEraserMode = false` (PR #48). |
+| QoL 4 – „Delete cards from board view directly" | Auswahlmodus mit Häkchen an den Notizen und Leiste (`SelectButton`, `SelectionBar`), Verschieben in eine andere Spalte (`MoveCardsAsync`) und Löschen mit Rückfrage (`DeleteCardsAsync`). Beim Ziehen einer Notiz füllt sich die Löschfläche über dem Board rot (`TrashDropArea`, `SetBinHot`/`PaintBin`) — PR #48. |
 | QoL 5 – „Clear card button in toolbar" | Der Knopf ist da: `ClearButton` mit `ClearNote` in der Zeichenleiste (`CardInkEditorPage.xaml:84`), löscht die Tinte einer Notiz in einem Schritt. |
+| QoL 7 – „Add pen pressure toggle to card draw toolbar" | Der Schalter sitzt als Knopf in der Leiste (`PressureButton`, `OnPressureClicked`, Glyph `InkStrokeArrowUpDown`) und zeigt zwei Texte, `PressureWidthOn`/`PressureWidthOff` (PR #48). |
 | QoL 8 – „Scroll to board after exiting to main menu" | Die Übersicht rollt beim Zurückkommen zum zuletzt geöffneten Board (`BoardsPage.xaml.cs:95/169`, `ScrollToLastOpenedBoard`, ohne Animation). |
-| QoL 1, Teile 1 und 2 – Flyout schließt, Dicke sichtbar | Siehe QoL 1 oben: Tippen daneben schließt, und die Dicke ist am Stift, an der Zahl und im Ring zu sehen (0.5.2, PR #45). |
 | Future 3, Teil 1 – Board pro Widget | Jedes Widget hat seine eigene Board-Auswahl (`PenbanBoardIntent`); der lange Druck in der Übersicht ist nur noch der Vorschlag. |
 | Future 5, Teil 1 – Karten-Pins als Tags | Emoji-Tags auf Karten (bis vier) samt Filter im Board-Kopf (0.5.0). |
 | Future 6, Teil 1 – Textsuche und Tag-Filter | Beides im Board-Kopf (0.5.0, Suche über den gelesenen Notiztext). |
 
 Zur Einordnung: Die Spalte „Done 🥳" des Boards enthält genau die Karten, die zu diesen Punkten
 gehören (u. a. „Pressure sensitivity (toggle button in card view?)", „Search in notes", „Export",
-„Widget for board quick access"). QoL 7 und die Teilerledigungen oben sind der Rest, der dort noch
-nicht steht.
+„Widget for board quick access"). Die QoL-Karten 1 bis 4 und 7 stehen dort noch nicht, sie kamen
+erst mit PR #48.
 
-Die Datei `TODO.md` im Wurzelverzeichnis führt dieselbe Liste auf Englisch, inzwischen aber älter —
-mehrere hier abgehakte Punkte stehen dort noch offen.
+Die Datei `TODO.md` im Wurzelverzeichnis führt dieselbe Liste auf Englisch und ist im selben Zug
+nachgezogen.
