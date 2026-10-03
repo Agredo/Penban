@@ -1,0 +1,125 @@
+<Project>
+
+  <!-- Windows architecture guard.
+
+       The MSIX recipe selects the target architecture with -p:Platform=<x64|arm64>. When the
+       RuntimeIdentifier is left to the MAUI SDK it is derived from the *host* architecture, so the
+       arm64 package of 0.5.0 shipped an AMD64 app host (Penban.Maui.exe) and an AMD64
+       Microsoft.WindowsAppRuntime.Bootstrap.dll next to ARM64 managed assemblies. Such a package
+       installs fine and then dies during CLR start-up with FileLoadException "the assembly
+       architecture is not compatible with the current process architecture" - no window, no managed
+       crash log.
+
+       Penban/Directory.Build.props derives the RuntimeIdentifier from Platform to fix that. The check
+       below is the second half: it fails the build whenever the compiled output does not actually
+       match Platform, so a mixed-architecture package cannot be produced silently again.
+       Set -p:PenbanSkipWindowsArchitectureCheck=true to bypass it. -->
+
+  <UsingTask TaskName="PenbanGetPeArchitecture"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Files ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <ExpectedArchitecture ParameterType="System.String" Required="true" />
+      <Checked ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+      <Mismatches ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.Collections.Generic" />
+      <Using Namespace="System.IO" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var mismatches = new List<Microsoft.Build.Framework.ITaskItem>();
+        var checkedItems = new List<Microsoft.Build.Framework.ITaskItem>();
+        foreach (var file in Files)
+        {
+          var path = file.ItemSpec;
+          if (string.IsNullOrEmpty(path) || !File.Exists(path))
+          {
+            continue;
+          }
+
+          var architecture = "unknown";
+          using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+          using (var reader = new BinaryReader(stream))
+          {
+            if (stream.Length >= 64)
+            {
+              stream.Position = 0x3C;
+              var peOffset = reader.ReadInt32();
+              if (peOffset > 0 && peOffset + 6 <= stream.Length)
+              {
+                stream.Position = peOffset;
+                if (reader.ReadUInt32() == 0x00004550)
+                {
+                  switch (reader.ReadUInt16())
+                  {
+                    case 0x014C: architecture = "I386"; break;
+                    case 0x8664: architecture = "AMD64"; break;
+                    case 0xAA64: architecture = "ARM64"; break;
+                  }
+                }
+              }
+            }
+          }
+
+          file.SetMetadata("PeArchitecture", architecture);
+          checkedItems.Add(file);
+
+          // Native binaries (app host, Windows App SDK bootstrapper) must match exactly. Managed
+          // assemblies may still be architecture neutral (I386, IL only) when they are not
+          // ReadyToRun compiled, but a concrete foreign architecture is always wrong.
+          var isNative = string.Equals(file.GetMetadata("Native"), "true", StringComparison.OrdinalIgnoreCase);
+          var mismatch = isNative
+            ? !string.Equals(architecture, ExpectedArchitecture, StringComparison.Ordinal)
+            : architecture != "unknown" && architecture != "I386" &&
+              !string.Equals(architecture, ExpectedArchitecture, StringComparison.Ordinal);
+
+          if (mismatch)
+          {
+            file.SetMetadata("ExpectedArchitecture", ExpectedArchitecture);
+            mismatches.Add(file);
+          }
+        }
+
+        Mismatches = mismatches.ToArray();
+        Checked = checkedItems.ToArray();
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="PenbanValidateWindowsArchitecture"
+          Condition="'$(PenbanSkipWindowsArchitectureCheck)' != 'true' and '$(TargetFramework)' != '' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' and ('$(Platform)' == 'x64' or '$(Platform)' == 'arm64' or '$(Platform)' == 'x86')"
+          BeforeTargets="PrepareForRun">
+
+    <PropertyGroup>
+      <_PenbanExpectedArchitecture Condition="'$(Platform)' == 'x64'">AMD64</_PenbanExpectedArchitecture>
+      <_PenbanExpectedArchitecture Condition="'$(Platform)' == 'arm64'">ARM64</_PenbanExpectedArchitecture>
+      <_PenbanExpectedArchitecture Condition="'$(Platform)' == 'x86'">I386</_PenbanExpectedArchitecture>
+    </PropertyGroup>
+
+    <Error Condition="'$(RuntimeIdentifier)' != 'win-$(Platform)'"
+           Code="PENBAN0001"
+           Text="RuntimeIdentifier '$(RuntimeIdentifier)' does not match Platform '$(Platform)' for $(TargetFramework). The RuntimeIdentifier must be 'win-$(Platform)'; it is normally derived from Platform by Directory.Build.props. Do not pass -p:RuntimeIdentifier on the command line, and build the Windows head with -p:Platform=&lt;x64|arm64&gt;." />
+
+    <ItemGroup>
+      <_PenbanBinaryToCheck Include="$(TargetDir)$(TargetName).exe" Native="true" />
+      <_PenbanBinaryToCheck Include="$(TargetDir)Microsoft.WindowsAppRuntime.Bootstrap.dll" Native="true" />
+      <_PenbanBinaryToCheck Include="$(TargetDir)$(TargetName).dll" Native="false" />
+    </ItemGroup>
+
+    <PenbanGetPeArchitecture Files="@(_PenbanBinaryToCheck)" ExpectedArchitecture="$(_PenbanExpectedArchitecture)">
+      <Output TaskParameter="Checked" ItemName="_PenbanCheckedBinary" />
+      <Output TaskParameter="Mismatches" ItemName="_PenbanArchitectureMismatch" />
+    </PenbanGetPeArchitecture>
+
+    <Error Condition="'@(_PenbanArchitectureMismatch)' != ''"
+           Code="PENBAN0001"
+           Text="Platform is $(Platform) ($(_PenbanExpectedArchitecture)), but @(_PenbanArchitectureMismatch->'%(Identity) [%(PeArchitecture)]', ', ') in $(TargetDir) belong to a different architecture. Such a package installs and then never starts (FileLoadException during CLR start-up). Build with -p:Platform=$(Platform) only; do not pass -p:RuntimeIdentifier or -p:PlatformTarget." />
+
+    <Message Condition="'@(_PenbanArchitectureMismatch)' == '' and '@(_PenbanCheckedBinary)' != ''"
+             Importance="normal"
+             Text="Penban architecture guard: @(_PenbanCheckedBinary->'%(Filename)%(Extension) [%(PeArchitecture)]', ', ') match Platform $(Platform) ($(_PenbanExpectedArchitecture))." />
+  </Target>
+
+</Project>
