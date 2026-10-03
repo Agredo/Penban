@@ -3,9 +3,10 @@
 Taken from the "Penban Feedback" board, grouped by column. `[x]` = done, `[~]` = partly done.
 The QoL and "Future cool stuff" columns are written out in German as well, with the file and the
 symbol behind every verdict: [docs/feedback-qol-cool-stuff.md](docs/feedback-qol-cool-stuff.md).
-QoL 1, 2, 3, 4 and 7 are built (PR #48) but not released yet; the lasso and the shape recognition sit
-on top of that (PR #49), also not released. Both are written out in German, with the files and symbols
-behind them: [docs/lasso-und-formen.md](docs/lasso-und-formen.md).
+QoL 1, 2, 3, 4 and 7 are built (PR #48); the lasso and the shape recognition sit on top of that
+(PR #49). All of it goes out together in 0.5.3, along with the board loading fix from 0.5.2. Both are
+written out in German, with the files and symbols behind them:
+[docs/lasso-und-formen.md](docs/lasso-und-formen.md).
 
 ## Bugs
 
