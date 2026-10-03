@@ -143,7 +143,13 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     private bool isPenTailErasing;
 
     /// <summary>
-    /// The contacts that are down on a surface that does not draw with them, in document units. Kept
+    /// The eraser contact that is down, if there is one. One contact is one edit: what the sweep takes
+    /// is only remembered here and goes into the history as a whole once the contact ends, so undoing
+    /// an erase brings back every stroke the sweep took instead of one stroke per place it touched.
+    /// </summary>
+    private EraseSession? eraseSession;
+
+    /// <summary>The contacts that are down on a surface that does not draw with them, in document units. Kept
     /// apart from <see cref="activeFingers"/>, which counts the contacts of a drawing surface: here
     /// the finger has no stroke to draw and is followed for the page's own gesture instead - see
     /// <see cref="CloseOnSwipeDown"/>.
@@ -472,6 +478,10 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     private void ResetInputState()
     {
         currentStroke = null;
+
+        // A sweep that was being remembered belongs to the set that has just been replaced, so it is
+        // dropped rather than recorded - the same reason the press behind it is.
+        eraseSession = null;
         currentStrokeIsFinger = false;
         currentStrokeContactId = 0;
         firstPointAwaitsPressure = false;
@@ -971,11 +981,31 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             return;
         }
 
-        if (e.ActionType is not (SKTouchAction.Pressed or SKTouchAction.Moved) || !e.InContact)
+        // The contact is over - the eraser was lifted, or the platform gave up on it, which on a
+        // handheld is also how a pen that leaves the screen reports itself. Either way the sweep is
+        // finished, and its whole edit goes into the history now.
+        if (!e.InContact || e.ActionType is SKTouchAction.Released or SKTouchAction.Cancelled)
+        {
+            EndEraseSession();
+            e.Handled = true;
+            return;
+        }
+
+        if (e.ActionType is not (SKTouchAction.Pressed or SKTouchAction.Moved))
         {
             e.Handled = true;
             return;
         }
+
+        // One contact is one edit: the sweep is opened with the strokes as they stand now. A press is
+        // the start of a contact, so an edit that is still open from the contact before it - one whose
+        // end the platform never reported - is closed here rather than stretched over this one.
+        if (e.ActionType == SKTouchAction.Pressed)
+        {
+            EndEraseSession();
+        }
+
+        BeginEraseSession();
 
         var touched = ToDocument(e.Location);
         var erased = EraseStrokesAt(touched.X, touched.Y);
@@ -1014,6 +1044,10 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
         DropCurrentStroke();
 
+        // The dropped stroke is what is being replaced here, so the sweep is opened after it: a tail
+        // held down is one edit like any other eraser contact, see the note on the field.
+        BeginEraseSession();
+
         var erased = hasTouched && EraseStrokesAt(touched.X, touched.Y);
         canvasView.InvalidateSurface();
 
@@ -1024,7 +1058,71 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     }
 
     /// <summary>Ends the eraser-end contact; the next touch writes again.</summary>
-    public void EndPenTailErase() => isPenTailErasing = false;
+    public void EndPenTailErase()
+    {
+        isPenTailErasing = false;
+        EndEraseSession();
+    }
+
+    /// <summary>
+    /// Opens the edit an eraser contact makes, with the strokes as they stand at that moment. Doing
+    /// nothing while a sweep is already open is what keeps a contact that the platform reports as many
+    /// presses of the same place, and a pen's tail that is held down, one single edit.
+    /// </summary>
+    private void BeginEraseSession()
+    {
+        var session = eraseSession ??= new EraseSession();
+        session.Order ??= new List<InkStroke>(Strokes);
+    }
+
+    /// <summary>
+    /// Closes the edit an eraser contact made: everything the sweep took goes into the history as one
+    /// entry, so one undo brings back every stroke of it. A contact that took nothing leaves nothing
+    /// behind, and neither does a session that was already closed by the other end of the contact.
+    /// </summary>
+    private void EndEraseSession()
+    {
+        var session = eraseSession;
+        eraseSession = null;
+
+        if (session?.Order is not { } order || session.Removed.Count == 0)
+        {
+            return;
+        }
+
+        // Each swept stroke is put back where it stood when the eraser touched down: at the number of
+        // the strokes of that moment that are still standing before it. Counting it from the order of
+        // that moment - rather than keeping the position every touch found the stroke in - is what
+        // makes the sweep one entry: those positions were measured against a set that the sweep itself
+        // was already shrinking.
+        var removed = new HashSet<InkStroke>(session.Removed);
+        var placements = new List<InkStrokePlacement>(removed.Count);
+        var standing = 0;
+
+        foreach (var stroke in order)
+        {
+            if (removed.Contains(stroke))
+            {
+                placements.Add(new InkStrokePlacement(standing, stroke));
+            }
+            else if (Strokes.Contains(stroke))
+            {
+                standing++;
+            }
+        }
+
+        if (placements.Count == 0)
+        {
+            return;
+        }
+
+        commands.RecordErased(placements);
+
+        // The edit exists only now, so this is where the caller learns of it - the row that offers to
+        // take it back has something to offer from here on, and the card is written as after any other
+        // change to the stroke set.
+        StrokeCompleted?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>
     /// Removes every stroke that passes within <see cref="EraseRadius"/> of the point and records them
@@ -1053,9 +1151,39 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             return false;
         }
 
+        if (eraseSession is { } session)
+        {
+            // The contact that made this sweep is still down, so what it took is only remembered: the
+            // whole sweep is recorded when that contact ends, see EndEraseSession. Nothing but the set
+            // of strokes is needed for that, because the places are measured there.
+            foreach (var placement in removed)
+            {
+                session.Removed.Add(placement.Stroke);
+            }
+
+            return true;
+        }
+
+        // No contact to hold the sweep together - an edit of its own, the way the eraser always
+        // recorded one.
         removed.Reverse();
         commands.RecordErased(removed);
         return true;
+    }
+
+    /// <summary>
+    /// A stroke set as it stood when an eraser touched down, and what the sweep that followed took
+    /// from it. Kept as a plain object rather than as a change to the history: what the sweep means
+    /// as a whole is only known once the eraser is up again - see
+    /// <see cref="SkiaInkCanvasView.EndEraseSession"/>.
+    /// </summary>
+    private sealed class EraseSession
+    {
+        /// <summary>The strokes in their order at the start of the sweep, remembered on the way in.</summary>
+        public List<InkStroke>? Order { get; set; }
+
+        /// <summary>What the sweep has taken since, in the order it was taken.</summary>
+        public List<InkStroke> Removed { get; } = new();
     }
 
     private static float Distance(float x1, float y1, float x2, float y2)

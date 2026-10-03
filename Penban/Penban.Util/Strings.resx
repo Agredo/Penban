@@ -118,6 +118,21 @@
   <data name="DeleteCardConfirmation" xml:space="preserve">
     <value>Delete this card? This cannot be undone.</value>
   </data>
+  <data name="SelectCards" xml:space="preserve">
+    <value>Select notes</value>
+  </data>
+  <data name="SelectionCount" xml:space="preserve">
+    <value>{0} selected</value>
+  </data>
+  <data name="MoveCardsTo" xml:space="preserve">
+    <value>Move the notes to</value>
+  </data>
+  <data name="DeleteCardsConfirmation" xml:space="preserve">
+    <value>Delete the selected notes? This cannot be undone.</value>
+  </data>
+  <data name="DeleteDropHint" xml:space="preserve">
+    <value>Drop the note here to delete it</value>
+  </data>
   <data name="RenameColumn" xml:space="preserve">
     <value>Rename column</value>
   </data>
@@ -183,6 +198,12 @@
   </data>
   <data name="PressureSensitiveWidth" xml:space="preserve">
     <value>Line width follows pen pressure</value>
+  </data>
+  <data name="PressureWidthOn" xml:space="preserve">
+    <value>Line width follows pen pressure</value>
+  </data>
+  <data name="PressureWidthOff" xml:space="preserve">
+    <value>Line width does not follow pen pressure</value>
   </data>
   <data name="PencilDoubleTapEnabled" xml:space="preserve">
     <value>Apple Pencil double-tap switches to the eraser</value>

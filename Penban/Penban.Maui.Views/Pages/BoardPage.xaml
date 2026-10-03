@@ -17,76 +17,177 @@
              The note button sits beside it for the same reason: the note belongs to the board, not
              to a column, and it is what the board shows on the overview and on the home screen.
              The settings button is the same one as on the overview: the drawing settings are tried
-             out on a note, so they have to be reachable without leaving the board. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="6">
-            <Button Grid.Column="0"
-                    Text="&#xf15c;"
-                    Style="{StaticResource GhostIconButton}"
-                    Clicked="OnBackClicked"
-                    SemanticProperties.Description="{markup:Translate BoardsTitle}" />
-            <Label Grid.Column="1"
-                   Text="{Binding Title}"
-                   Style="{StaticResource TitleLabel}"
-                   LineBreakMode="TailTruncation"
-                   VerticalOptions="Center" />
-            <!-- Filter = U+F407, Search = U+F690. Pressing one slides its controls in to the left of
-                 the button, inside this row, so the board below keeps its place; the title gives up
-                 the room. The button is accent while it is narrowing the board down. -->
-            <ScrollView x:Name="FilterTagScroll"
-                        Grid.Column="2"
+             out on a note, so they have to be reachable without leaving the board.
+             The bar has three faces and shows one at a time: the header, the row that acts on the
+             picked notes, and the bin a note can be dropped on. All three sit in the same cell, so
+             one covers another instead of pushing it aside: the board below must not move while a
+             note is in the air, or the drop target would shift away from the note. -->
+        <Grid Grid.Row="0">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                  ColumnSpacing="6">
+                <Button Grid.Column="0"
+                        Text="&#xf15c;"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnBackClicked"
+                        SemanticProperties.Description="{markup:Translate BoardsTitle}" />
+                <Label Grid.Column="1"
+                       Text="{Binding Title}"
+                       Style="{StaticResource TitleLabel}"
+                       LineBreakMode="TailTruncation"
+                       VerticalOptions="Center" />
+                <!-- Filter = U+F407, Search = U+F690. Pressing one slides its controls in to the left of
+                     the button, inside this row, so the board below keeps its place; the title gives up
+                     the room. The button is accent while it is narrowing the board down. -->
+                <ScrollView x:Name="FilterTagScroll"
+                            Grid.Column="2"
+                            IsVisible="False"
+                            Orientation="Horizontal"
+                            HorizontalScrollBarVisibility="Never"
+                            MaximumWidthRequest="320"
+                            VerticalOptions="Center">
+                    <HorizontalStackLayout x:Name="FilterTagRow" Spacing="4" />
+                </ScrollView>
+                <Button x:Name="FilterButton"
+                        Grid.Column="3"
+                        Text="&#xf407;"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnFilterClicked"
+                        SemanticProperties.Description="Filter" />
+                <Border x:Name="SearchEntryHost"
+                        Grid.Column="4"
                         IsVisible="False"
-                        Orientation="Horizontal"
-                        HorizontalScrollBarVisibility="Never"
-                        MaximumWidthRequest="320"
-                        VerticalOptions="Center">
-                <HorizontalStackLayout x:Name="FilterTagRow" Spacing="4" />
-            </ScrollView>
-            <Button x:Name="FilterButton"
-                    Grid.Column="3"
-                    Text="&#xf407;"
-                    Style="{StaticResource GhostIconButton}"
-                    Clicked="OnFilterClicked"
-                    SemanticProperties.Description="Filter" />
-            <Border x:Name="SearchEntryHost"
-                    Grid.Column="4"
+                        Padding="10,0"
+                        WidthRequest="200"
+                        VerticalOptions="Center"
+                        Style="{StaticResource InputSurface}">
+                    <Entry x:Name="FilterEntry"
+                           Placeholder="{markup:Translate SearchPlaceholder}"
+                           TextChanged="OnFilterTextChanged" />
+                </Border>
+                <Button x:Name="SearchButton"
+                        Grid.Column="5"
+                        Text="&#xf690;"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnSearchClicked"
+                        SemanticProperties.Description="{markup:Translate SearchTitle}" />
+                <!-- Select = U+E84D. Its row replaces this one while notes are being picked: a note
+                     that can still be dragged would swallow the tap that picks it, so picking needs a
+                     mode of its own rather than a long press. -->
+                <Button x:Name="SelectButton"
+                        Grid.Column="6"
+                        Text="&#xe84d;"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnSelectCardsClicked"
+                        SemanticProperties.Description="{markup:Translate SelectCards}" />
+                <Button Grid.Column="7"
+                        Text="&#xf6b0;"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnShareClicked"
+                        SemanticProperties.Description="{markup:Translate ShareBoard}" />
+                <!-- Note = U+F56C. Accent while the board carries a note, so the header says at a glance
+                     whether there is one without the button having to be pressed. -->
+                <Button x:Name="BoardNoteButton"
+                        Grid.Column="8"
+                        Text="&#xf56c;"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnBoardNoteClicked"
+                        SemanticProperties.Description="{markup:Translate BoardNote}" />
+                <Button Grid.Column="9"
+                        Text="&#xf588;"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnSettingsClicked"
+                        SemanticProperties.Description="{markup:Translate Settings}" />
+                <Button Grid.Column="10"
+                        Text="&#xf2fd;"
+                        Style="{StaticResource AccentIconButton}"
+                        Command="{Binding AddColumnCommand}"
+                        SemanticProperties.Description="{markup:Translate AddColumn}" />
+            </Grid>
+            <!-- While notes are picked, this row stands in for the header. The way back stays where it
+                 was: a header that offers none would be a trap. The two actions only appear once
+                 something is picked, so the row says what it would act on. -->
+            <Grid x:Name="SelectionBar"
+                  IsVisible="False"
+                  ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+                  ColumnSpacing="6"
+                  BackgroundColor="{AppThemeBinding Light={StaticResource BackgroundLight}, Dark={StaticResource BackgroundDark}}">
+                <Button Grid.Column="0"
+                        Text="&#xf15c;"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnBackClicked"
+                        SemanticProperties.Description="{markup:Translate BoardsTitle}" />
+                <Label x:Name="SelectionCountLabel"
+                       Grid.Column="1"
+                       Style="{StaticResource SubtitleLabel}"
+                       LineBreakMode="TailTruncation"
+                       VerticalOptions="Center" />
+                <!-- Move = U+F169, Delete = U+F34D, Done = U+F295. -->
+                <Button x:Name="MoveSelectedButton"
+                        Grid.Column="2"
+                        Text="&#xf169;"
+                        Style="{StaticResource GhostIconButton}"
+                        Clicked="OnMoveSelectedClicked"
+                        SemanticProperties.Description="{markup:Translate MoveCardsTo}" />
+                <Button x:Name="DeleteSelectedButton"
+                        Grid.Column="3"
+                        Text="&#xf34d;"
+                        Style="{StaticResource DangerGhostIconButton}"
+                        Clicked="OnDeleteSelectedClicked"
+                        SemanticProperties.Description="{markup:Translate Delete}" />
+                <Button Grid.Column="4"
+                        Text="&#xf295;"
+                        Style="{StaticResource AccentIconButton}"
+                        Clicked="OnDoneSelectingClicked"
+                        SemanticProperties.Description="{markup:Translate Done}" />
+            </Grid>
+            <!-- The bin, over the header while a note is in the air. The header stays under it and
+                 keeps the height of the row, so the board below does not move by a pixel while a
+                 note is being dragged - a board that shifts under the note would take the columns
+                 out from under it.
+                 It carries a drop recognizer of its own because the control reports no drop at all
+                 for a release outside its columns - a note dropped here would otherwise slide back
+                 into its column without the board ever hearing about it.
+                 Tapping it puts the header back: a drag that ends in a way the app is never told
+                 about (the app going to the background, a drop the platform calls off) must not leave
+                 the user without a header. -->
+            <Border x:Name="TrashDropArea"
                     IsVisible="False"
-                    Padding="10,0"
-                    WidthRequest="200"
+                    HeightRequest="44"
                     VerticalOptions="Center"
-                    Style="{StaticResource InputSurface}">
-                <Entry x:Name="FilterEntry"
-                       Placeholder="{markup:Translate SearchPlaceholder}"
-                       TextChanged="OnFilterTextChanged" />
+                    Padding="0"
+                    StrokeThickness="1"
+                    StrokeDashArray="4,3"
+                    StrokeShape="RoundRectangle 10"
+                    Stroke="{AppThemeBinding Light={StaticResource DangerLight}, Dark={StaticResource DangerDark}}"
+                    Background="{AppThemeBinding Light={StaticResource SurfaceSecondaryLight}, Dark={StaticResource SurfaceSecondaryDark}}">
+                <Border.GestureRecognizers>
+                    <DropGestureRecognizer AllowDrop="True"
+                                           DragOver="OnTrashDragOver"
+                                           DragLeave="OnTrashDragLeave"
+                                           Drop="OnTrashDrop" />
+                    <TapGestureRecognizer Tapped="OnTrashTapped" />
+                </Border.GestureRecognizers>
+                <!-- Transparent to input, so nothing about the drop is decided by a child of the
+                     area the note is dropped on. The colours of the bin are set by BoardPage: it
+                     fills with the danger colour while a note is held over it, and a fill needs the
+                     icon and the hint to flip to the page colour with it. -->
+                <HorizontalStackLayout Spacing="8"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"
+                                       InputTransparent="True">
+                    <Label x:Name="DeleteDropIcon"
+                           Text="&#xf34d;"
+                           FontFamily="FluentIcons"
+                           FontSize="18"
+                           VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource DangerLight}, Dark={StaticResource DangerDark}}" />
+                    <Label x:Name="DeleteDropHintLabel"
+                           Text="{markup:Translate DeleteDropHint}"
+                           FontSize="{StaticResource FontSizeBody}"
+                           VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource DangerLight}, Dark={StaticResource DangerDark}}" />
+                </HorizontalStackLayout>
             </Border>
-            <Button x:Name="SearchButton"
-                    Grid.Column="5"
-                    Text="&#xf690;"
-                    Style="{StaticResource GhostIconButton}"
-                    Clicked="OnSearchClicked"
-                    SemanticProperties.Description="{markup:Translate SearchTitle}" />
-            <Button Grid.Column="6"
-                    Text="&#xf6b0;"
-                    Style="{StaticResource GhostIconButton}"
-                    Clicked="OnShareClicked"
-                    SemanticProperties.Description="{markup:Translate ShareBoard}" />
-            <!-- Note = U+F56C. Accent while the board carries a note, so the header says at a glance
-                 whether there is one without the button having to be pressed. -->
-            <Button x:Name="BoardNoteButton"
-                    Grid.Column="7"
-                    Text="&#xf56c;"
-                    Style="{StaticResource GhostIconButton}"
-                    Clicked="OnBoardNoteClicked"
-                    SemanticProperties.Description="{markup:Translate BoardNote}" />
-            <Button Grid.Column="8"
-                    Text="&#xf588;"
-                    Style="{StaticResource GhostIconButton}"
-                    Clicked="OnSettingsClicked"
-                    SemanticProperties.Description="{markup:Translate Settings}" />
-            <Button Grid.Column="9"
-                    Text="&#xf2fd;"
-                    Style="{StaticResource AccentIconButton}"
-                    Command="{Binding AddColumnCommand}"
-                    SemanticProperties.Description="{markup:Translate AddColumn}" />
         </Grid>
         <!-- ColumnWidth is only the starting value: BoardPage recomputes it on resize so the
              columns fill the window, never dropping below the 180 that keeps a note writable.
@@ -181,6 +282,27 @@
                                        HorizontalOptions="End"
                                        VerticalOptions="End"
                                        InputTransparent="True" />
+                                <!-- The pick box of the selection mode, in the corner the tags leave
+                                     free. It is drawn on the note rather than beside it, so a picked
+                                     note is still one note, not a row with a checkbox. Transparent to
+                                     input: the tap that turns it over is the one on the note itself.
+                                     Unticked = U+E2F7, ticked = U+F28E. -->
+                                <Grid IsVisible="{Binding ShowPicker}"
+                                      Margin="2"
+                                      HorizontalOptions="Start"
+                                      VerticalOptions="Start"
+                                      InputTransparent="True">
+                                    <Label Text="&#xe2f7;"
+                                           IsVisible="{Binding IsNotPicked}"
+                                           FontFamily="FluentIcons"
+                                           FontSize="20"
+                                           TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                                    <Label Text="&#xf28e;"
+                                           IsVisible="{Binding IsPicked}"
+                                           FontFamily="FluentIcons"
+                                           FontSize="20"
+                                           TextColor="{AppThemeBinding Light={StaticResource AccentLight}, Dark={StaticResource AccentDark}}" />
+                                </Grid>
                             </Grid>
                         </controls:StickyNoteBorder>
                     </Grid>

@@ -103,6 +103,23 @@ public partial class CardInkEditorPage : ContentPage
     private const double PenFlyoutMargin = 12;
 
     /// <summary>
+    /// How far a drag of a pen has to go to cross the whole range a pen can be set to, in device units.
+    /// Short enough that a drag made on a pen in a row at the top of the screen reaches both ends
+    /// without the finger having to leave it, and long enough that the width does not jump about under
+    /// a finger that is unsteady rather than being dragged.
+    /// </summary>
+    private const double PenDragTravel = 120;
+
+    /// <summary>Width a drag of a pen gives one device unit it is dragged up by.</summary>
+    private const float PenWidthPerPoint = (PenThickness.Maximum - PenThickness.Minimum) / (float)PenDragTravel;
+
+    /// <summary>
+    /// How long after a pen was dragged a press of it is read as the drag being let go rather than as a
+    /// press. Only long enough to swallow the click a drag ends on where a platform sends one.
+    /// </summary>
+    private const long PenDragPressGrace = 300;
+
+    /// <summary>
     /// The blocks of the radial menu, in the order they sit on the ring from the top clockwise: the
     /// two that hold choices, then the three that act the moment they are taken.
     /// </summary>
@@ -140,6 +157,9 @@ public partial class CardInkEditorPage : ContentPage
     private readonly List<Border> penSlotFrames = [];
     private readonly List<PenGlyphView> penSlotGlyphs = [];
     private readonly List<Label> penSlotChevrons = [];
+
+    /// <summary>The width drag of each pen, held here so it can be put on the pen in hand alone.</summary>
+    private readonly List<PanGestureRecognizer> penSlotPans = [];
     private readonly List<Border> paletteSwatches = [];
     private readonly List<Border> recentSwatches = [];
 
@@ -153,10 +173,31 @@ public partial class CardInkEditorPage : ContentPage
     private int activePenSlot;
 
     /// <summary>
-    /// Set while the flyout's own controls are being written to, so a control that is being moved onto
-    /// the pen does not report the move as a choice and write it straight back.
+    /// Set while the pen's own controls are being written to - the flyout's and the row's - so a
+    /// control that is being moved onto the pen does not report the move as a choice and write it
+    /// straight back.
     /// </summary>
-    private bool isUpdatingPenFlyout;
+    private bool isUpdatingPenControls;
+
+    /// <summary>
+    /// Width the pen was set to when the drag of it began, and which pen it was dragging. The width
+    /// the finger is on is measured from where the drag started rather than added up as it goes, so
+    /// half a drag up is the same width however fast it was made, and a drag that wanders sideways
+    /// and back leaves the pen where it was.
+    /// </summary>
+    private float penDragThickness;
+    private int penDragSlot = -1;
+
+    /// <summary>
+    /// Whether the drag has moved far enough up or down to be about the width at all, and which pen
+    /// was dragged last and when. A drag that only went sideways is not one: the row of tools scrolls
+    /// that way, and a finger crossing the pen must not leave a different width behind it. The pen
+    /// that was just dragged is also held off from taking a press for a moment, because the click that
+    /// ends a drag comes through as a press of its own on some platforms.
+    /// </summary>
+    private bool penDragAdjusted;
+    private int lastPenDragSlot = -1;
+    private long lastPenDragTicks;
 
     private int saveVersion;
     private bool isClosing;
@@ -225,8 +266,18 @@ public partial class CardInkEditorPage : ContentPage
         NoteArea.SizeChanged += OnNoteAreaSizeChanged;
 
         // The pens are read before the row is built from them, and the pen that was drawing is handed
-        // to the surface before anything can be drawn with it.
+        // to the surface before anything can be drawn with it. The row's width slider walks the range a
+        // pen can be set to, read from the one place that range is written down and not repeated in the
+        // markup, so the row and the flyout can never offer two different ranges. Giving a slider its
+        // range moves its value - from zero onto the narrowest width there is - and that move is
+        // reported like a drag of the control, so the range is given without being read back: a width
+        // reported from here, before there is a pen to put it into, would be written into no pen at all.
         penSlots = ReadPenSlots();
+        WithoutPenFeedback(() =>
+        {
+            ToolbarThicknessSlider.Minimum = PenThickness.Minimum;
+            ToolbarThicknessSlider.Maximum = PenThickness.Maximum;
+        });
         recentColors = PenColorHistory.Parse(preferences.Get(PreferenceKeys.PenRecentColors, string.Empty));
         activePenSlot = ReadActivePenSlot();
         BuildColorPicker();
@@ -406,6 +457,11 @@ public partial class CardInkEditorPage : ContentPage
     /// chevron at the corner of the one that is drawing, which is what says that pressing it again
     /// opens it. The row is built once and the pens are edited in place from then on, see
     /// <see cref="UpdatePenSlots"/>.
+    /// <para>
+    /// Each pen also carries the drag that changes its width, but only the pen that is drawing wears
+    /// it: a drag of the other pen would either do nothing or take it up and change it in one go, and
+    /// either way the row would stop scrolling under a finger that landed on it.
+    /// </para>
     /// </summary>
     private void BuildPenSlots()
     {
@@ -433,9 +489,15 @@ public partial class CardInkEditorPage : ContentPage
             tap.Tapped += (_, _) => OnPenSlotTapped(chosen);
             frame.GestureRecognizers.Add(tap);
 
+            // Kept to one side rather than hung on the frame, because it is put on and taken off again
+            // whenever the pen that is drawing changes - see UpdatePenSlots.
+            var drag = new PanGestureRecognizer();
+            drag.PanUpdated += (_, e) => OnPenSlotPanned(chosen, e);
+
             penSlotFrames.Add(frame);
             penSlotGlyphs.Add(glyph);
             penSlotChevrons.Add(chevron);
+            penSlotPans.Add(drag);
             PenSlotRow.Add(frame);
         }
 
@@ -446,9 +508,18 @@ public partial class CardInkEditorPage : ContentPage
     /// What a press on one of the pens does. The pen that is not in hand is taken up - one press
     /// switches pens - and the pen that already is opens its own flyout, so the row switches pens
     /// without a second press and still has a way into the colour and the width of the pen in hand.
+    /// <para>
+    /// A press that arrives right behind a drag of the same pen is the drag being let go, and is
+    /// dropped: a pen that was just pulled wider is not then to open its flyout over the note.
+    /// </para>
     /// </summary>
     private void OnPenSlotTapped(int index)
     {
+        if (index == lastPenDragSlot && Environment.TickCount64 - lastPenDragTicks < PenDragPressGrace)
+        {
+            return;
+        }
+
         if (index != activePenSlot)
         {
             activePenSlot = index;
@@ -467,14 +538,96 @@ public partial class CardInkEditorPage : ContentPage
     }
 
     /// <summary>
+    /// Drags the width of the pen that is drawing: up is wider, down is narrower, and the distance from
+    /// where the drag began is what the width is, not how much the finger has moved since the last
+    /// event. So the pen follows one-to-one and there is nothing to catch up on, and letting go of a
+    /// drag that was taken back to where it started leaves the width it began with.
+    /// <para>
+    /// A drag that goes no further up or down than it does sideways is not about the width at all - the
+    /// row of tools scrolls that way - so nothing is changed for one, and nothing is written to the
+    /// store. Nothing is written while the drag runs either: the pen and the number beside it follow
+    /// the finger, and the pen is only handed to the surface and to the store when it is let go.
+    /// </para>
+    /// </summary>
+    private void OnPenSlotPanned(int index, PanUpdatedEventArgs e)
+    {
+        switch (e.StatusType)
+        {
+            case GestureStatus.Started:
+                penDragThickness = penSlots[index].Thickness;
+                penDragAdjusted = false;
+                penDragSlot = index;
+                break;
+
+            case GestureStatus.Running when penDragSlot == index:
+                if (!penDragAdjusted && Math.Abs(e.TotalY) <= Math.Abs(e.TotalX))
+                {
+                    break;
+                }
+
+                penDragAdjusted = true;
+                PreviewPenThickness(penDragThickness + ((float)-e.TotalY * PenWidthPerPoint));
+                break;
+
+            case GestureStatus.Completed or GestureStatus.Canceled when penDragSlot == index:
+                lastPenDragSlot = index;
+                lastPenDragTicks = Environment.TickCount64;
+                penDragSlot = -1;
+
+                if (penDragAdjusted)
+                {
+                    // One write to the store, and the pen in hand handed to the surface: the width was
+                    // being shown all along, but it is only from here that it is the pen's.
+                    SetPenThickness(penSlots[index].Thickness);
+                }
+
+                penDragAdjusted = false;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Puts a width into the pen in hand without handing it to the surface or writing it to the store,
+    /// for a width that is still under a finger - the pen and the number are what shows it, see
+    /// <see cref="SetPenThickness"/> for the write that ends it.
+    /// </summary>
+    private void PreviewPenThickness(float thickness)
+    {
+        penSlots[activePenSlot] = penSlots[activePenSlot] with
+        {
+            Thickness = PenThickness.Snap(thickness, PenThickness.SliderStep),
+        };
+
+        UpdatePenSlots();
+
+        if (PenFlyout.IsVisible)
+        {
+            UpdatePenFlyout();
+        }
+    }
+
+    /// <summary>
     /// Draws the pens as they are set and frames the one that is drawing, so the row says which pen is
     /// in hand without a word for it: the frame stands out and the chevron inside it is the one that
     /// opens the pen. Each of them is named for a screen reader as the colour and the width it holds,
     /// because a pen is both of those together and neither of them is in its drawing alone.
+    /// <para>
+    /// The width of the pen in hand is shown beside the pens as well - the slider that walks it and the
+    /// number it stands at - and every change to a pen comes through here, so those two can never show
+    /// a width the pen is not set to. The drag that changes the width is hung on the pen in hand here
+    /// too, and only on that one, see <see cref="BuildPenSlots"/>.
+    /// </para>
     /// </summary>
     private void UpdatePenSlots()
     {
         var resources = Application.Current!.Resources;
+        var active = penSlots[activePenSlot].Thickness;
+
+        WithoutPenFeedback(() =>
+        {
+            ToolbarThicknessSlider.Value = active;
+            ToolbarThicknessValue.Text = FormatThickness(active);
+        });
 
         for (var index = 0; index < penSlotFrames.Count; index++)
         {
@@ -485,6 +638,18 @@ public partial class CardInkEditorPage : ContentPage
             penSlotGlyphs[index].Thickness = slot.Thickness;
             penSlotFrames[index].Style = (Style)resources[isActive ? "PenSlotActive" : "PenSlot"];
             penSlotChevrons[index].IsVisible = isActive;
+
+            if (isActive)
+            {
+                if (!penSlotFrames[index].GestureRecognizers.Contains(penSlotPans[index]))
+                {
+                    penSlotFrames[index].GestureRecognizers.Add(penSlotPans[index]);
+                }
+            }
+            else
+            {
+                penSlotFrames[index].GestureRecognizers.Remove(penSlotPans[index]);
+            }
 
             SemanticProperties.SetDescription(
                 penSlotFrames[index],
@@ -570,7 +735,7 @@ public partial class CardInkEditorPage : ContentPage
         // width there is, and the range pulls it up onto that minimum. The move is reported like a drag
         // of the control, so without the mark the narrowest width there is would be written into the pen
         // in hand and stored as its own - which is what made a width that was set fail to come back.
-        WithoutFlyoutFeedback(() =>
+        WithoutPenFeedback(() =>
         {
             ThicknessSlider.Minimum = PenThickness.Minimum;
             ThicknessSlider.Maximum = PenThickness.Maximum;
@@ -617,6 +782,12 @@ public partial class CardInkEditorPage : ContentPage
         recentColors = PenColorHistory.Add(recentColors, normalized);
         preferences.Set(PreferenceKeys.PenRecentColors, PenColorHistory.Format(recentColors));
 
+        // Choosing a colour is the pen being taken up again, so it takes the eraser out of the hand:
+        // whichever way the colour was picked - palette, ring, hue strip or code - the next stroke is
+        // meant to be drawn in it, not rubbed out with it. Setting the flag is enough, the mode change
+        // is what puts the buttons in the toolbar back in step.
+        InkHost.IsEraserMode = false;
+
         ApplyPenSlot();
         UpdatePenSlots();
         UpdateRecentColors();
@@ -659,7 +830,7 @@ public partial class CardInkEditorPage : ContentPage
     {
         var slot = penSlots[activePenSlot];
 
-        WithoutFlyoutFeedback(() =>
+        WithoutPenFeedback(() =>
         {
             PenFlyoutTitle.Text = string.Format(CultureInfo.CurrentCulture, Strings.PenSlotTitleFormat, activePenSlot + 1);
 
@@ -683,20 +854,21 @@ public partial class CardInkEditorPage : ContentPage
     }
 
     /// <summary>
-    /// Writes to the flyout's controls without the writes being read back as choices. Every one of them
-    /// reports a value that is put into it the same way it reports one a finger moves - and giving the
-    /// width slider its range does move its value, from zero onto the narrowest width there is.
+    /// Writes to the pen's controls - the row's and the flyout's - without the writes being read back
+    /// as choices. Every one of them reports a value that is put into it the same way it reports one a
+    /// finger moves - and giving a width slider its range does move its value, from zero onto the
+    /// narrowest width there is.
     /// </summary>
-    private void WithoutFlyoutFeedback(Action write)
+    private void WithoutPenFeedback(Action write)
     {
-        isUpdatingPenFlyout = true;
+        isUpdatingPenControls = true;
         try
         {
             write();
         }
         finally
         {
-            isUpdatingPenFlyout = false;
+            isUpdatingPenControls = false;
         }
     }
 
@@ -817,7 +989,7 @@ public partial class CardInkEditorPage : ContentPage
     /// </summary>
     private void OnPenHexChanged(object? sender, TextChangedEventArgs e)
     {
-        if (isUpdatingPenFlyout)
+        if (isUpdatingPenControls)
         {
             return;
         }
@@ -842,12 +1014,48 @@ public partial class CardInkEditorPage : ContentPage
     /// <summary>The width the slider is dragged to, written into the pen while the finger is still down.</summary>
     private void OnThicknessSliderChanged(object? sender, ValueChangedEventArgs e)
     {
-        if (isUpdatingPenFlyout)
+        if (isUpdatingPenControls)
         {
             return;
         }
 
         SetPenThickness((float)e.NewValue, fromSlider: true);
+    }
+
+    /// <summary>
+    /// The width the slider in the row is dragged to. It is the flyout's slider by another way in, and
+    /// goes through the same place, so dragging it keeps the pen in the row, the number beside it and
+    /// the flyout - if it is open - showing the same width.
+    /// </summary>
+    private void OnToolbarThicknessChanged(object? sender, ValueChangedEventArgs e)
+    {
+        if (isUpdatingPenControls)
+        {
+            return;
+        }
+
+        SetPenThickness((float)e.NewValue, fromSlider: true);
+    }
+
+    /// <summary>
+    /// Whether the pen's own pressure decides the width, as it is stored. Anything that cannot be read
+    /// as a yes or a no is read as the yes the settings page starts from.
+    /// </summary>
+    private bool ReadPressureWidth() =>
+        !bool.TryParse(preferences.Get(PreferenceKeys.PressureSensitiveWidth, true.ToString()), out var on) || on;
+
+    /// <summary>
+    /// Takes the pen's pressure out of the width, or puts it back. It is the same setting the settings
+    /// page carries and it is written to the store the same way, so the switch there follows this one -
+    /// and the surface is told here rather than waiting for the page to be opened again, because the
+    /// note being drawn on is the one the change is meant for.
+    /// </summary>
+    private void OnPressureClicked(object? sender, EventArgs e)
+    {
+        var on = !ReadPressureWidth();
+        preferences.Set(PreferenceKeys.PressureSensitiveWidth, on.ToString());
+        InkHost.ApplyPreferences();
+        UpdateToolButtons();
     }
 
     /// <summary>
@@ -857,7 +1065,7 @@ public partial class CardInkEditorPage : ContentPage
     /// </summary>
     private void OnHueChanged(object? sender, float hue)
     {
-        if (isUpdatingPenFlyout)
+        if (isUpdatingPenControls)
         {
             return;
         }
@@ -869,7 +1077,7 @@ public partial class CardInkEditorPage : ContentPage
     /// <summary>The colour the square under the finger stands for, written into the pen as it is dragged.</summary>
     private void OnColorAreaChanged(object? sender, string hex)
     {
-        if (isUpdatingPenFlyout)
+        if (isUpdatingPenControls)
         {
             return;
         }
@@ -892,6 +1100,15 @@ public partial class CardInkEditorPage : ContentPage
         DrawModeButton.Style = (Style)resources[fingerDraws && !eraserDraws ? "AccentIconButton" : "GhostIconButton"];
         SemanticProperties.SetDescription(DrawModeButton, fingerDraws ? Strings.FingerDrawing : Strings.Pen);
         EraserButton.Style = (Style)resources[eraserDraws ? "AccentIconButton" : "GhostIconButton"];
+
+        // The width is the pen's own, or it is what the pen was given and the pressure decides around
+        // it - shown as the button being lit while the pen decides, and read out with it, because the
+        // glyph says "pressure" without saying which way round it is set.
+        var pressureWidth = ReadPressureWidth();
+        PressureButton.Style = (Style)resources[pressureWidth ? "AccentIconButton" : "GhostIconButton"];
+        SemanticProperties.SetDescription(
+            PressureButton,
+            pressureWidth ? Strings.PressureWidthOn : Strings.PressureWidthOff);
 
         // Nothing to take back or to put back yet, so the buttons say so instead of doing nothing.
         // The wipe is the same: with no ink on the note there is nothing for it to take away.
@@ -962,6 +1179,13 @@ public partial class CardInkEditorPage : ContentPage
 
         ApplyToolUi();
         InkHost.ApplyPreferences();
+
+        // The row of tools carries two settings of its own - the width the pen is set to and whether
+        // its pressure decides that width - and the second of them can be changed on the settings page
+        // this page opens, so the row is put back in step with the store here, whatever was changed
+        // while it was away.
+        UpdatePenSlots();
+        UpdateToolButtons();
 
         // The colour and the width of new strokes are not part of the drawing settings the surface
         // reads back - they sit on the renderer - so the pen in hand is handed to it again here,

@@ -3,6 +3,7 @@
 Taken from the "Penban Feedback" board, grouped by column. `[x]` = done, `[~]` = partly done.
 The QoL and "Future cool stuff" columns are written out in German as well, with the file and the
 symbol behind every verdict: [docs/feedback-qol-cool-stuff.md](docs/feedback-qol-cool-stuff.md).
+QoL 1, 2, 3, 4 and 7 are built (PR #48) but not released yet.
 
 ## Bugs
 
@@ -15,20 +16,23 @@ symbol behind every verdict: [docs/feedback-qol-cool-stuff.md](docs/feedback-qol
 
 - [ ] Reorder columns.
 - [ ] Pick your own palettes: pen colours and card colours.
-- [ ] Selection tool: long press to activate; transform, copy and paste, delete the selection.
+- [~] Selection tool: long press to activate; transform, copy and paste, delete the selection. The
+  note selection behind it is in (select mode, move to another column, delete); the long press,
+  transform and copy/paste are missing.
 
 ## QoL
 
-- [~] Pen thickness flyout: tapping beside it closes it, and the width can be read off the pen, the
-  number and the ring. Missing: the width directly in the toolbar when there is room for it.
-- [ ] Undo after erase should restore all strokes erased since the pen went down, not only the last one.
-- [ ] Picking a colour automatically switches to the pen.
-- [ ] Delete cards directly from the board view (e.g. a trash can when dragging a card).
+- [x] Pen thickness: in the toolbar as a slider and a number next to the pens, the range comes from
+  `PenThickness`; tapping beside the flyout closes it, and the width can be read off the pen, the
+  number and the ring. Dragging the pen in hand changes it too.
+- [x] Undo after erase restores everything erased since the pen went down, not only the last stroke.
+- [x] Picking a colour switches to the pen.
+- [x] Delete cards directly from the board view: select mode with checkmarks, one question for the
+  whole selection, and a red drop area above the board while dragging a card.
 - [ ] Board overview: show only the title card instead of laying it on top of the card stack.
   - Fit it to size so the title card is easier to tell apart from a normal card stack.
   - Keep the card stack when no title card is given.
-- [~] Pen pressure toggle in the card draw toolbar: the switch is there, but only in the settings,
-  and it is not in the row of tools itself.
+- [x] Pen pressure toggle in the card draw toolbar: the switch now sits in the row of tools.
 - [ ] Reorder/sort boards in the list. The list is sorted by last change; a manual order and other
       sort keys are missing.
 
