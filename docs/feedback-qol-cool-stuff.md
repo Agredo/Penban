@@ -11,6 +11,11 @@ wirklich fehlt.
 Nachgezogen bis PR #48: die QoL-Karten 1, 2, 3, 4 und 7 sind damit gebaut (noch nicht
 veröffentlicht) und stehen unten unter „Nicht mehr auf der Liste".
 
+Nachgezogen bis zum Lassotool und der Formerkennung: **Future 1** ist damit von „offen" auf
+„teilweise" gerutscht — die Formen sind gebaut, das Ziehen nach dem Halten fehlt noch. Dazu kommt das
+Lassowerkzeug, das auf keiner Karte steht und deshalb nur im Abschnitt „Ohne Karte dazu" (ganz unten)
+und in [docs/lasso-und-formen.md](lasso-und-formen.md) auftaucht.
+
 Legende: **offen** = nichts davon ist gebaut · **teilweise** = ein Teil ist gebaut, der Rest steht
 dabei · **erledigt** = der Punkt ist abgehakt und steht nur noch unter
 „Nicht mehr auf der Liste" (ganz unten).
@@ -42,15 +47,24 @@ Sortierreihenfolge (Name, angelegt am) oder eine Gruppierung lässt sich wählen
 
 ## Future cool Stuff
 
-Auf der Liste bleiben alle 15 Karten — keine ist ganz erledigt: zwölf sind offen, drei teilweise.
+Auf der Liste bleiben alle 15 Karten — keine ist ganz erledigt: elf sind offen, vier teilweise.
 
-### Future 1 (Karte 1) – Formerkennung · **offen**
+### Future 1 (Karte 1) – Formerkennung · **teilweise**
 
 > Shape recognition – draw & hold makes lines, rectangles/squares, circles/ellipses; hold & drag to
 > resize; maybe just straight lines for the beginning.
 
-Nicht vorhanden. Die Erkennung im Projekt liest Handschrift für die Suche
-(`Penban.Recognition`), nicht Formen; halten oder ziehen auf einem Strich verändert nichts.
+Erledigt: Zeichnen und kurz halten macht die Form daraus — Linie, Rechteck/Quadrat, Kreis/Ellipse
+(`Penban.Recognition/ShapeRecognizer.cs`, gehalten wird 700 ms in `SkiaInkCanvasView.StartShapeHold`;
+Schalter „Linie, Rechteck und Ellipse nach kurzem Halten begradigen" in den Einstellungen,
+`Draw.ShapeRecognitionEnabled`). Die Form wird in denselben Strich geschrieben und ist damit ein
+einziger Rückgängig-Schritt. Dazu das Lassowerkzeug, das man aus derselben Karte heraus mitlesen kann
+(siehe unten). Offen: **halten und dann ziehen**, um die Form zu vergrößern oder zu verkleinern — der
+Teil von „hold & drag to resize". Nach dem Halten ist die Form fertig; verschieben lässt sie sich
+über das Lasso.
+
+Was die Erkennung leistet und wo ihre Grenzen liegen (rundes Rechteck und Stadion werden zur Ellipse,
+„C" und Dreieck bleiben Striche): [docs/lasso-und-formen.md](lasso-und-formen.md).
 
 ### Future 2 (Karte 2) – Board-Tags · **offen**
 
@@ -101,7 +115,8 @@ Erledigt: Textsuche über den gelesenen Notiztext und Filter nach Tags, beides i
 
 Der Ring öffnet mit einem Tipp des freien Fingers auf die Notiz (oder Rechtsklick), nicht durch
 Ziehen; die Aktionen darin sind fest (Farben, Dicken, Rückgängig/Wiederholen, Stift/Finger), nicht
-wählbar. Das Ziehen als Auslöser und „loslassen bestätigt" fehlen.
+wählbar. Das Ziehen als Auslöser und „loslassen bestätigt" fehlen. Ein Lassowerkzeug gibt es
+inzwischen, es sitzt aber in der Leiste und nicht im Ring (siehe unten).
 
 ### Future 8 (Karte 8) – Kartenfarbe im Board ändern · **offen**
 
@@ -185,6 +200,20 @@ Erledigt und deshalb aus der Liste gestrichen:
 | Future 3, Teil 1 – Board pro Widget | Jedes Widget hat seine eigene Board-Auswahl (`PenbanBoardIntent`); der lange Druck in der Übersicht ist nur noch der Vorschlag. |
 | Future 5, Teil 1 – Karten-Pins als Tags | Emoji-Tags auf Karten (bis vier) samt Filter im Board-Kopf (0.5.0). |
 | Future 6, Teil 1 – Textsuche und Tag-Filter | Beides im Board-Kopf (0.5.0, Suche über den gelesenen Notiztext). |
+
+## Ohne Karte dazu
+
+Das **Lassowerkzeug** stand auf keiner Karte des Boards; es kam als eigene Bitte dazu. Ein Knopf in
+der Zeichenleiste (`LassoButton`, `CardInkEditorPage.xaml:63`) macht es zum Werkzeug, eine gezogene
+Schleife nimmt alle Striche auf, die ganz in ihr liegen, und die Gruppe lässt sich als Ganzes
+verschieben oder mit dem Papierkorb im Werkzeug wegwerfen — je ein Rückgängig-Schritt
+(`SkiaInkCanvasView`: `HandleLassoTouch`, `StrokesInsideLoop`, `SelectionDrag`, `DeleteSelection`).
+
+Die Griffe am Stift sind dabei die Standardgriffe der Plattform: der Knopf an einem Windows-Stift
+schaltet das Lasso ein, solange er gedrückt ist (`PenButtonLassoBehavior.cs`,
+`Draw.PenButtonLassoEnabled`), und auf iOS folgen Doppeltipp und Drücken des Apple Pencil der
+iOS-Einstellung dafür (`PencilTapBehavior.cs`, `Draw.PencilDoubleTapEnabled`). Alles Weitere steht in
+[docs/lasso-und-formen.md](lasso-und-formen.md).
 
 Zur Einordnung: Die Spalte „Done 🥳" des Boards enthält genau die Karten, die zu diesen Punkten
 gehören (u. a. „Pressure sensitivity (toggle button in card view?)", „Search in notes", „Export",

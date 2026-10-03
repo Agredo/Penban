@@ -59,6 +59,13 @@ public static class PreferenceKeys
     /// </summary>
     public const string PenTailEraserEnabled = "Draw.PenTailEraserEnabled";
 
+    /// <summary>
+    /// Whether the button on the pen itself picks strokes up while it is held - hold it, draw a loop
+    /// around what is to be moved, drag it away. Only Windows says when that button is down (the
+    /// barrel button of a Surface Pen); the setting is inert elsewhere.
+    /// </summary>
+    public const string PenButtonLassoEnabled = "Draw.PenButtonLassoEnabled";
+
     /// <summary>Whether cards grow to fit their ink instead of keeping a fixed note size.</summary>
     public const string AutoSizeCards = "Board.AutoSizeCards";
 
@@ -67,6 +74,12 @@ public static class PreferenceKeys
 
     /// <summary>Whether stylus tilt is rendered as a calligraphy effect.</summary>
     public const string TiltRenderingEffect = "Draw.TiltRenderingEffect";
+
+    /// <summary>
+    /// Whether a stroke that is left to stand for a moment is read as the shape it was drawn as - a
+    /// line, a rectangle or an ellipse - and replaced by it.
+    /// </summary>
+    public const string ShapeRecognitionEnabled = "Draw.ShapeRecognitionEnabled";
 
     /// <summary>Whether a two-finger tap on the writing surface takes back the last edit.</summary>
     public const string TwoFingerTapUndoEnabled = "Gesture.TwoFingerTapUndoEnabled";

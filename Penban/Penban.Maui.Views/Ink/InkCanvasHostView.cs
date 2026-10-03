@@ -22,6 +22,7 @@ public class InkCanvasHostView : ContentView
     {
         renderer = InkRenderer.Skia;
         activeRenderer = CreateRenderer(renderer);
+        activeRenderer.SelectionChanged += OnRendererSelectionChanged;
         Content = (View)activeRenderer;
     }
 
@@ -197,14 +198,18 @@ public class InkCanvasHostView : ContentView
             var existingStrokes = activeRenderer.Strokes.ToList();
             var strokeColor = activeRenderer.StrokeColor;
             var strokeThickness = activeRenderer.StrokeThickness;
-            var isEraserMode = activeRenderer.IsEraserMode;
+            var tool = activeRenderer.Tool;
 
             renderer = value;
             activeRenderer = CreateRenderer(renderer);
             activeRenderer.LoadStrokes(existingStrokes);
             activeRenderer.StrokeColor = strokeColor;
             activeRenderer.StrokeThickness = strokeThickness;
-            activeRenderer.IsEraserMode = isEraserMode;
+            activeRenderer.Tool = tool;
+
+            // The handlers the page put on this view stay with this view; the ones on the renderer
+            // that has just been put in its place have to be set up again here.
+            activeRenderer.SelectionChanged += OnRendererSelectionChanged;
             Content = (View)activeRenderer;
 
             ApplyPreferences();
@@ -300,26 +305,49 @@ public class InkCanvasHostView : ContentView
     }
 
     /// <summary>
-    /// Raised when <see cref="IsEraserMode"/> changes through the setter, so the page can keep its
-    /// pen/eraser buttons in step - the Apple Pencil double-tap flips the mode without any button
-    /// being pressed.
+    /// Whether the eraser is the tool in use - <see cref="Tool"/> seen as a choice between two.
+    /// Kept for the callers that only ever had those two.
     /// </summary>
-    public event EventHandler? IsEraserModeChanged;
-
     public bool IsEraserMode
     {
         get => activeRenderer.IsEraserMode;
+        set => Tool = value ? InkTool.Eraser : InkTool.Pen;
+    }
+
+    /// <summary>
+    /// Raised when the tool changes through the setter, so the page can keep its pen, eraser and lasso
+    /// buttons in step - a pen button or a pencil tap changes the tool without any button being pressed.
+    /// </summary>
+    public event EventHandler? ToolChanged;
+
+    /// <summary>Which tool the note is being worked on with.</summary>
+    public InkTool Tool
+    {
+        get => activeRenderer.Tool;
         set
         {
-            if (activeRenderer.IsEraserMode == value)
+            if (activeRenderer.Tool == value)
             {
                 return;
             }
 
-            activeRenderer.IsEraserMode = value;
-            IsEraserModeChanged?.Invoke(this, EventArgs.Empty);
+            activeRenderer.Tool = value;
+            ToolChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+
+    /// <summary>How many strokes are picked up on the note, zero when none are.</summary>
+    public int SelectionCount => activeRenderer.SelectionCount;
+
+    /// <summary>
+    /// Raised when strokes are picked up or put down, so the page can offer to throw the picked-up
+    /// group away - which only makes sense while there is one. Raised by the renderer, which is what
+    /// reads the loop off the note, and passed on from whichever renderer is in use.
+    /// </summary>
+    public event EventHandler? SelectionChanged;
+
+    /// <summary>Throws the picked-up strokes away as one undoable edit.</summary>
+    public bool DeleteSelection() => activeRenderer.DeleteSelection();
 
     /// <summary>Colour of new strokes as <c>#RRGGBB</c>.</summary>
     public string StrokeColor
@@ -386,6 +414,11 @@ public class InkCanvasHostView : ContentView
             skia.TiltSensitiveWidth = tiltDetected;
             skia.TiltRenderingEffect = tiltDetected && ReadBool(PreferenceKeys.TiltRenderingEffect, false);
 
+            // A stroke that is left standing is read as a shape - a line, a rectangle, an ellipse -
+            // and replaced by it. Read here rather than in the renderer because only the renderer's
+            // own view holds a timed wait, and the page above it must be able to keep the setting.
+            skia.ShapeRecognition = ReadBool(PreferenceKeys.ShapeRecognitionEnabled, true);
+
             // The renderer that is being swapped in has to be told this again as well: it is not a
             // setting but something a platform behavior asked for.
             skia.PlatformNamesStylusContacts = platformNamesStylusContacts;
@@ -398,6 +431,9 @@ public class InkCanvasHostView : ContentView
 
     private bool ReadBool(string key, bool @default) =>
         bool.TryParse(preferences?.Get(key, @default.ToString()), out var value) ? value : @default;
+
+    private void OnRendererSelectionChanged(object? sender, EventArgs e) =>
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
 
     private static InkRenderer ReadStoredRenderer(IPreferences? preferences)
     {

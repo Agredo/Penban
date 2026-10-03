@@ -23,6 +23,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Penban.ViewModels\Penban.ViewModels.csproj" />
+    <!-- Reads a stroke that was held still as a line, a rectangle or an ellipse - see
+         ShapeRecognizer. Used by the Skia renderer, which is what can tell a held pen from a moved
+         one. -->
+    <ProjectReference Include="..\Penban.Recognition\Penban.Recognition.csproj" />
   </ItemGroup>
 
   <!-- On the Windows TFM, the WinUI SDK auto-globs every *.xaml file as a "Page" item

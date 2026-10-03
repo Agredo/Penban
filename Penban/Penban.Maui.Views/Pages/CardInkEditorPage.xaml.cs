@@ -246,7 +246,12 @@ public partial class CardInkEditorPage : ContentPage
         InkHost.Preferences = preferences;
         InkHost.LoadStrokes(noteTarget.InkCanvas.Strokes);
         InkHost.StrokeCompleted += OnStrokeCompleted;
-        InkHost.IsEraserModeChanged += OnEraserModeChanged;
+
+        // One event for the tool, whichever way it was changed: a button, a pen button, a pencil tap.
+        // Whether the lasso holds anything is its own question - the offer to throw it away comes and
+        // goes with it - so that is a second one.
+        InkHost.ToolChanged += OnToolChanged;
+        InkHost.SelectionChanged += OnSelectionChanged;
 
         // A finger dragged down takes the card with it and lets it go: the renderer raises both,
         // because only it sees the individual fingers. It is only ever read with finger drawing off,
@@ -301,9 +306,11 @@ public partial class CardInkEditorPage : ContentPage
 
 #if WINDOWS
         // The eraser end of a Surface Pen erases while it is held against the surface, and writes
-        // again as soon as it is lifted. Two-finger tap undoes, three-finger tap redoes, and the
-        // pen's tilt and pressure feed the calligraphy effect and the line width.
+        // again as soon as it is lifted; the button on its side picks strokes up for as long as it is
+        // held down. Two-finger tap undoes, three-finger tap redoes, and the pen's tilt and pressure
+        // feed the calligraphy effect and the line width.
         InkHost.Behaviors.Add(new PenTailEraserBehavior(preferences));
+        InkHost.Behaviors.Add(new PenButtonLassoBehavior(preferences));
         InkHost.Behaviors.Add(new MultiFingerTapBehavior());
         InkHost.Behaviors.Add(new PenInputBehavior(preferences));
 #endif
@@ -782,11 +789,12 @@ public partial class CardInkEditorPage : ContentPage
         recentColors = PenColorHistory.Add(recentColors, normalized);
         preferences.Set(PreferenceKeys.PenRecentColors, PenColorHistory.Format(recentColors));
 
-        // Choosing a colour is the pen being taken up again, so it takes the eraser out of the hand:
-        // whichever way the colour was picked - palette, ring, hue strip or code - the next stroke is
-        // meant to be drawn in it, not rubbed out with it. Setting the flag is enough, the mode change
-        // is what puts the buttons in the toolbar back in step.
-        InkHost.IsEraserMode = false;
+        // Choosing a colour is the pen being taken up again, so it takes the eraser - and the lasso
+        // with it - out of the hand: whichever way the colour was picked - palette, ring, hue strip or
+        // code - the next stroke is meant to be drawn in it, not rubbed out with it and not picked up
+        // by it. Setting the tool is enough, the change is what puts the buttons in the toolbar back
+        // in step.
+        InkHost.Tool = InkTool.Pen;
 
         ApplyPenSlot();
         UpdatePenSlots();
@@ -1089,17 +1097,29 @@ public partial class CardInkEditorPage : ContentPage
     private void UpdateToolButtons()
     {
         var resources = Application.Current!.Resources;
-        var eraserDraws = InkHost.IsEraserMode;
+        var tool = InkHost.Tool;
+        var eraserDraws = tool == InkTool.Eraser;
+        var lassoPicks = tool == InkTool.Lasso;
         var fingerDraws = InkHost.AllowFingerDrawing;
 
         // The one button for the two ways the pen draws carries the mode that is set - a finger
         // draws as well, or only the pencil does - and is lit while that is the finger, so the row
         // shows how the note is drawn without a second button for the mode that is not in use. It
-        // goes quiet while the eraser is the one drawing, so only ever one of the two is lit.
+        // goes quiet while the eraser or the lasso is the one in hand, so only ever one of the three
+        // is lit.
         DrawModeButton.Text = fingerDraws ? IconFont.Finger : IconFont.Pen;
-        DrawModeButton.Style = (Style)resources[fingerDraws && !eraserDraws ? "AccentIconButton" : "GhostIconButton"];
+        DrawModeButton.Style =
+            (Style)resources[fingerDraws && tool == InkTool.Pen ? "AccentIconButton" : "GhostIconButton"];
         SemanticProperties.SetDescription(DrawModeButton, fingerDraws ? Strings.FingerDrawing : Strings.Pen);
         EraserButton.Style = (Style)resources[eraserDraws ? "AccentIconButton" : "GhostIconButton"];
+        LassoButton.Style = (Style)resources[lassoPicks ? "AccentIconButton" : "GhostIconButton"];
+
+        // Throwing the picked-up ink away stands only while the lasso holds any: with nothing picked
+        // up the button would be a second way to leave the note, and the bin it says it is would be
+        // the wrong one.
+        var pickedUp = InkHost.SelectionCount;
+        SelectionDeleteButton.IsVisible = pickedUp > 0;
+        SemanticProperties.SetDescription(SelectionDeleteButton, Strings.DeleteSelection);
 
         // The width is the pen's own, or it is what the pen was given and the pressure decides around
         // it - shown as the button being lit while the pen decides, and read out with it, because the
@@ -1222,13 +1242,41 @@ public partial class CardInkEditorPage : ContentPage
     /// whichever of the two the button beside it holds - so the mode the eraser took the place of is
     /// always one press away.
     /// </summary>
-    private void OnEraserClicked(object? sender, EventArgs e) => InkHost.IsEraserMode = !InkHost.IsEraserMode;
+    private void OnEraserClicked(object? sender, EventArgs e) =>
+        InkHost.Tool = InkHost.Tool == InkTool.Eraser ? InkTool.Pen : InkTool.Eraser;
 
     /// <summary>
-    /// The double-tap on the Apple Pencil flips the mode without a button being pressed, so the
-    /// toolbar follows the host rather than the click handlers.
+    /// The lasso on or off again, the same way the eraser is. Nothing is picked up by choosing it: the
+    /// loop is what picks ink up, and what it picked up before is still held until a new loop is drawn
+    /// or the tool is left behind.
     /// </summary>
-    private void OnEraserModeChanged(object? sender, EventArgs e) => UpdateToolButtons();
+    private void OnLassoClicked(object? sender, EventArgs e) =>
+        InkHost.Tool = InkHost.Tool == InkTool.Lasso ? InkTool.Pen : InkTool.Lasso;
+
+    /// <summary>
+    /// Throws the picked-up ink away as one edit, so undo brings all of it back at once - the same
+    /// way a loop that picked it up is one edit when it carries it somewhere else.
+    /// </summary>
+    private void OnSelectionDeleteClicked(object? sender, EventArgs e)
+    {
+        if (InkHost.DeleteSelection())
+        {
+            UpdateToolButtons();
+        }
+    }
+
+    /// <summary>
+    /// The tool changed without a button being pressed - a pencil tap, the button on a pen, or the
+    /// pen being taken up again by a colour - so the toolbar follows the host rather than the click
+    /// handlers.
+    /// </summary>
+    private void OnToolChanged(object? sender, EventArgs e) => UpdateToolButtons();
+
+    /// <summary>
+    /// The lasso picked ink up or put it down. What it holds decides whether throwing it away is
+    /// offered at all, so the one button that says so is put in step here.
+    /// </summary>
+    private void OnSelectionChanged(object? sender, EventArgs e) => UpdateToolButtons();
 
     /// <summary>
     /// Flips which tool draws, and remembers it. The radial menu offers the same switch as a block of

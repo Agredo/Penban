@@ -56,6 +56,12 @@ public static class IconFont
     /// <summary>The pen rubs out instead of drawing.</summary>
     public const string Eraser = "\ue5e5";
 
+    /// <summary>
+    /// A loop drawn around ink to pick it up: the lasso tool beside the pen and the eraser, and what
+    /// it picks up is carried elsewhere on the note or thrown away.
+    /// </summary>
+    public const string Lasso = "\uf4c9";
+
     /// <summary>A finger draws as well as the pen.</summary>
     public const string Finger = "\ue6d8";
 

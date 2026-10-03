@@ -13,10 +13,16 @@ namespace Penban.Maui.Views.Ink;
 /// if true stylus-pressure fidelity is required.
 /// </para>
 /// <para>
-/// Limitation: <see cref="IsEraserMode"/> is exposed for interface parity with
+/// Limitation: <see cref="IsEraserMode"/> and <see cref="Tool"/> are exposed for interface parity with
 /// <see cref="SkiaInkCanvasView"/>, but <see cref="DrawingView"/> does not expose a raw touch
-/// hook this renderer can use to hit-test strokes while drawing, so setting it here has no
+/// hook this renderer can use to hit-test strokes while drawing, so setting them here has no
 /// effect. <see cref="Undo"/> works normally on both renderers.
+/// </para>
+/// <para>
+/// Limitation: <see cref="SelectionCount"/> and <see cref="DeleteSelection"/> are likewise exposed for
+/// parity only. Picking strokes up off the note means reading the surface while it is being touched,
+/// which this renderer cannot do - see the remarks on <see cref="Tool"/>. Use
+/// <see cref="SkiaInkCanvasView"/> if picking strokes up matters.
 /// </para>
 /// <para>
 /// Limitation: <see cref="AllowFingerDrawing"/> is likewise exposed for parity only.
@@ -51,7 +57,53 @@ public class ToolkitInkCanvasView : ContentView, IInkCanvasView
 
     public event EventHandler? StrokeCompleted;
 
-    public bool IsEraserMode { get; set; }
+    public event EventHandler? ToolChanged;
+
+    /// <summary>
+    /// See the class remarks: nothing is ever picked up here, so this event has nothing to raise and
+    /// it is left unwired rather than kept in a field that would never fire.
+    /// </summary>
+    public event EventHandler? SelectionChanged
+    {
+        add { }
+        remove { }
+    }
+
+    private InkTool tool = InkTool.Pen;
+
+    /// <summary>
+    /// Which tool the note is being worked on with. See the class remarks: <see cref="InkTool.Lasso"/>
+    /// is taken and held - the row above shows it as the tool in use - but this renderer cannot read
+    /// the surface while it is being touched, so nothing is ever picked up by it.
+    /// </summary>
+    public InkTool Tool
+    {
+        get => tool;
+        set
+        {
+            if (tool == value)
+            {
+                return;
+            }
+
+            tool = value;
+            ToolChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>See the class remarks: this is <see cref="Tool"/> seen as the eraser being on or off.</summary>
+    public bool IsEraserMode
+    {
+        get => Tool == InkTool.Eraser;
+        set => Tool = value ? InkTool.Eraser : InkTool.Pen;
+    }
+
+    /// <summary>See the class remarks: this renderer never picks anything up.</summary>
+    public int SelectionCount => 0;
+
+    /// <summary>See the class remarks: this renderer never picks anything up, so there is never
+    /// anything to throw away.</summary>
+    public bool DeleteSelection() => false;
 
     /// <summary>See the class remarks: <see cref="DrawingView"/> cannot tell input devices apart.</summary>
     public bool AllowFingerDrawing { get; set; } = true;
