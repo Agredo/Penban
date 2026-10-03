@@ -118,6 +118,21 @@
   <data name="DeleteCardConfirmation" xml:space="preserve">
     <value>Diese Karte löschen? Das kann nicht rückgängig gemacht werden.</value>
   </data>
+  <data name="SelectCards" xml:space="preserve">
+    <value>Notizen auswählen</value>
+  </data>
+  <data name="SelectionCount" xml:space="preserve">
+    <value>{0} ausgewählt</value>
+  </data>
+  <data name="MoveCardsTo" xml:space="preserve">
+    <value>Die Notizen verschieben nach</value>
+  </data>
+  <data name="DeleteCardsConfirmation" xml:space="preserve">
+    <value>Die ausgewählten Notizen löschen? Das kann nicht rückgängig gemacht werden.</value>
+  </data>
+  <data name="DeleteDropHint" xml:space="preserve">
+    <value>Notiz hier ablegen, um sie zu löschen</value>
+  </data>
   <data name="RenameColumn" xml:space="preserve">
     <value>Spalte umbenennen</value>
   </data>
@@ -183,6 +198,12 @@
   </data>
   <data name="PressureSensitiveWidth" xml:space="preserve">
     <value>Strichbreite folgt dem Stiftdruck</value>
+  </data>
+  <data name="PressureWidthOn" xml:space="preserve">
+    <value>Strichbreite folgt dem Stiftdruck</value>
+  </data>
+  <data name="PressureWidthOff" xml:space="preserve">
+    <value>Strichbreite folgt dem Stiftdruck nicht</value>
   </data>
   <data name="PencilDoubleTapEnabled" xml:space="preserve">
     <value>Apple-Pencil-Doppeltipp wechselt zum Radiergummi</value>

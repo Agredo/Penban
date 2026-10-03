@@ -382,4 +382,75 @@ public partial class BoardViewModel : ObservableObject
     [RelayCommand]
     private Task MoveCardAsync(CardMoveRequest request)
         => cardService.MoveCardAsync(request.CardId, request.SourceColumnId, request.TargetColumnId, request.NewIndex);
+
+    /// <summary>
+    /// Deletes the notes that are picked on the board, all of them on one question rather than one
+    /// question per note. The cards are only marked as deleted here; taking them out of their columns
+    /// is the board page's job, so a board that is on screen rebuilds itself once instead of once per
+    /// note (see <c>BoardPage.RemoveDeletedCards</c>).
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteCardsAsync(IReadOnlyList<Guid> cardIds)
+    {
+        if (cardIds is null || cardIds.Count == 0)
+        {
+            return;
+        }
+
+        var confirmed = await dialogService.DisplayConfirmationAsync(Strings.Delete, Strings.DeleteCardsConfirmation, Strings.Delete, Strings.Cancel);
+        if (!confirmed)
+        {
+            return;
+        }
+
+        foreach (var cardId in cardIds)
+        {
+            await cardService.DeleteCardAsync(cardId);
+        }
+
+        foreach (var card in Columns.SelectMany(column => column.Cards).Where(card => cardIds.Contains(card.Id)))
+        {
+            card.IsDeleted = true;
+        }
+    }
+
+    /// <summary>
+    /// Moves the picked notes into another column, in the order they were given. Appending them one
+    /// after the other is what lets the database do the renumbering: every move puts its note at the
+    /// end of the target column, and the notes behind it keep the order they were picked in.
+    /// </summary>
+    [RelayCommand]
+    private async Task MoveCardsAsync(CardSelectionMoveRequest request)
+    {
+        var target = Columns.FirstOrDefault(column => column.Id == request.TargetColumnId);
+        if (target is null || request.CardIds.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var cardId in request.CardIds)
+        {
+            var source = Columns.FirstOrDefault(column => column.Cards.Any(card => card.Id == cardId));
+            if (source is null || source == target)
+            {
+                continue;
+            }
+
+            await cardService.MoveCardAsync(cardId, source.Id, target.Id, target.Cards.Count);
+
+            var card = source.Cards.First(card => card.Id == cardId);
+            source.Cards.Remove(card);
+            card.UpdatePlacement(target.Id, target.Cards.Count);
+            target.Cards.Add(card);
+        }
+
+        // The lane the notes were taken out of is left with a gap in its numbering.
+        foreach (var column in Columns)
+        {
+            for (var index = 0; index < column.Cards.Count; index++)
+            {
+                column.Cards[index].UpdatePlacement(column.Id, index);
+            }
+        }
+    }
 }

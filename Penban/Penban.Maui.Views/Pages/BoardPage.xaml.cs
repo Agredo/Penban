@@ -70,6 +70,7 @@ public partial class BoardPage : ContentPage
     private readonly FeedbackViewModel feedbackViewModel;
     private readonly IPreferences preferences;
     private readonly TransferCoordinator transferCoordinator;
+    private readonly IDialogService dialogService;
     private readonly List<(ColumnViewModel Column, PropertyChangedEventHandler Handler)> titleSubscriptions = [];
     private readonly SearchViewModel? searchViewModel;
     private readonly HashSet<string> filterTags = [];
@@ -111,6 +112,30 @@ public partial class BoardPage : ContentPage
     /// </summary>
     private bool autoSizeCards;
 
+    /// <summary>
+    /// The notes the user has picked on the board, by card id. Only ever filled while
+    /// <see cref="isSelecting"/>, and only with notes the board is showing.
+    /// </summary>
+    private readonly HashSet<Guid> pickedCards = [];
+
+    /// <summary>
+    /// Whether the board is picking notes instead of opening them, see <see cref="OnSelectCardsClicked"/>.
+    /// </summary>
+    private bool isSelecting;
+
+    /// <summary>
+    /// The note a drag that is in the air is carrying, or <c>null</c> while nothing is being dragged.
+    /// The control reports nothing about a drag that ends outside its columns - which is exactly the
+    /// one that ends on the bin - so the note is taken down while it can still be asked for.
+    /// </summary>
+    private Guid? draggedCardId;
+
+    /// <summary>
+    /// Whether the bin is filled, i.e. whether a note is being held over it. Its colour is the only
+    /// thing that says so, and the fill has to be taken off again when the note is carried away.
+    /// </summary>
+    private bool isBinHot;
+
     /// <summary>Carries the owning <see cref="ColumnViewModel"/> on each <see cref="KanbanColumn"/>
     /// so header-template buttons (whose BindingContext is the Syncfusion column) can reach it.</summary>
     private static readonly BindableProperty ColumnViewModelProperty =
@@ -122,6 +147,7 @@ public partial class BoardPage : ContentPage
         FeedbackViewModel feedbackViewModel,
         IPreferences preferences,
         TransferCoordinator transferCoordinator,
+        IDialogService dialogService,
         SearchViewModel? searchViewModel = null,
         Guid? openCardId = null)
     {
@@ -130,11 +156,13 @@ public partial class BoardPage : ContentPage
         this.feedbackViewModel = feedbackViewModel;
         this.preferences = preferences;
         this.transferCoordinator = transferCoordinator;
+        this.dialogService = dialogService;
         this.openCardId = openCardId;
         this.searchViewModel = searchViewModel;
         BuildFilterTags();
         BindingContext = this.viewModel = viewModel;
         BoardKanban.ItemsSource = kanbanCards;
+        BoardKanban.DragStart += OnKanbanDragStart;
         BoardKanban.DragEnd += OnKanbanDragEnd;
         BoardKanban.SizeChanged += OnBoardKanbanSizeChanged;
     }
@@ -238,6 +266,10 @@ public partial class BoardPage : ContentPage
         {
             RebuildKanbanColumns();
         }
+
+        // The bin is painted in plain colours too, and that painting is what carries the fill it is
+        // wearing at this moment.
+        PaintBin();
     }
 
     protected override async void OnAppearing()
@@ -445,7 +477,7 @@ public partial class BoardPage : ContentPage
                 Title = column.Title,
                 Categories = new List<object> { column.Id.ToString() },
                 PlaceholderStyle = placeholderStyle,
-                AllowDrag = !IsFiltering,
+                AllowDrag = CanDragCards,
                 // Replaces the control's stark white default column panel.
                 Background = columnBrush,
             };
@@ -552,6 +584,8 @@ public partial class BoardPage : ContentPage
                     Category = column.Id.ToString(),
                     Title = card.Id.ToString()[..8],
                     Layout = NoteLayoutFor(card),
+                    ShowPicker = isSelecting,
+                    IsPicked = pickedCards.Contains(card.Id),
                 });
             }
         }
@@ -561,6 +595,13 @@ public partial class BoardPage : ContentPage
     }
 
     private bool IsFiltering => filterTags.Count > 0 || textMatches is not null;
+
+    /// <summary>
+    /// Whether notes may be dragged at all. Two things take that away: a filter, because the drop
+    /// index the control reports is a position among the notes it shows and not a position in the
+    /// column - and the picking, where a note that can be dragged swallows the tap that picks it.
+    /// </summary>
+    private bool CanDragCards => !IsFiltering && !isSelecting;
 
     private bool MatchesFilter(CardViewModel card) =>
         (textMatches is null || textMatches.Contains(card.Id))
@@ -651,7 +692,7 @@ public partial class BoardPage : ContentPage
         // position in the column while some of them are left out.
         foreach (var column in BoardKanban.Columns)
         {
-            column.AllowDrag = !IsFiltering;
+            column.AllowDrag = CanDragCards;
         }
         RebuildKanbanCards();
     }
@@ -757,8 +798,234 @@ public partial class BoardPage : ContentPage
         return changed;
     }
 
+    /// <summary>
+    /// Takes the note down while it is in the air and puts the bin up in the header's place. The bin
+    /// is what a note can be dropped on to be deleted; the header stays underneath it, so the board
+    /// below keeps its height and nothing the drag is aiming at moves.
+    /// </summary>
+    private void OnKanbanDragStart(object? sender, KanbanDragStartEventArgs e)
+    {
+        draggedCardId = TryGetDraggedCardId(e.Data, out var cardId) ? cardId : null;
+
+        // A drag the app was never told the end of leaves the bin filled; a drag that follows starts
+        // from the plain bin rather than from the last drag's colour.
+        SetBinHot(false);
+        TrashDropArea.IsVisible = draggedCardId is not null;
+    }
+
+    /// <summary>Puts the header back and forgets the note that was in the air.</summary>
+    private void HideBin()
+    {
+        SetBinHot(false);
+        TrashDropArea.IsVisible = false;
+        draggedCardId = null;
+    }
+
+    /// <summary>
+    /// Fills the bin as soon as the note is over it, so that it is clear that letting go here is what
+    /// deletes the note: the area is not much to look at from under a finger, and nothing else about
+    /// the board changes until the note is actually let go.
+    /// </summary>
+    private void OnTrashDragOver(object? sender, DragEventArgs e) => SetBinHot(true);
+
+    /// <summary>Drains the bin again when the note is carried away from it.</summary>
+    private void OnTrashDragLeave(object? sender, DragEventArgs e) => SetBinHot(false);
+
+    /// <summary>Fills or drains the bin. A drag reports every move it makes, so the colour of a bin
+    /// that already looks the way it should is left alone.</summary>
+    private void SetBinHot(bool hot)
+    {
+        if (isBinHot == hot)
+        {
+            return;
+        }
+
+        isBinHot = hot;
+        PaintBin();
+    }
+
+    /// <summary>
+    /// Paints the bin for the state it is in. The colours are read from the theme every time rather
+    /// than declared as an AppThemeBinding, because a plain colour set from code outlives a theme
+    /// flip: this is also what the page calls when the OS theme moves on while the bin is filled.
+    /// </summary>
+    private void PaintBin()
+    {
+        var resources = Application.Current!.Resources;
+        var dark = Application.Current.RequestedTheme == AppTheme.Dark;
+        var surface = (Color)resources[dark ? "SurfaceSecondaryDark" : "SurfaceSecondaryLight"];
+        var danger = (Color)resources[dark ? "DangerDark" : "DangerLight"];
+        var onFill = (Color)resources[dark ? "BackgroundDark" : "BackgroundLight"];
+
+        TrashDropArea.Background = new SolidColorBrush(isBinHot ? danger : surface);
+        DeleteDropIcon.TextColor = isBinHot ? onFill : danger;
+        DeleteDropHintLabel.TextColor = isBinHot ? onFill : danger;
+    }
+
+    /// <summary>
+    /// The note was let go over the bin. The control hears nothing about this drop - a release that
+    /// misses every column is one it quietly takes back - so the bin claims the drop and the note is
+    /// deleted rather than moved.
+    /// </summary>
+    private void OnTrashDrop(object? sender, DropEventArgs e)
+    {
+        e.Handled = true;
+
+        if (draggedCardId is not { } cardId)
+        {
+            HideBin();
+            return;
+        }
+
+        HideBin();
+
+        // The drop arrives in the middle of the control's own drag pipeline, which is still holding
+        // the note and is about to put it back where it came from. Deleting it here would take the
+        // note out of the collection while that pipeline is working on it, so the deletion waits
+        // until the pipeline has let go.
+        Dispatcher.Dispatch(() => _ = DeleteCardsAsync([cardId]));
+    }
+
+    /// <summary>
+    /// Puts the header back after a drag the app was never told the end of - a drag the platform
+    /// called off, or one that ended while the app was in the background. Without this the bin would
+    /// be left where the header belongs.
+    /// </summary>
+    private void OnTrashTapped(object? sender, TappedEventArgs e) => HideBin();
+
+    /// <summary>
+    /// Deletes the given notes on one question. Returns whether they are gone: a question the user
+    /// turned down leaves the board as it was.
+    /// </summary>
+    private async Task<bool> DeleteCardsAsync(IReadOnlyList<Guid> cardIds)
+    {
+        if (viewModel is null || cardIds.Count == 0)
+        {
+            return false;
+        }
+
+        await viewModel.DeleteCardsCommand.ExecuteAsync(cardIds);
+
+        // The command only marks the notes as deleted; taking them out of their columns is the
+        // board's job, so a board that is on screen rebuilds itself once instead of once per note.
+        var removed = RemoveDeletedCards();
+        if (removed)
+        {
+            RebuildKanbanCards();
+        }
+
+        return removed;
+    }
+
+    /// <summary>
+    /// Puts the board into picking mode, or takes it back out. Picking has a mode of its own because
+    /// a note is a drag handle and a tap target at once: while the notes can be dragged, the tap that
+    /// should pick one starts a drag instead. Inside the mode dragging is off, so the tap picks.
+    /// </summary>
+    private void SetSelecting(bool value)
+    {
+        if (!value)
+        {
+            pickedCards.Clear();
+        }
+
+        isSelecting = value;
+
+        foreach (var column in BoardKanban.Columns)
+        {
+            column.AllowDrag = CanDragCards;
+        }
+
+        // The filter panels belong to the header the picking row covers, so they are put away with
+        // it rather than left open underneath.
+        FilterTagScroll.IsVisible = false;
+        SearchEntryHost.IsVisible = false;
+
+        RebuildKanbanCards();
+        UpdateSelectionBar();
+    }
+
+    private void OnSelectCardsClicked(object? sender, EventArgs e) => SetSelecting(true);
+
+    private void OnDoneSelectingClicked(object? sender, EventArgs e) => SetSelecting(false);
+
+    /// <summary>
+    /// Says how many notes are picked, and leaves the actions out until at least one is: a button
+    /// that would act on nothing says nothing.
+    /// </summary>
+    private void UpdateSelectionBar()
+    {
+        SelectionBar.IsVisible = isSelecting;
+        SelectionCountLabel.Text = string.Format(Strings.SelectionCount, pickedCards.Count);
+
+        var hasPicked = pickedCards.Count > 0;
+        MoveSelectedButton.IsVisible = hasPicked;
+        DeleteSelectedButton.IsVisible = hasPicked;
+    }
+
+    /// <summary>
+    /// Moves every picked note into one column. Which column is a question rather than a drag because
+    /// the control drags one note at a time, and a drag of one of the picked notes would be a move of
+    /// that note alone.
+    /// </summary>
+    private async void OnMoveSelectedClicked(object? sender, EventArgs e)
+    {
+        if (viewModel is null || pickedCards.Count == 0)
+        {
+            return;
+        }
+
+        var columns = viewModel.Columns.ToList();
+        if (columns.Count == 0)
+        {
+            return;
+        }
+
+        var choice = await dialogService.DisplayActionSheetAsync(
+            Strings.MoveCardsTo,
+            Strings.Cancel,
+            [.. columns.Select(column => column.Title)]);
+
+        if (choice < 0 || choice >= columns.Count)
+        {
+            return;
+        }
+
+        BeginCardRebuildSuppression();
+        try
+        {
+            await viewModel.MoveCardsCommand.ExecuteAsync(
+                new CardSelectionMoveRequest([.. pickedCards], columns[choice].Id));
+        }
+        finally
+        {
+            EndCardRebuildSuppression();
+        }
+
+        RebuildKanbanCards();
+    }
+
+    private async void OnDeleteSelectedClicked(object? sender, EventArgs e)
+    {
+        if (viewModel is null || pickedCards.Count == 0)
+        {
+            return;
+        }
+
+        if (await DeleteCardsAsync([.. pickedCards]))
+        {
+            // The picking was for these notes, so it is over with them.
+            SetSelecting(false);
+        }
+    }
+
     private async void OnKanbanDragEnd(object? sender, KanbanDragEndEventArgs e)
     {
+        // Whatever the drag did, the note is no longer in the air - so the bin goes away with it.
+        // The control fires no end event at all for a drop that missed its columns, which is why the
+        // bin also puts the header back when it is tapped.
+        HideBin();
+
         if (viewModel is null)
         {
             return;
@@ -912,6 +1179,20 @@ public partial class BoardPage : ContentPage
             return;
         }
 
+        // While notes are being picked, a tap is what picks one: opening the editor instead would
+        // take the board away under the very thing the picking is for.
+        if (isSelecting)
+        {
+            if (!pickedCards.Remove(card.CardId))
+            {
+                pickedCards.Add(card.CardId);
+            }
+
+            card.IsPicked = pickedCards.Contains(card.CardId);
+            UpdateSelectionBar();
+            return;
+        }
+
         await OpenCardEditorAsync(card.Card);
     }
 
@@ -1033,8 +1314,50 @@ public partial class BoardPage : ContentPage
         /// <summary>See <see cref="CellWidth"/>.</summary>
         public double CellHeight => NoteHeight + (2 * NoteCellPadding);
 
+        /// <summary>
+        /// Whether the board is picking notes, which is when every note shows its pick box. Kept on
+        /// the note rather than on the card: the note is what the pick box is drawn on.
+        /// </summary>
+        public bool ShowPicker
+        {
+            get => showPicker;
+            set
+            {
+                if (showPicker == value)
+                {
+                    return;
+                }
+
+                showPicker = value;
+                Raise(nameof(ShowPicker));
+            }
+        }
+
+        /// <summary>Whether this note is one of the picked ones.</summary>
+        public bool IsPicked
+        {
+            get => isPicked;
+            set
+            {
+                if (isPicked == value)
+                {
+                    return;
+                }
+
+                isPicked = value;
+                Raise(nameof(IsPicked));
+                Raise(nameof(IsNotPicked));
+            }
+        }
+
+        /// <summary>The pick box and the tick read as one and the same mark, so only one is drawn.</summary>
+        public bool IsNotPicked => !isPicked;
+
         private void Raise(string propertyName) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+        private bool showPicker;
+        private bool isPicked;
     }
 }
 

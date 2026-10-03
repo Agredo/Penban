@@ -15,6 +15,7 @@ public partial class BoardsPage : ContentPage
     private readonly SearchViewModel searchViewModel;
     private readonly FeedbackViewModel feedbackViewModel;
     private readonly TransferCoordinator transferCoordinator;
+    private readonly IDialogService dialogService;
     private readonly WidgetSnapshotTrigger widget;
     private readonly WidgetBoardLink boardLink;
     private bool isOpeningBoard;
@@ -26,7 +27,7 @@ public partial class BoardsPage : ContentPage
     /// </summary>
     private Guid? lastOpenedBoardId;
 
-    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, SearchViewModel searchViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, TransferCoordinator transferCoordinator, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink)
+    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, SearchViewModel searchViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, TransferCoordinator transferCoordinator, IDialogService dialogService, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink)
     {
         InitializeComponent();
         this.settingsViewModel = settingsViewModel;
@@ -34,6 +35,7 @@ public partial class BoardsPage : ContentPage
         this.feedbackViewModel = feedbackViewModel;
         this.preferences = preferences;
         this.transferCoordinator = transferCoordinator;
+        this.dialogService = dialogService;
         this.widget = widget;
         this.boardLink = boardLink;
         BindingContext = viewModel;
@@ -154,7 +156,7 @@ public partial class BoardsPage : ContentPage
             }
 
             lastOpenedBoardId = boardId;
-            await Navigation.PushAsync(new BoardPage(board, settingsViewModel, feedbackViewModel, preferences, transferCoordinator, searchViewModel, openCardId));
+            await Navigation.PushAsync(new BoardPage(board, settingsViewModel, feedbackViewModel, preferences, transferCoordinator, dialogService, searchViewModel, openCardId));
         }
         finally
         {

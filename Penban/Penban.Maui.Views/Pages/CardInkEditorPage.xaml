@@ -44,7 +44,7 @@
                          to the other one. The glyph of the two (pen U+E8D8, finger U+E6D8) and the
                          words it is read out with are put on in the code-behind, because that is what
                          tells the two modes apart. Eraser = U+E5E5, undo = U+F19A, redo = U+F16F,
-                         clear = U+F201, radial menu = U+F07A5. -->
+                         clear = U+F201, radial menu = U+F07A5, pressure follows the pen = U+EF76. -->
                     <Button x:Name="DrawModeButton"
                             FontSize="20"
                             Style="{StaticResource GhostIconButton}"
@@ -79,6 +79,36 @@
                     <!-- The pens. Filled in from the stored slots in the code-behind; the one that is
                          drawing wears the frame that says so. -->
                     <HorizontalStackLayout x:Name="PenSlotRow" Spacing="2" VerticalOptions="Center" />
+                    <!-- How wide the pen in hand writes, beside the pen it belongs to: the number is
+                         the width it is set to, which neither the pen drawn in the row nor the ink on
+                         the note says plainly, and the slider is what a width can be aimed at without
+                         opening the flyout. The pen that is drawing is dragged for the same width as
+                         well - see OnPenSlotPanned. The range is set in the code-behind, so the row and
+                         the flyout take it from the one place a pen's range is written down. The row
+                         leaves the hand-over of touches to the platform, so a flick along it scrolls it
+                         wherever the finger lands and the slider is dragged by pressing it first:
+                         taking that hand-over away would leave the row unscrollable under any of its
+                         buttons. -->
+                    <HorizontalStackLayout Spacing="2" VerticalOptions="Center">
+                        <Slider x:Name="ToolbarThicknessSlider"
+                                WidthRequest="96"
+                                VerticalOptions="Center"
+                                ValueChanged="OnToolbarThicknessChanged"
+                                SemanticProperties.Description="{markup:Translate PenThicknessTitle}" />
+                        <Label x:Name="ToolbarThicknessValue"
+                               Style="{StaticResource CaptionLabel}"
+                               WidthRequest="46"
+                               HorizontalTextAlignment="End"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <!-- Whether the pen's own pressure is what decides the width. Lit while it does;
+                         pressing it takes that away and every stroke is drawn at the width the pen was
+                         given - the same switch the settings page carries, see OnPressureClicked. -->
+                    <Button x:Name="PressureButton"
+                            Text="&#xef76;"
+                            FontSize="20"
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnPressureClicked" />
                     <!-- Wipes the note in one edit. It sits with the pens rather than with the paper
                          colours because that is what it acts on - the ink, not the note. -->
                     <Button x:Name="ClearButton"

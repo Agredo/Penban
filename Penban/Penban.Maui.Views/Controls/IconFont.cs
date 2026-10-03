@@ -20,6 +20,13 @@ public static class IconFont
     public const string Delete = "\uf34d";
     public const string DragHandle = "\ue9f9";
     public const string Board = "\uf1e3";
+
+    /// <summary>Picking several notes at once: the board header's select button.</summary>
+    public const string Select = "\ue84d";
+
+    /// <summary>Moving the picked notes to another column.</summary>
+    public const string MoveTo = "\uf169";
+
     public const string Checkmark = "\uf295";
     public const string Edit = "\uf3de";
     public const string Notebook = "\uf570";
@@ -30,6 +37,12 @@ public static class IconFont
 
     /// <summary>Pen widths, as offered by the radial menu's width block.</summary>
     public const string LineThickness = "\uf0062";
+
+    /// <summary>
+    /// A stroke that grows and shrinks again: how hard the pen is pressed, which is what the width
+    /// follows while that is switched on.
+    /// </summary>
+    public const string InkStrokeArrowUpDown = "\uef76";
 
     /// <summary>Back a step: the radial menu's "undo".</summary>
     public const string Undo = "\uf19a";
