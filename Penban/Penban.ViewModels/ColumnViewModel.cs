@@ -12,7 +12,7 @@ public partial class ColumnViewModel : ObservableObject
 {
     private readonly ICardService cardService;
     private readonly IDialogService dialogService;
-    private readonly BoardColumn column;
+    private BoardColumn column;
 
     public ColumnViewModel(BoardColumn column, ICardService cardService, IDialogService dialogService)
     {
@@ -26,6 +26,19 @@ public partial class ColumnViewModel : ObservableObject
     public Guid Id => column.Id;
 
     public Guid BoardId => column.BoardId;
+
+    /// <summary>
+    /// Points this column at the row as it was just read from the database, keeping the instance and
+    /// with it the cards that have already been loaded into it. The board page reads its lanes from
+    /// these very view models, so a lane that is still on the board must not be built again just
+    /// because the overview re-read the board - see <see cref="BoardViewModel.RefreshAsync"/>.
+    /// </summary>
+    public void Update(BoardColumn updated)
+    {
+        column = updated;
+        Title = updated.Title;
+        SortOrder = updated.SortOrder;
+    }
 
     [ObservableProperty]
     private string title;

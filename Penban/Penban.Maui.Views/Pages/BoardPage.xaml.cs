@@ -82,7 +82,14 @@ public partial class BoardPage : ContentPage
     private ObservableCollection<BoardKanbanCard> kanbanCards = new();
     private BoardViewModel? viewModel;
     private bool isLoaded;
-    private bool suppressCardRebuild;
+
+    /// <summary>
+    /// How many loads are filling a column right now, see <see cref="BeginCardRebuildSuppression"/>.
+    /// Counted rather than a plain flag because the loads overlap: the board loads its columns while
+    /// the overview may be re-reading the board behind it, and the first load to finish must not
+    /// clear the suppression the other one is still working under.
+    /// </summary>
+    private int cardRebuildSuppressions;
 
     /// <summary>
     /// The column width the control was last given, so that a layout pass that leaves the width
@@ -130,8 +137,68 @@ public partial class BoardPage : ContentPage
         BoardKanban.ItemsSource = kanbanCards;
         BoardKanban.DragEnd += OnKanbanDragEnd;
         BoardKanban.SizeChanged += OnBoardKanbanSizeChanged;
+    }
+
+    /// <summary>
+    /// Subscribes to the board for this visit. Called from <see cref="OnAppearing"/> rather than from
+    /// the constructor because the view model outlives the page: the overview keeps its rows, and a
+    /// board is opened into a new page every time, so the handlers have to follow the page.
+    /// </summary>
+    private void SubscribeToBoard()
+    {
+        if (viewModel is null)
+        {
+            return;
+        }
+
+        // Detach first, so that a page that comes back into view - from the ink editor, or from a
+        // window that was in the background - ends up with exactly one handler either way.
+        viewModel.Columns.CollectionChanged -= OnColumnsChanged;
         viewModel.Columns.CollectionChanged += OnColumnsChanged;
+
+        foreach (var column in viewModel.Columns)
+        {
+            column.Cards.CollectionChanged -= OnCardsChanged;
+            column.Cards.CollectionChanged += OnCardsChanged;
+        }
+
+        Application.Current!.RequestedThemeChanged -= OnRequestedThemeChanged;
         Application.Current!.RequestedThemeChanged += OnRequestedThemeChanged;
+
+        foreach (var (column, handler) in titleSubscriptions)
+        {
+            column.PropertyChanged -= handler;
+            column.PropertyChanged += handler;
+        }
+    }
+
+    /// <summary>
+    /// Undoes <see cref="SubscribeToBoard"/>. A handler left behind goes on answering the overview's
+    /// refresh - reading every lane of a board that is no longer on screen, and building a board
+    /// nobody is looking at for it - once more for every visit the board has ever had. The title
+    /// handlers are kept in the list but let go of, so that a page that is gone does not stay alive
+    /// through the columns of the board it was showing.
+    /// </summary>
+    private void UnsubscribeFromBoard()
+    {
+        if (viewModel is null)
+        {
+            return;
+        }
+
+        viewModel.Columns.CollectionChanged -= OnColumnsChanged;
+
+        foreach (var column in viewModel.Columns)
+        {
+            column.Cards.CollectionChanged -= OnCardsChanged;
+        }
+
+        Application.Current!.RequestedThemeChanged -= OnRequestedThemeChanged;
+
+        foreach (var (column, handler) in titleSubscriptions)
+        {
+            column.PropertyChanged -= handler;
+        }
     }
 
     /// <summary>
@@ -181,6 +248,8 @@ public partial class BoardPage : ContentPage
             return;
         }
 
+        SubscribeToBoard();
+
         // Whether the board carries a note is the one thing the header shows about it, and it
         // changes in the editor - so it is re-read before either branch below.
         UpdateBoardNoteButton();
@@ -224,6 +293,18 @@ public partial class BoardPage : ContentPage
     }
 
     /// <summary>
+    /// Lets go of the board while this page is off screen - it stays off screen behind the ink
+    /// editor, and it is left behind for good when the reader goes back to the overview. The page is
+    /// gone from that point on, but the view model it showed is not, so what is unsubscribed here
+    /// would otherwise keep reading lanes for a board that no longer exists on screen.
+    /// </summary>
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        UnsubscribeFromBoard();
+    }
+
+    /// <summary>
     /// Opens the note a search result pointed at. A note that is gone by now - deleted while the
     /// search page was open - leaves the board showing, which is what a tap on the board itself
     /// would have got.
@@ -260,13 +341,26 @@ public partial class BoardPage : ContentPage
             }
         }
 
-        if (e.NewItems is not null)
+        var added = e.NewItems?.OfType<ColumnViewModel>().ToList() ?? [];
+        foreach (var item in added)
         {
-            foreach (var item in e.NewItems.OfType<ColumnViewModel>())
-            {
-                item.Cards.CollectionChanged += OnCardsChanged;
-                await item.LoadCardsCommand.ExecuteAsync(null);
-            }
+            item.Cards.CollectionChanged -= OnCardsChanged;
+            item.Cards.CollectionChanged += OnCardsChanged;
+        }
+
+        // A lane that already carries its cards is not read again: it either only changed places, or
+        // it is one the board is showing while the overview re-read the board behind it. Loading is
+        // what a reader saw as the lanes coming back one after the other - each lane that was read
+        // filled its cards one at a time, and every one of those rebuilt the whole board.
+        var pending = added.Where(item => item.Cards.Count == 0).ToList();
+        BeginCardRebuildSuppression();
+        try
+        {
+            await Task.WhenAll(pending.Select(item => item.LoadCardsCommand.ExecuteAsync(null)));
+        }
+        finally
+        {
+            EndCardRebuildSuppression();
         }
 
         RebuildKanbanColumns();
@@ -275,9 +369,25 @@ public partial class BoardPage : ContentPage
 
     private void OnCardsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (!suppressCardRebuild)
+        if (cardRebuildSuppressions == 0)
         {
             RebuildKanbanCards();
+        }
+    }
+
+    /// <summary>
+    /// Holds off the board rebuild while a column is being filled. Filling one is a <c>Clear()</c>
+    /// plus one <c>Add()</c> per card, and each of those raises <c>CollectionChanged</c>; rebuilding
+    /// for every card made opening a board quadratic, which is why a board with a few dozen notes
+    /// took seconds to appear. Load first, build the board once.
+    /// </summary>
+    private void BeginCardRebuildSuppression() => cardRebuildSuppressions++;
+
+    private void EndCardRebuildSuppression()
+    {
+        if (cardRebuildSuppressions > 0)
+        {
+            cardRebuildSuppressions--;
         }
     }
 
@@ -295,18 +405,14 @@ public partial class BoardPage : ContentPage
             column.Cards.CollectionChanged += OnCardsChanged;
         }
 
-        // Filling a column is a Clear() plus one Add() per card, and each of those raises
-        // CollectionChanged - which used to rebuild the whole board. That made opening a board with
-        // a few dozen cards quadratic, and it is why a big board took seconds to appear. Load
-        // first, build the board once.
-        suppressCardRebuild = true;
+        BeginCardRebuildSuppression();
         try
         {
             await Task.WhenAll(columns.Select(column => column.LoadCardsCommand.ExecuteAsync(null)));
         }
         finally
         {
-            suppressCardRebuild = false;
+            EndCardRebuildSuppression();
         }
     }
 
@@ -686,7 +792,7 @@ public partial class BoardPage : ContentPage
         // Keep the view model consistent with what the control now displays, without
         // triggering a rebuild of the ItemsSource.
         var cardViewModel = sourceColumn.Cards.First(c => c.Id == draggedCardId);
-        suppressCardRebuild = true;
+        BeginCardRebuildSuppression();
         try
         {
             sourceColumn.Cards.Remove(cardViewModel);
@@ -701,7 +807,7 @@ public partial class BoardPage : ContentPage
         }
         finally
         {
-            suppressCardRebuild = false;
+            EndCardRebuildSuppression();
         }
 
         if (e.Data is BoardKanbanCard boardCard)
@@ -737,7 +843,7 @@ public partial class BoardPage : ContentPage
         }
 
         var removed = false;
-        suppressCardRebuild = true;
+        BeginCardRebuildSuppression();
         try
         {
             foreach (var column in viewModel.Columns)
@@ -754,7 +860,7 @@ public partial class BoardPage : ContentPage
         }
         finally
         {
-            suppressCardRebuild = false;
+            EndCardRebuildSuppression();
         }
 
         return removed;
