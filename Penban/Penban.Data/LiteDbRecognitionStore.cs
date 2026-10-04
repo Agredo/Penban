@@ -18,14 +18,20 @@ namespace Penban.Data;
 /// </summary>
 public class LiteDbRecognitionStore : IRecognitionStore
 {
-    private readonly ILiteCollection<RecognitionRow> recognitions;
+    private readonly LiteDbContext context;
 
     public LiteDbRecognitionStore(LiteDbContext context)
     {
         // No index on the text: nothing here is looked up by it. The id is the card id and LiteDB
         // indexes it by itself, which is the one lookup that happens on every card.
-        recognitions = context.Database.GetCollection<RecognitionRow>("recognitions");
+        this.context = context;
     }
+
+    /// <summary>
+    /// Asked for per call, not kept: the collection belongs to the database instance of the moment,
+    /// and that one is closed when the app is left (see <see cref="LiteDbContext.Suspend"/>).
+    /// </summary>
+    private ILiteCollection<RecognitionRow> Recognitions => context.Collection<RecognitionRow>("recognitions");
 
     /// <inheritdoc />
     public Task<StoredRecognition?> TryGetAsync(
@@ -35,7 +41,7 @@ public class LiteDbRecognitionStore : IRecognitionStore
         CancellationToken cancellationToken = default)
         => DatabaseWork.RunAsync(() =>
         {
-            var row = recognitions.FindById(cardId);
+            var row = Recognitions.FindById(cardId);
 
             return row is not null && row.Matches(inkHash, profile) ? row.ToStored() : null;
         }, cancellationToken);
@@ -55,13 +61,13 @@ public class LiteDbRecognitionStore : IRecognitionStore
             {
                 var row = RecognitionRow.From(recognition);
 
-                if (recognitions.FindById(recognition.CardId) is { } existing)
+                if (Recognitions.FindById(recognition.CardId) is { } existing)
                 {
                     row.TypedText = existing.TypedText;
                     row.NormalizedTypedText = existing.NormalizedTypedText;
                 }
 
-                recognitions.Upsert(row);
+                Recognitions.Upsert(row);
             },
             cancellationToken);
     }
@@ -84,20 +90,20 @@ public class LiteDbRecognitionStore : IRecognitionStore
         return DatabaseWork.RunAsync(
             () =>
             {
-                var row = recognitions.FindById(cardId) ?? new RecognitionRow { Id = cardId };
+                var row = Recognitions.FindById(cardId) ?? new RecognitionRow { Id = cardId };
 
                 row.TypedText = typedText;
                 row.NormalizedTypedText = normalizedTypedText;
                 row.UpdatedAtUtc = DateTime.UtcNow;
 
-                recognitions.Upsert(row);
+                Recognitions.Upsert(row);
             },
             cancellationToken);
     }
 
     /// <inheritdoc />
     public Task RemoveAsync(Guid cardId, CancellationToken cancellationToken = default)
-        => DatabaseWork.RunAsync(() => recognitions.Delete(cardId), cancellationToken);
+        => DatabaseWork.RunAsync(() => Recognitions.Delete(cardId), cancellationToken);
 
     /// <inheritdoc />
     public Task<IReadOnlyList<StoredRecognition>> SearchAsync(
@@ -113,7 +119,7 @@ public class LiteDbRecognitionStore : IRecognitionStore
         }
 
         return DatabaseWork.RunAsync<IReadOnlyList<StoredRecognition>>(
-            () => recognitions.FindAll()
+            () => Recognitions.FindAll()
                 // Ordinal, because both sides have already been through TextNormalizer: comparing
                 // culture-sensitively here would fold them a second time, in a different way.
                 // The null tests are not defensiveness: LiteDB keeps an empty string as a null, so a

@@ -7,25 +7,28 @@ namespace Penban.Data;
 /// <summary>LiteDB-backed implementation of <see cref="IBoardRepository"/>.</summary>
 public class LiteDbBoardRepository : IBoardRepository
 {
-    private readonly ILiteCollection<Board> boards;
+    private readonly LiteDbContext context;
 
-    public LiteDbBoardRepository(LiteDbContext context)
-    {
-        boards = context.Database.GetCollection<Board>("boards");
-    }
+    public LiteDbBoardRepository(LiteDbContext context) => this.context = context;
+
+    /// <summary>
+    /// Asked for per call, not kept: the collection belongs to the database instance of the moment,
+    /// and that one is closed when the app is left (see <see cref="LiteDbContext.Suspend"/>).
+    /// </summary>
+    private ILiteCollection<Board> Boards => context.Collection<Board>("boards");
 
     public Task<List<Board>> GetAllAsync()
-        => DatabaseWork.RunAsync(() => boards.Find(b => !b.IsDeleted).ToList());
+        => DatabaseWork.RunAsync(() => Boards.Find(b => !b.IsDeleted).ToList());
 
     public Task SaveAsync(Board board) => DatabaseWork.RunAsync(() =>
     {
         board.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        boards.Upsert(board);
+        Boards.Upsert(board);
     });
 
     public Task DeleteAsync(Guid boardId) => DatabaseWork.RunAsync(() =>
     {
-        var board = boards.FindById(boardId);
+        var board = Boards.FindById(boardId);
         if (board is null)
         {
             return;
@@ -33,7 +36,7 @@ public class LiteDbBoardRepository : IBoardRepository
 
         board.IsDeleted = true;
         board.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        boards.Update(board);
+        Boards.Update(board);
     });
 
     public Task SaveAllAsync(IReadOnlyList<Board> imported) => DatabaseWork.RunAsync(() =>
@@ -42,12 +45,12 @@ public class LiteDbBoardRepository : IBoardRepository
         // abort the whole import when a file happens to name the same board twice.
         if (imported.Count > 0)
         {
-            boards.Upsert(imported);
+            Boards.Upsert(imported);
         }
     });
 
     public Task ClearAsync() => DatabaseWork.RunAsync(() =>
     {
-        boards.DeleteAll();
+        Boards.DeleteAll();
     });
 }

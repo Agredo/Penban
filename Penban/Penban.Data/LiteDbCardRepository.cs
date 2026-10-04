@@ -7,27 +7,31 @@ namespace Penban.Data;
 /// <summary>LiteDB-backed implementation of <see cref="ICardRepository"/>.</summary>
 public class LiteDbCardRepository : ICardRepository
 {
-    private readonly ILiteCollection<Card> cards;
+    private readonly LiteDbContext context;
 
-    public LiteDbCardRepository(LiteDbContext context)
-    {
-        cards = context.Database.GetCollection<Card>("cards");
-        cards.EnsureIndex(c => c.ColumnId);
-    }
+    public LiteDbCardRepository(LiteDbContext context) => this.context = context;
+
+    /// <summary>
+    /// Asked for per call, not kept: the collection belongs to the database instance of the moment,
+    /// and that one is closed when the app is left (see <see cref="LiteDbContext.Suspend"/>). The index
+    /// is prepared once per opened file rather than on every call.
+    /// </summary>
+    private ILiteCollection<Card> Cards
+        => context.Collection<Card>("cards", cards => cards.EnsureIndex(c => c.ColumnId));
 
     public Task<Card?> GetAsync(Guid cardId) => DatabaseWork.RunAsync(() =>
     {
-        var card = cards.FindById(cardId);
+        var card = Cards.FindById(cardId);
         return card is not null && !card.IsDeleted ? card : null;
     });
 
     public Task<List<Card>> GetByColumnAsync(Guid columnId)
-        => DatabaseWork.RunAsync(() => cards.Find(c => c.ColumnId == columnId && !c.IsDeleted)
+        => DatabaseWork.RunAsync(() => Cards.Find(c => c.ColumnId == columnId && !c.IsDeleted)
             .OrderBy(c => c.SortOrder)
             .ToList());
 
     public Task<List<CardHeader>> GetHeadersByColumnAsync(Guid columnId)
-        => DatabaseWork.RunAsync(() => cards.Query()
+        => DatabaseWork.RunAsync(() => Cards.Query()
             .Where(c => c.ColumnId == columnId && !c.IsDeleted)
             .OrderBy(c => c.SortOrder)
             // A projection, not a Find: LiteDB evaluates it over the stored document and hands back
@@ -47,7 +51,7 @@ public class LiteDbCardRepository : ICardRepository
         var found = new List<Card>(cardIds.Count);
         foreach (var id in cardIds)
         {
-            var card = cards.FindById(id);
+            var card = Cards.FindById(id);
             if (card is not null && !card.IsDeleted)
             {
                 found.Add(card);
@@ -60,17 +64,17 @@ public class LiteDbCardRepository : ICardRepository
     });
 
     public Task<List<Card>> GetAllAsync()
-        => DatabaseWork.RunAsync(() => cards.Find(c => !c.IsDeleted).ToList());
+        => DatabaseWork.RunAsync(() => Cards.Find(c => !c.IsDeleted).ToList());
 
     public Task SaveAsync(Card card) => DatabaseWork.RunAsync(() =>
     {
         card.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        cards.Upsert(card);
+        Cards.Upsert(card);
     });
 
     public Task DeleteAsync(Guid cardId) => DatabaseWork.RunAsync(() =>
     {
-        var card = cards.FindById(cardId);
+        var card = Cards.FindById(cardId);
         if (card is null)
         {
             return;
@@ -78,12 +82,12 @@ public class LiteDbCardRepository : ICardRepository
 
         card.IsDeleted = true;
         card.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        cards.Update(card);
+        Cards.Update(card);
     });
 
     public Task DeleteByColumnAsync(Guid columnId) => DatabaseWork.RunAsync(() =>
     {
-        cards.DeleteMany(c => c.ColumnId == columnId);
+        Cards.DeleteMany(c => c.ColumnId == columnId);
     });
 
     public Task SaveAllAsync(IReadOnlyList<Card> imported) => DatabaseWork.RunAsync(() =>
@@ -92,12 +96,12 @@ public class LiteDbCardRepository : ICardRepository
         // cards verbatim, and let a duplicate id in a malformed file overwrite instead of throwing.
         if (imported.Count > 0)
         {
-            cards.Upsert(imported);
+            Cards.Upsert(imported);
         }
     });
 
     public Task ClearAsync() => DatabaseWork.RunAsync(() =>
     {
-        cards.DeleteAll();
+        Cards.DeleteAll();
     });
 }
