@@ -92,6 +92,11 @@
                     </Grid>
                 </Border>
 
+                <!-- Apache-2.0 §4(a) and §4(b): name the model's author and state that the weights
+                     were converted. -->
+                <Label Text="{markup:Translate AboutModelAttribution}"
+                       Style="{StaticResource CaptionLabel}" />
+
                 <Label Text="{markup:Translate AboutContactSection}"
                        Style="{StaticResource CaptionLabel}"
                        Margin="0,6,0,0" />

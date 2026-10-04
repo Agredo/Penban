@@ -4,8 +4,8 @@
  "catalogVersion": 1,
  "note": "Ein Manifest pro Modell = dieser Katalog ohne 'models', plus genau ein Eintrag aus 'models'. Der Codec ist ueber alle Varianten identisch.",
  "family": "kraken PP-OCRv6 (line recognizer, CTC)",
- "origin": "small-models-for-glam/kraken-ppocrv6-{tiny,small,medium} (HuggingFace)",
- "license": "Apache-2.0 laut Modellkarte - vor Auslieferung pruefen",
+ "origin": "small-models-for-glam/kraken-ppocrv6-{tiny,small,medium} (HuggingFace), Spiegel des Zenodo-Release 10.5281/zenodo.21788405 von Benjamin Kiessling, ALMAnaCH, Inria Paris",
+ "license": "Apache-2.0 (verifiziert am 2026-10-04 gegen 10.5281/zenodo.21788405 und die HuggingFace-Modellkarte)",
  "decoding": {
   "inGraph": true,
   "softmax": "softmax(logits / temperature, dim=1)",

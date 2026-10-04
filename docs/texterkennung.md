@@ -111,7 +111,9 @@ er getippt wurde.
 ## Das Modell
 
 Familie: **kraken PP-OCRv6** Zeilen-Erkenner (CTC), Herkunft
-`small-models-for-glam/kraken-ppocrv6-{tiny,small,medium}` auf HuggingFace.
+`small-models-for-glam/kraken-ppocrv6-{tiny,small,medium}` auf HuggingFace — ein byte-identischer
+Spiegel des Zenodo-Release [10.5281/zenodo.21788405](https://doi.org/10.5281/zenodo.21788405) von
+Benjamin Kiessling (ALMAnaCH, Inria Paris).
 
 Ausgeliefert wird `kraken-ppocrv6-small-fp16`:
 
@@ -124,7 +126,7 @@ Ausgeliefert wird `kraken-ppocrv6-small-fp16`:
 | Vorverarbeitung | RGB → Lanczos auf Höhe 96 (Breite proportional) → 16 px weiß links und rechts → `/255` → invertieren |
 | Ausgabe | `labels` int64 `(N, T)`, `confs` float32 `(N, T)`, `T = W/8` |
 | Codec | 1623 Klassen; Label 0 = Blank, Label 1 = Leerzeichen; über **alle** Varianten identisch |
-| Lizenz | Apache-2.0 laut Modellkarte — **vor Auslieferung prüfen** |
+| Lizenz | Apache-2.0, verifiziert am 2026-10-04 |
 
 Modell und Katalog liegen als `EmbeddedResource` **in der Assembly**, nicht in `Resources/Raw` des
 MAUI-Kopfprojekts. Dadurch funktioniert der Erkenner ohne MAUI und ohne `FileSystem` und lässt sich
@@ -235,7 +237,11 @@ Stelle, die die rohe Zeile dereferenziert, weil sie die Zeilen vergleicht, **bev
 - **Die Segmentierung ist der schwächste Teil der Kette**, nicht das Modell.
 - **Verwechslungen durch Homoglyphen**: beobachtet wurde „posiłion" für „position" (`ti` → `ł`). Der
   Normalisierer faltet nur optisch verwechselbare Zeichen zusammen, er transliteriert nicht.
-- **Lizenz des Modells** ist laut Modellkarte Apache-2.0, aber nicht verifiziert.
+- **Lizenz des Modells** ist Apache-2.0, verifiziert am 2026-10-04 am Zenodo-Release
+  [10.5281/zenodo.21788405](https://doi.org/10.5281/zenodo.21788405) und an der HuggingFace-Modellkarte
+  `small-models-for-glam/kraken-ppocrv6-small`. Urheber ist Benjamin Kiessling (ALMAnaCH, Inria Paris).
+  Die Gewichte sind von Penban in ein eigenes ONNX-Format umgewandelt worden; nach Apache-2.0 §4(b) ist
+  diese Änderung kenntlich zu machen — sie steht auf der Über-Seite der App.
 - Die Erkennung läuft **nur beim Speichern und beim Öffnen eines Boards**. Eine Notiz, deren Board
   nie geöffnet wurde, ist erst nach *Vorhandene Notizen lesen* findbar — deshalb sagt die leere
   Suchseite das ausdrücklich. Für eine getippte Notiz gilt das nicht: sie ist mit dem Speichern
