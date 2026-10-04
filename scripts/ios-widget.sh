@@ -3,11 +3,15 @@
 # Penban – Widget-Extension (PenbanWidget.appex) bauen.
 #
 #   scripts/ios-widget.sh build [Debug|Release]   Extension bauen und ablegen (Standard: Release)
+#   scripts/ios-widget.sh check <Appex>           Version einer fertigen Extension gegen die App prüfen
 #   scripts/ios-widget.sh clean                   Build-Ordner der Extension löschen
 #
-# VERSION=0.5.2 und BUILD=14 setzen die Version der Extension; sie muss der App entsprechen, sonst
-# lehnt App Store Connect das Paket ab (90473). Ohne die Variablen gelten die Werte aus project.yml.
-# scripts/ios-testflight.sh reicht hier automatisch die Version durch, die es in die App schreibt.
+# Die Version der Extension muss der der App entsprechen, sonst lehnt App Store Connect das Paket
+# ab (90473). Sie wird deshalb aus Penban.Maui.csproj gelesen (ApplicationDisplayVersion /
+# ApplicationVersion) und in den Build gereicht - die App ist die Quelle, project.yml führt nur
+# noch einen Notnagel für einen Build von Hand in Xcode. VERSION=... und BUILD=... in der Umgebung
+# stechen diese Werte, damit scripts/ios-testflight.sh genau die Version durchgeben kann, die es in
+# die App schreibt.
 #
 # Voraussetzung: macOS mit Xcode. Nur Xcode kann eine .appex erzeugen – die MAUI-Toolchain
 # bettet sie anschließend nur ein. Das Ergebnis landet unter
@@ -37,14 +41,23 @@ EXTENSION_BUNDLE_ID="com.agredoapplication.panban.WidgetExtension"
 APP_GROUP="group.com.agredoapplication.panban"
 
 # Version und Build-Nummer dürfen von der App nicht abweichen – App Store Connect weist ein Paket
-# mit 90473 zurück. project.yml nennt Defaults; die Werte aus der Umgebung stechen sie, damit
-# scripts/ios-testflight.sh hier genau die Version mitgeben kann, die es in die App schreibt.
-VERSION="${VERSION:-}"
-BUILD="${BUILD:-}"
+# mit 90473 zurück. Gelesen wird deshalb die App: Penban.Maui.csproj nennt die Version an genau
+# einer Stelle, und wer hier baut, bekommt automatisch dieselbe. VERSION/BUILD aus der Umgebung
+# stechen sie – so reicht scripts/ios-testflight.sh die Werte durch, die es in die App schreibt.
+PROJ="$REPO_ROOT/Penban/Penban.Maui/Penban.Maui.csproj"
+# Der erste Treffer reicht: beide Eigenschaften stehen in Penban.Maui.csproj genau einmal.
+csproj_value() { sed -n "s/.*<$1>\(.*\)<\/$1>.*/\1/p" "$PROJ" | head -1 | tr -d '[:space:]'; }
+
+VERSION="${VERSION:-$(csproj_value ApplicationDisplayVersion)}"
+BUILD="${BUILD:-$(csproj_value ApplicationVersion)}"
 
 log()  { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[33mHinweis:\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[31mFehler:\033[0m %s\n' "$*" >&2; exit 1; }
+
+[ -n "$VERSION" ] && [ -n "$BUILD" ] || die "Version und Build-Nummer stehen nicht in $PROJ
+    (ApplicationDisplayVersion / ApplicationVersion). Ohne sie bekäme die Extension eine Version,
+    die nicht zur App passt - App Store Connect lehnt das Paket dann mit 90473 ab."
 
 # Der Build läuft nur auf macOS; hier oben abfangen, damit der Fehler klar benannt ist.
 require_macos() {
@@ -55,9 +68,8 @@ require_macos() {
 
 cmd_generate() {
   # project.yml ist die Quelle der Wahrheit. Ist XcodeGen vorhanden, wird das Projekt bei jedem
-  # Lauf neu erzeugt: sonst bliebe eine Änderung an project.yml - etwa die Version, die zur App
-  # passen muss - in einem schon vorhandenen Projekt liegen und der Build führe still die alten
-  # Werte mit.
+  # Lauf neu erzeugt: sonst bliebe eine Änderung an project.yml - etwa eine neue Swift-Datei - in
+  # einem schon vorhandenen Projekt liegen und der Build führe still die alten Werte mit.
   if command -v xcodegen >/dev/null 2>&1; then
     log "Erzeuge PenbanWidget.xcodeproj aus project.yml"
     (cd "$WIDGET_DIR" && xcodegen generate)
@@ -108,12 +120,14 @@ verify_appex() { # <pfad/zur/PenbanWidget.appex>
   local version build
   version="$(plutil -extract CFBundleShortVersionString raw -o - "$appex/Info.plist" 2>/dev/null || true)"
   build="$(plutil -extract CFBundleVersion raw -o - "$appex/Info.plist" 2>/dev/null || true)"
-  [ -z "$VERSION" ] || [ "$version" = "$VERSION" ] \
-    || die "Die Extension wurde als Version '$version' gebaut, erwartet war '$VERSION'.
-    MARKETING_VERSION in Penban.Widget.iOS/project.yml an Penban.Maui.csproj angleichen."
-  [ -z "$BUILD" ] || [ "$build" = "$BUILD" ] \
-    || die "Die Extension wurde mit Build-Nummer '$build' gebaut, erwartet war '$BUILD'.
-    CURRENT_PROJECT_VERSION in Penban.Widget.iOS/project.yml an Penban.Maui.csproj angleichen."
+  [ "$version" = "$VERSION" ] \
+    || die "Die Extension wurde als Version '$version' gebaut, die App steht auf '$VERSION'.
+    Ohne VERSION in der Umgebung nimmt dieses Skript die Version der App; wurde sie hier gesetzt,
+    muss sie zu Penban.Maui.csproj passen."
+  [ "$build" = "$BUILD" ] \
+    || die "Die Extension wurde mit Build-Nummer '$build' gebaut, die App steht auf '$BUILD'.
+    Ohne BUILD in der Umgebung nimmt dieses Skript die Build-Nummer der App; wurde sie hier
+    gesetzt, muss sie zu Penban.Maui.csproj passen."
   echo "Version:    $version ($build)"
 }
 
@@ -202,9 +216,9 @@ cmd_build() {
   fi
 
   log "Baue $SCHEME ($configuration)"
-  local -a version=()
-  [ -n "$VERSION" ] && version+=(MARKETING_VERSION="$VERSION")
-  [ -n "$BUILD" ] && version+=(CURRENT_PROJECT_VERSION="$BUILD")
+  # Die Version steht in project.yml nur als Notnagel für einen Build von Hand in Xcode; hier wird
+  # immer die der App mitgegeben, damit beide nicht auseinanderlaufen können.
+  local -a version=(MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD")
   # CONFIGURATION_BUILD_DIR statt -derivedDataPath: so landet das .appex direkt in dem Ordner,
   # den der MAUI-Build erwartet, ohne Zwischenkopie.
   (cd "$WIDGET_DIR" && xcodebuild \
@@ -244,9 +258,29 @@ cmd_clean() {
   echo "Build-Ordner der Widget-Extension entfernt: $WIDGET_DIR/build"
 }
 
+# Prüft eine fertige .appex gegen die Version der App. Der MAUI-Build bettet ein, was gerade in
+# build/<Configuration>-iphoneos liegt - eine .appex aus einem früheren Build fällt sonst erst beim
+# Upload auf (90473) oder auf dem Gerät daran, dass das Widget gar nicht angeboten wird.
+cmd_check() { # <pfad/zur/PenbanWidget.appex>
+  local appex="${1:-}" version build
+  [ -n "$appex" ] || die "Aufruf: scripts/ios-widget.sh check <Pfad zur .appex>"
+  [ -f "$appex/Info.plist" ] || die "$appex/Info.plist gibt es nicht - dort liegt keine Extension."
+
+  version="$(plutil -extract CFBundleShortVersionString raw -o - "$appex/Info.plist" 2>/dev/null || true)"
+  build="$(plutil -extract CFBundleVersion raw -o - "$appex/Info.plist" 2>/dev/null || true)"
+  if [ "$version" != "$VERSION" ] || [ "$build" != "$BUILD" ]; then
+    die "Die Widget-Extension ist $version ($build), die App ist $VERSION ($BUILD).
+    App Store Connect weist so ein Paket mit 90473 zurück, und auf dem Gerät wird das Widget nicht
+    angeboten. Die .appex ist ein Überbleibsel eines früheren Builds - neu bauen mit
+    'scripts/ios-widget.sh build ${CONFIGURATION:-Release}'."
+  fi
+  echo "Widget-Extension: $version ($build) - passt zur App ($VERSION ($BUILD))."
+}
+
 case "${1:-build}" in
   build)           shift || true; cmd_build "${1:-Release}";;
+  check)           shift || true; cmd_check "${1:-}";;
   clean)           cmd_clean;;
   -h|--help|help)  sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//';;
-  *)               die "Unbekanntes Kommando '$1' (build [Debug|Release] | clean)";;
+  *)               die "Unbekanntes Kommando '$1' (build [Debug|Release] | check <Appex> | clean)";;
 esac

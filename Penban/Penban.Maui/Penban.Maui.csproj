@@ -281,5 +281,17 @@
           Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And !Exists('$(WidgetExtensionPath)')">
     <Warning Text="No widget extension at Penban.Widget.iOS/build/$(WidgetExtensionOutput)/PenbanWidget.appex - this build has no home screen widget. Build the extension with scripts/ios-widget.sh build." />
   </Target>
+  <!-- A widget extension whose version differs from the app's is rejected by App Store Connect
+       (90473), and on the device the widget is simply not offered. scripts/ios-widget.sh takes the
+       version from this project, but the .appex in build/ can still be a leftover from an earlier
+       app version - so it is checked here, right where the extension is embedded. The check itself
+       lives in the script: reading an Info.plist needs plutil, and escaping a shell pipeline inside
+       an MSBuild attribute would be worse than a call. macOS only, and only if there is a .appex to
+       check at all. -->
+  <Target Name="CheckWidgetExtensionVersion"
+          BeforeTargets="Build"
+          Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And Exists('$(WidgetExtensionPath)/Info.plist') And $([MSBuild]::IsOSPlatform('OSX'))">
+    <Exec Command="bash &quot;$(MSBuildProjectDirectory)/../../scripts/ios-widget.sh&quot; check &quot;$(WidgetExtensionPath)&quot;" />
+  </Target>
 
 </Project>
