@@ -76,24 +76,43 @@
 
                             <!-- The note itself. The reading is what made it findable, but what the
                                  note looks like is what tells the user they found the right one, so
-                                 the ink is drawn in the paper colour it has on the board. -->
+                                 the ink is drawn in the paper colour it has on the board. A note that
+                                 was typed instead has no ink to draw, and gets its own first lines
+                                 drawn in its place - a blank square would tell the user nothing. -->
                             <controls:StickyNoteBorder Grid.Column="0"
                                                        NoteColorIndex="{Binding NoteColorIndex}"
                                                        Padding="6"
                                                        WidthRequest="72"
                                                        HeightRequest="72"
                                                        VerticalOptions="Center">
-                                <controls:InkPreviewView HorizontalOptions="Fill"
-                                                         VerticalOptions="Fill"
-                                                         BackgroundColor="Transparent"
-                                                         StrokesSource="{Binding Strokes}" />
+                                <Grid>
+                                    <controls:InkPreviewView HorizontalOptions="Fill"
+                                                             VerticalOptions="Fill"
+                                                             BackgroundColor="Transparent"
+                                                             StrokesSource="{Binding Strokes}" />
+                                    <Label Text="{Binding PreviewText}"
+                                           IsVisible="{Binding ShowTextPreview}"
+                                           FontSize="9"
+                                           MaxLines="4"
+                                           LineBreakMode="TailTruncation"
+                                           HorizontalTextAlignment="Start"
+                                           VerticalTextAlignment="Start" />
+                                </Grid>
                             </controls:StickyNoteBorder>
 
                             <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
-                                <Label Text="{Binding Text}"
+                                <Label Text="{Binding MatchedText}"
                                        Style="{StaticResource BodyLabel}" />
-                                <Label Text="{Binding BoardLabel}"
-                                       Style="{StaticResource CaptionLabel}" />
+                                <HorizontalStackLayout Spacing="8">
+                                    <!-- Says which of the two texts this result was found by, because
+                                         the same note can hold both and only one of them was searched. -->
+                                    <Label Text="{markup:Translate SearchTypedBadge}"
+                                           IsVisible="{Binding IsTyped}"
+                                           Style="{StaticResource CaptionLabel}"
+                                           TextColor="{AppThemeBinding Light={StaticResource AccentLight}, Dark={StaticResource AccentDark}}" />
+                                    <Label Text="{Binding BoardLabel}"
+                                           Style="{StaticResource CaptionLabel}" />
+                                </HorizontalStackLayout>
                             </VerticalStackLayout>
                         </Grid>
                     </Border>

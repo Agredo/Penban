@@ -4,6 +4,12 @@ Penban liest die Handschrift auf den Karten ("Notizen") und macht ihren Text dur
 läuft auf dem Gerät, ohne Netz und ohne Konto. Es ist keine Transkription: die Erkennung existiert
 allein, damit man eine Notiz wiederfindet, die man vor Wochen geschrieben hat.
 
+Eine Notiz kann auch **getippt** sein (siehe [docs/textfeld-notizen.md](textfeld-notizen.md)). Was
+getippt wurde, braucht die Erkennung nicht: es liegt schon als Text vor, wird beim Speichern nur
+normalisiert und ist damit sofort durchsuchbar. Beide Sorten liegen in derselben Zeile je Karte und
+werden von derselben Suche gefunden — dieser Text beschreibt ab dem folgenden Abschnitt die
+Handschrift, der getippte Weg steht unter [Zwei Eingänge](#zwei-eingänge).
+
 ## Was der Benutzer sieht
 
 | Ort | Verhalten |
@@ -11,8 +17,8 @@ allein, damit man eine Notiz wiederfindet, die man vor Wochen geschrieben hat.
 | Einstellungen → **Suche** → *Text in Notizen finden* | Schalter, Standard **an**. Aus schaltet die Erkennung vollständig ab. |
 | Einstellungen → *Vorhandene Notizen lesen* → **Jetzt lesen** | Liest alle Notizen auf einmal nach, mit Fortschritt (`{0} von {1} Notizen gelesen`) und Ergebnis (`{0} Notizen sind jetzt durchsuchbar.`). |
 | Lupe in der Board-Übersicht | Suchseite. Gesucht wird auf der Suchtaste, nicht bei jedem Buchstaben: eine Suche liest den ganzen Bestand, und der Text einer Notiz liegt erst vor, wenn sie gelesen wurde. |
-| Suchtreffer | Zeigt die Notiz selbst (Tinte, in ihrer Papierfarbe), den gelesenen Text und das Board. Ein Tipp öffnet das Board und darin die Notiz im Ink-Editor. |
-| Suchseite, noch offene Arbeit | `Notizen werden noch gelesen ({0} ausstehend)` — sonst hielte man „noch nicht gelesen" für „nicht vorhanden". |
+| Suchtreffer | Zeigt die Notiz selbst (Tinte, in ihrer Papierfarbe), den gelesenen Text und das Board. Ein Tipp öffnet das Board und darin die Notiz im Ink-Editor. Bei einer getippten Notiz steht dort **Getippt** statt *Gelesen*, und eine Textkarte ohne Tinte zeigt ihre ersten Zeilen statt eines leeren Blattes. |
+| Suchseite, noch offene Arbeit | `Notizen werden noch gelesen ({0} ausstehend)` — sonst hielte man „noch nicht gelesen" für „nicht vorhanden". Getippte Notizen zählen nicht mit: an ihnen gibt es nichts zu lesen. |
 | Fehler | Werden als Dialog gemeldet, statt die App zu beenden. |
 
 Gelesen wird beim Speichern einer Notiz und beim Öffnen ihres Boards, im Hintergrund. Ein ganzes
@@ -28,8 +34,15 @@ flowchart LR
   D -->|labels, confs| E[CtcDecoder]
   E -->|Rohtext| F[TextNormalizer]
   F -->|normalisierter Text| G[InkRecognitionService]
+  T[TextTitle / TextBody] -->|CardText.Flatten| F
+  F -->|normalisierter Text| G
   G --> H[(LiteDB: recognitions)]
 ```
+
+Der Weg über `B`–`E` ist die Handschrift; die getippte Notiz (`T`) steigt beim `TextNormalizer` ein
+und überspringt Segmentierung, Rasterung und Modell. Beide Wege enden in derselben Zeile je Karte,
+und keiner überschreibt den anderen — eine Notiz, auf der beides steht, bleibt auf beiden Wegen
+findbar.
 
 1. **`InkLineSegmenter`** — gruppiert die Striche einer Karte zu Textzeilen, von oben nach unten.
    Rein geometrisch, weil das Modell ein *Zeilen*modell ist und keine eigene Layouterkennung hat:
@@ -58,13 +71,39 @@ Hintergrund-Arbeiter, die zuletzt eingereihte zuerst. Erkennung ist CPU-gebunden
 verteilt eine Zeile schon über alle Kerne; mehrere Karten parallel würden dieselben Kerne teilen
 statt mehr zu nutzen — und dabei mit dem Zeichnen des Benutzers konkurrieren.
 
+## Zwei Eingänge
+
+Eine Karte hat **eine** Zeile in `recognitions` (`RecognitionRow`), und darin liegen zwei Texte
+nebeneinander: `RawText`/`NormalizedText` aus der Handschrift und `TypedText`/`NormalizedTypedText`
+aus der Tastatur. Sie überschreiben sich nicht, und `SearchAsync` vergleicht beide Spalten in
+demselben Durchlauf. Beides in eine Spalte zu schreiben wäre billiger gewesen, hätte aber jedes Mal
+einen der beiden Texte gelöscht: wer eine getippte Notiz mit dem Stift ergänzt, soll beides
+wiederfinden.
+
+**Der getippte Weg kommt ohne Modell aus.** `CardService.SaveCardAsync` schreibt den getippten Text
+bei **jedem** Speichern, leer oder nicht — so verlässt Text, den der Benutzer gelöscht hat, die Suche
+zusammen mit der Karte, die er gelöscht hat. Normalisiert wird er mit demselben `TextNormalizer` wie
+der gelesene (gleiche Unicode-Form, gleiche Homoglyphen, gleiches `ß`/`β` → `ss`), damit eine Suche
+nicht davon abhängt, ob das Wort getippt oder geschrieben wurde.
+
+**Ob überhaupt gelesen wird, entscheidet `NeedsReading`:** eine Karte wird eingereiht, wenn sie
+Tinte trägt **oder** im Stiftmodus steht. Eine Karte im Stiftmodus wird also auch leer eingereiht —
+das ist der Weg, wie die Erkennung den Text einer *wegradierten* Notiz wieder aus dem Bestand nimmt.
+Eine Karte, die getippt wurde und keine Tinte trägt, hat dagegen nichts zu lesen und wird ausgelassen;
+ohne diese Ausnahme stünde jede Textnotiz in der Suche als „wird noch gelesen".
+
+**Woher ein Treffer kam** entscheidet der Vergleich der gespeicherten Formen: enthält die
+normalisierte Abfrage die Zeile `NormalizedTypedText`, ist es der getippte Text (Kennzeichen
+*Getippt*), sonst der gelesene (*Gelesen*). Der Treffertext selbst wird in der Form angezeigt, in der
+er getippt wurde.
+
 ## Projekte
 
 | Projekt | Inhalt |
 | --- | --- |
 | `Penban.Recognition` | Segmentierung, Rasterisierung, Zeilenrenderer, Normalisierung, Dienst und die Schnittstellen (`IInkTextRecognizer`, `IRecognitionStore`, `IInkRecognitionService`). Plattformneutral, ohne MAUI. |
 | `Penban.Recognition.Onnx` | ONNX-Inferenz, CTC-Dekoder, Modellkatalog. Referenziert `Microsoft.ML.OnnxRuntime`. |
-| `Penban.Services` | `RecognitionQueue` — die Warteschlange. |
+| `Penban.Services` | `RecognitionQueue` — die Warteschlange; `CardService` — schreibt den getippten Text (ohne Modell und ohne Warteschlange) und entscheidet über `NeedsReading`, was überhaupt gelesen wird. |
 | `Penban.Data` | `LiteDbRecognitionStore`, `RecognitionRow`. |
 | `Penban.ViewModels` | `SearchViewModel`, `SearchResultViewModel`, Einstellungen. |
 | `Penban.Maui.Views` | `SearchPage`, Aufrufe aus Board- und Einstellungsseite. |
@@ -186,6 +225,9 @@ Stelle, die die rohe Zeile dereferenziert, weil sie die Zeilen vergleicht, **bev
 ## Bekannte Grenzen
 
 - **Die Notiz eines Boards wird nicht gelesen** (`Board.NoteStrokes`), nur die Karten darauf.
+- **Eine getippte Notiz wird nicht gelesen** — bei ihr gibt es nichts zu lesen. Sie steht deshalb nie
+  in der Warteschlange und zählt bei *Vorhandene Notizen lesen* nicht mit. Gelesen wird nur, was
+  Tinte hat oder im Stiftmodus steht.
 - **Schreibreihenfolge** (Zeitstempel) geht in die Segmentierung nicht ein; gelesen wird von oben
   nach unten.
 - **Tabellen und Spalten mit kleinem Abstand** verschmelzen zu einer Zeile. Das Modell liest sie der
@@ -196,7 +238,8 @@ Stelle, die die rohe Zeile dereferenziert, weil sie die Zeilen vergleicht, **bev
 - **Lizenz des Modells** ist laut Modellkarte Apache-2.0, aber nicht verifiziert.
 - Die Erkennung läuft **nur beim Speichern und beim Öffnen eines Boards**. Eine Notiz, deren Board
   nie geöffnet wurde, ist erst nach *Vorhandene Notizen lesen* findbar — deshalb sagt die leere
-  Suchseite das ausdrücklich.
+  Suchseite das ausdrücklich. Für eine getippte Notiz gilt das nicht: sie ist mit dem Speichern
+  durchsuchbar.
 
 ## Bauen und prüfen
 

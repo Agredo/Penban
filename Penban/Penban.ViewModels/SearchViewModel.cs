@@ -10,9 +10,10 @@ using Penban.Util;
 namespace Penban.ViewModels;
 
 /// <summary>
-/// The search over the text that was read from the notes. It looks in the recognised text, never in
-/// the ink, so a note is only findable once it has been read - which is what the switch in the
-/// settings turns on and what opening a board sets going.
+/// The search over the text of the notes. It looks in the text, never in the ink, so a note that was
+/// written by hand is only findable once it has been read - which is what the switch in the settings
+/// turns on and what opening a board sets going. A note that was typed needs none of that: its text is
+/// searchable as soon as it is saved, and both kinds sit in the same list.
 /// </summary>
 public partial class SearchViewModel : ObservableObject
 {
@@ -46,7 +47,7 @@ public partial class SearchViewModel : ObservableObject
         this.dialogService = dialogService;
     }
 
-    /// <summary>Notes whose text contains what was typed, the most recently read ones first.</summary>
+    /// <summary>Notes whose text contains what was typed, the most recently written ones first.</summary>
     public ObservableCollection<SearchResultViewModel> Results { get; } = new();
 
     /// <summary>
@@ -121,6 +122,10 @@ public partial class SearchViewModel : ObservableObject
         {
             var matches = await recognition().SearchAsync(query);
 
+            // Once, not per hit: which of a note's two texts a match came from is decided by comparing
+            // the stored forms, and the query has to be in that same form to compare at all.
+            var normalizedQuery = TextNormalizer.Normalize(query);
+
             // A recognised text knows only the card it came from and a card knows only its column,
             // so the boards are read once to turn a column into a board. The boards are needed for
             // the titles and for opening a result, and reading them once beats reading one per hit.
@@ -144,7 +149,7 @@ public partial class SearchViewModel : ObservableObject
                     continue;
                 }
 
-                Results.Add(new SearchResultViewModel(card, board.Id, match.RawText, board.Title));
+                Results.Add(new SearchResultViewModel(card, board.Id, match, normalizedQuery, board.Title));
             }
 
             HasSearched = true;

@@ -59,9 +59,26 @@ public class CardService : ICardService
         // instead of being read twice.
         for (var i = cards.Count - 1; i >= 0; i--)
         {
-            recognition.Enqueue(cards[i].Id, cards[i].Strokes ?? []);
+            if (NeedsReading(cards[i]))
+            {
+                recognition.Enqueue(cards[i].Id, cards[i].Strokes ?? []);
+            }
         }
     }
+
+    /// <summary>
+    /// Whether a card's text can be read off its ink, which is what decides whether it goes to the
+    /// queue at all.
+    /// </summary>
+    /// <remarks>
+    /// A card written in ink is queued even when it carries no ink, because that is how the text of a
+    /// note the user erased is taken back out of the search: the card is read once more, the reading
+    /// comes back empty, and the stored text goes with it. A card the user typed is the one case that
+    /// has nothing to read - its text is searchable the moment it is saved - so it is left out. Without
+    /// that, every text note would stand in the queue as a note still waiting to be read.
+    /// </remarks>
+    private static bool NeedsReading(Card card) =>
+        (card.Strokes?.Count ?? 0) > 0 || card.Mode != CardContentMode.Text;
 
     public async Task<int> QueueAllRecognitionAsync()
     {
@@ -107,20 +124,40 @@ public class CardService : ICardService
             // have to be recoloured one by one. Without a stored choice it stays null and
             // CardViewModel falls back to the colour derived from the card's id.
             NoteColorIndex = ReadLastNoteColor(),
+
+            // And it starts in the mode the settings ask for: pen or keyboard. Only the start is
+            // decided here - a note that already carries something opens in the mode it was left in,
+            // which is kept on the card itself.
+            Mode = ReadDefaultContentMode(),
         };
 
         await repository.SaveAsync(card);
         return card;
     }
 
-    public Task SaveCardAsync(Card card)
+    public async Task SaveCardAsync(Card card)
     {
+        ArgumentNullException.ThrowIfNull(card);
+
         // The ink goes to the queue rather than through it: reading a card takes the better part of a
         // second per line, and the card is closed by the user before this is called. Waiting here
-        // would put that time on the screen for nothing. A card with no ink is queued as well - that
-        // is how the text of a note the user erased is taken back out of the search.
-        recognition.Enqueue(card.Id, card.Strokes ?? []);
-        return repository.SaveAsync(card);
+        // would put that time on the screen for nothing. A card with no ink is queued as well unless it
+        // was typed - see NeedsReading.
+        if (NeedsReading(card))
+        {
+            recognition.Enqueue(card.Id, card.Strokes ?? []);
+        }
+
+        // What was typed needs no model and no queue: it is searchable as soon as it is here. Written
+        // on every save, empty or not, so that text the user deleted leaves the search with the card
+        // it was deleted from. The two halves of a card's text live in the same row and neither
+        // overwrites the other, so a note that carries both stays findable both ways.
+        var typedText = CardText.Flatten(card);
+        await recognitionStore
+            .SaveTextAsync(card.Id, typedText, TextNormalizer.Normalize(typedText))
+            .ConfigureAwait(false);
+
+        await repository.SaveAsync(card).ConfigureAwait(false);
     }
 
     public async Task DeleteCardAsync(Guid cardId)
@@ -191,4 +228,11 @@ public class CardService : ICardService
         && index < NoteStyle.PaperCount
             ? index
             : null;
+
+    /// <summary>
+    /// The mode a new note is to start in, as the settings keep it. Nothing stored - the usual case,
+    /// since the pen is the default - reads as the pen.
+    /// </summary>
+    private CardContentMode ReadDefaultContentMode() =>
+        CardText.ParseMode(preferences.Get(PreferenceKeys.CardDefaultContentMode, string.Empty));
 }

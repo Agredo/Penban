@@ -37,6 +37,11 @@
              keeps the whole height underneath it: the drawing tools, the two pens and the paper
              colours scroll, and the way into the ring plus the two buttons that leave the card are
              pinned to the right end of the row, where they are always one press away.
+             There are two such rows, one upon the other and only ever one of them up: the tools of the
+             pen, and the tools of the typed text. They stand in the same cell rather than one after the
+             other, because exchanging them must not move what is pinned beside them - and each keeps
+             its own scroll position, since a note is written in one mode for a while and switched back
+             often enough that both rows want to be where they were left.
              The scrolling part is always drawn, whatever the tools setting says: the row is as high as
              the buttons pinned to its right end either way, so hiding the tools takes no height off the
              note, it only puts them out of reach.
@@ -53,8 +58,20 @@
              that the paper colours, each palette behind its own hairline. Horizontally scrollable,
              because the tools and the colours together are wider than any phone held upright. -->
         <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
-            <ScrollView x:Name="ToolBar" Grid.Column="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+            <ScrollView x:Name="DrawingToolBar" Grid.Column="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
                 <HorizontalStackLayout Spacing="8">
+                    <!-- Into the typed text and back out of it. It stands at the head of the row
+                         because it exchanges the whole row for the other one, and it carries the glyph
+                         of where it leads - the keyboard (U+F4B8) here, the pen (U+E8D8) in the row of
+                         the text - so the two are one switch seen from either side. The words it is
+                         read out with follow the same rule. Hidden for the board's own note, which is
+                         written by hand alone. -->
+                    <Button x:Name="TextModeButton"
+                            Text="&#xf4b8;"
+                            FontSize="20"
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnTextModeClicked"
+                            SemanticProperties.Description="{markup:Translate TextModeOn}" />
                     <!-- The pen and the finger share one button: it carries the mode that is drawing
                          - a finger draws as well, or only the pencil does - and pressing it hands over
                          to the other one. The glyph of the two (pen U+E8D8, finger U+E6D8) and the
@@ -171,6 +188,85 @@
                 </HorizontalStackLayout>
             </ScrollView>
 
+            <!-- The row that stands in the note's typed text: the way back to the pen, how large the
+                 writing is and in what colour, and its two faces. Same shape as the row of the pen -
+                 one scrolling row, the buttons that leave the card pinned beside it - so the two can
+                 be exchanged without anything moving.
+                 What is set here belongs to the card, not to the screen: the size in the same document
+                 units the ink is measured in, the colour as a code on the card, and the two faces as
+                 switches for the whole note rather than as marks on single words. The swatches are
+                 built in the code-behind out of the very palette the pen uses, so a colour that is
+                 picked is a colour wherever it is picked from, and the range of the slider comes from
+                 CardText in the same way the pen's widths come from PenThickness. -->
+            <ScrollView x:Name="TextToolBar"
+                        Grid.Column="0"
+                        IsVisible="False"
+                        Orientation="Horizontal"
+                        HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout Spacing="8">
+                    <!-- Back to the pen. The same switch as the button at the head of the other row,
+                         seen from this side: this one carries the pen, that one the keyboard, and each
+                         is read out with what pressing it leads to. -->
+                    <Button Text="&#xe8d8;"
+                            FontSize="20"
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnTextModeClicked"
+                            SemanticProperties.Description="{markup:Translate TextModeOff}" />
+                    <BoxView WidthRequest="1"
+                             HeightRequest="24"
+                             VerticalOptions="Center"
+                             Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+                    <!-- How large the writing is. The number beside it is the size the note is written
+                         at, in points, which is what a size is usually read as; what is stored is the
+                         size in the note's own units, so a note shows its writing in the same
+                         proportion however large it is drawn. The range is set in the code-behind. -->
+                    <HorizontalStackLayout Spacing="2" VerticalOptions="Center">
+                        <Label Text="{markup:Translate TextSizeTitle}"
+                               Style="{StaticResource CaptionLabel}"
+                               VerticalOptions="Center" />
+                        <Slider x:Name="TextSizeSlider"
+                                WidthRequest="96"
+                                VerticalOptions="Center"
+                                ValueChanged="OnTextSizeChanged"
+                                SemanticProperties.Description="{markup:Translate TextSizeTitle}" />
+                        <Label x:Name="TextSizeValue"
+                               Style="{StaticResource CaptionLabel}"
+                               WidthRequest="46"
+                               HorizontalTextAlignment="End"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <BoxView WidthRequest="1"
+                             HeightRequest="24"
+                             VerticalOptions="Center"
+                             Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+                    <Label Text="{markup:Translate TextColorTitle}"
+                           Style="{StaticResource CaptionLabel}"
+                           VerticalOptions="Center" />
+                    <!-- The colours of the pen's palette, filled in from it in the code-behind: the
+                         writing is written in the same colours the ink is drawn in. -->
+                    <HorizontalStackLayout x:Name="TextColorPicker" Spacing="6" Padding="2" VerticalOptions="Center" />
+                    <BoxView WidthRequest="1"
+                             HeightRequest="24"
+                             VerticalOptions="Center"
+                             Color="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+                    <!-- Bold (U+F7A4) and italic (U+F7F4) for the whole note; lit while they are on.
+                         The title keeps its own weight either way, because that is what tells it apart
+                         from the body - what the bold switch decides is the body. -->
+                    <Button x:Name="TextBoldButton"
+                            Text="&#xf7a4;"
+                            FontSize="20"
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnTextBoldClicked"
+                            SemanticProperties.Description="{markup:Translate TextBoldTitle}" />
+                    <Button x:Name="TextItalicButton"
+                            Text="&#xf7f4;"
+                            FontSize="20"
+                            Style="{StaticResource GhostIconButton}"
+                            Clicked="OnTextItalicClicked"
+                            SemanticProperties.Description="{markup:Translate TextItalicTitle}" />
+                </HorizontalStackLayout>
+            </ScrollView>
+
             <!-- The way into the ring, the settings and the two ways out of the card. They stay outside
                  the scrolling row so they are always one press away: the ring is what a free finger taps
                  on the note, and the button is what is left when there is no free finger or no right
@@ -212,7 +308,40 @@
                     VerticalOptions="Center"
                     Style="{StaticResource CardBorder}">
                 <controls:StickyNoteBorder x:Name="NoteSurface" Padding="0">
-                    <ink:InkCanvasHostView x:Name="InkHost" BackgroundColor="Transparent" />
+                    <Grid>
+                        <ink:InkCanvasHostView x:Name="InkHost" BackgroundColor="Transparent" />
+
+                        <!-- The typed text of the card, laid over the note rather than beside it: the
+                             note is the same square whether it carries strokes or letters, and the text
+                             is measured in the same document units as the ink, so the two stay in
+                             proportion however large the note is shown.
+                             In the pen's mode the text stays in sight - so the user can write around
+                             what is already there - but read-only, and every touch goes on to the ink
+                             underneath. In the text field's mode it is the other way round, and then the
+                             whole note is the field: a touch that misses the two of them puts the
+                             cursor in the body text.
+                             The fields are empty and left empty by this file; what is written in them
+                             is the card's, read and written in the code-behind. -->
+                        <ScrollView x:Name="TextSurface"
+                                    IsVisible="False"
+                                    Padding="14,10"
+                                    VerticalScrollBarVisibility="Never">
+                            <ScrollView.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnTextSurfaceTapped" />
+                            </ScrollView.GestureRecognizers>
+                            <VerticalStackLayout Spacing="2">
+                                <Entry x:Name="TextTitleEntry"
+                                       BackgroundColor="Transparent"
+                                       Placeholder="{markup:Translate TextTitlePlaceholder}"
+                                       TextChanged="OnTextChanged"
+                                       Completed="OnTextTitleCompleted" />
+                                <Editor x:Name="TextBodyEditor"
+                                        AutoSize="TextChanges"
+                                        BackgroundColor="Transparent"
+                                        TextChanged="OnTextChanged" />
+                            </VerticalStackLayout>
+                        </ScrollView>
+                    </Grid>
                 </controls:StickyNoteBorder>
             </Border>
 

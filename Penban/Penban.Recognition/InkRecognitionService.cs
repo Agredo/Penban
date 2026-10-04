@@ -54,7 +54,12 @@ public sealed class InkRecognitionService : IInkRecognitionService
             rawText,
             TextNormalizer.Normalize(rawText),
             meanConfidence,
-            DateTime.UtcNow);
+            DateTime.UtcNow,
+            // A reading knows nothing about what was typed on the card, and it must not: the store
+            // carries the typed text of the row over instead, which is what keeps it searchable
+            // through every re-reading of the ink.
+            TypedText: string.Empty,
+            NormalizedTypedText: string.Empty);
 
         await _store.SaveAsync(stored, cancellationToken).ConfigureAwait(false);
 

@@ -33,6 +33,15 @@ internal sealed class RecognitionRow
 
     public string NormalizedText { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The text the user typed on the card, in both forms, next to the text that was read off its ink.
+    /// A row written before typed text existed reads these back as null, which the mapping folds to the
+    /// empty string like it does for the two above.
+    /// </summary>
+    public string? TypedText { get; set; }
+
+    public string? NormalizedTypedText { get; set; }
+
     public float MeanConfidence { get; set; }
 
     public DateTime UpdatedAtUtc { get; set; }
@@ -69,7 +78,9 @@ internal sealed class RecognitionRow
         // this member UpdatedAtUtc and its callers compare it with DateTime.UtcNow, so the kind is
         // restored here. Sub-millisecond ticks do not survive the round trip either, which is why
         // this value is only ever ordered by and shown, never compared for equality.
-        UpdatedAtUtc.ToUniversalTime());
+        UpdatedAtUtc.ToUniversalTime(),
+        TypedText ?? string.Empty,
+        NormalizedTypedText ?? string.Empty);
 
     /// <summary>
     /// Whether this row still describes the ink and the conventions the caller is asking about. Both

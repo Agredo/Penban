@@ -20,6 +20,10 @@ Nachgezogen bis Version 0.5.4: **Future 1** ist damit **erledigt** — das Halte
 aufgesetztem Stift, und der Stift zieht die Form anschließend in ihre Größe; dazu Dreieck, Fünfeck und
 Sechseck (für die Chemie). Die Wartezeit ist dieselbe wie vorher, sie beginnt nur früher.
 
+Nachgezogen bis Version 0.5.5 (Textfeld-Notizen): auf keiner Karte des Boards, sondern eine eigene
+Bitte — eine Notiz lässt sich auf der Tastatur schreiben statt mit dem Stift. Steht deshalb in
+„Ohne Karte dazu" und in [docs/textfeld-notizen.md](textfeld-notizen.md).
+
 Legende: **offen** = nichts davon ist gebaut · **teilweise** = ein Teil ist gebaut, der Rest steht
 dabei · **erledigt** = der Punkt ist abgehakt und steht nur noch unter
 „Nicht mehr auf der Liste" (ganz unten).
@@ -208,6 +212,18 @@ schaltet das Lasso ein, solange er gedrückt ist (`PenButtonLassoBehavior.cs`,
 `Draw.PenButtonLassoEnabled`), und auf iOS folgen Doppeltipp und Drücken des Apple Pencil der
 iOS-Einstellung dafür (`PencilTapBehavior.cs`, `Draw.PencilDoubleTapEnabled`). Alles Weitere steht in
 [docs/lasso-und-formen.md](lasso-und-formen.md).
+
+Die **Textfeld-Notizen** standen ebenfalls auf keiner Karte des Boards; sie kamen als eigene Bitte
+dazu (0.5.5). Eine Karte lässt sich auf der Tastatur schreiben statt mit dem Stift: mehrere Zeilen,
+ein Titel, der keiner sein muss, eine Schriftgröße und eine Schriftfarbe für die ganze Notiz, fett
+und kursiv. Der Umschalter sitzt am Kopf der Leiste und tauscht die Zeichenwerkzeuge gegen die
+Textwerkzeuge (Schriftgröße, Farbe, fett, kursiv) — der Knopf in der jeweiligen Leiste trägt das
+Werkzeug, zu dem er führt. Umgeschaltet wird nichts gelöscht: im Stiftmodus stehen Tinte **und** Text
+auf der Karte, im Textfeldmodus tritt die Tinte zurück (`Draw.HideInkInTextMode`, Standard an), und
+eine Einstellung entscheidet, in welchem Modus eine neue, leere Karte beginnt
+(`Card.DefaultContentMode`). Beide Texte sind durchsuchbar, der getippte sofort und ohne Erkennung.
+Alles Weitere in [docs/textfeld-notizen.md](textfeld-notizen.md), die Erkennungsseite in
+[docs/texterkennung.md](texterkennung.md).
 
 Zur Einordnung: Die Spalte „Done 🥳" des Boards enthält genau die Karten, die zu diesen Punkten
 gehören (u. a. „Pressure sensitivity (toggle button in card view?)", „Search in notes", „Export",

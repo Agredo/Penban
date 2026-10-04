@@ -223,6 +223,17 @@ public class DataTransferService : IDataTransferService
         NoteColorIndex = source.NoteColorIndex,
         Tags = source.Tags ?? [],
         Strokes = source.Strokes,
+
+        // The typed half of the note is copied field by field, because there is no serializer here
+        // that would take it along: a card imported without these would come back as an empty note
+        // that still says it was written in the text mode.
+        Mode = source.Mode,
+        TextTitle = source.TextTitle,
+        TextBody = source.TextBody,
+        TextSize = source.TextSize,
+        TextColorHex = source.TextColorHex,
+        TextBold = source.TextBold,
+        TextItalic = source.TextItalic,
         UpdatedAtUtc = source.UpdatedAtUtc,
     };
 
