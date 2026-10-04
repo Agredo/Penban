@@ -120,13 +120,17 @@ scripts/ios-testflight.sh build      # baut die App samt Widget
 
 `scripts/ios-widget.sh build` legt das Ergebnis unter
 `Penban/Penban.Widget.iOS/build/Release-iphoneos/PenbanWidget.appex` ab – genau dort, wo
-`Penban.Maui.csproj` es über `AdditionalAppExtensions` sucht. Das Skript prüft anschließend, dass
-Bundle-ID und App Group der Extension stimmen; beides fällt sonst erst auf dem Gerät auf, wo die
-Extension einfach nicht in der Galerie erscheint.
+`Penban.Maui.csproj` es über `AdditionalAppExtensions` sucht. Das Skript liest Version und
+Build-Nummer aus `Penban.Maui.csproj` und reicht sie an xcodebuild durch: die Extension trägt damit
+immer die Version der App, und ein Upload zu App Store Connect kann nicht mehr an 90473 scheitern.
+Anschließend prüft es Bundle-ID, App Group und Version der fertigen Extension; ohne das fällt ein
+Fehler erst auf dem Gerät auf, wo die Extension einfach nicht in der Galerie erscheint.
 
 Der MAUI-Build überspringt die Extension, wenn kein `.appex` da ist, und **warnt** dabei
 (`WarnMissingWidgetExtension`). So bleibt der Build auf einer Maschine ohne Xcode möglich, ohne dass
-ein Release ohne Widget unbemerkt durchgeht.
+ein Release ohne Widget unbemerkt durchgeht. Liegt eine `.appex` da, prüft er außerdem ihre Version
+gegen die der App (`CheckWidgetExtensionVersion`) und bricht bei Abweichung ab – so kann ein
+Überbleibsel eines früheren Builds nicht in ein Paket geraten.
 
 ### Wie die Einbettung funktioniert
 
@@ -166,8 +170,10 @@ Connect lehnt ein Paket ohne sie ab, 90075).
 4. Ziel-Einstellungen → General: Bundle Identifier `com.agredoapplication.panban.WidgetExtension`,
    Minimum Deployments **iOS 17.0** (nötig für `containerBackground(for: .widget)`), Signing Team
    `NTMYS336K2`. Version und Build (`MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`) müssen zu
-   `ApplicationDisplayVersion`/`ApplicationVersion` in `Penban.Maui.csproj` passen; die Werte stehen
-   in `project.yml`.
+   `ApplicationDisplayVersion`/`ApplicationVersion` in `Penban.Maui.csproj` passen. Bei einem Build
+   über `scripts/ios-widget.sh` ist das automatisch der Fall – das Skript liest die Werte aus dem
+   csproj und reicht sie an xcodebuild durch; die Werte in `project.yml` sind nur für diesen Weg von
+   Hand da.
 5. Signing & Capabilities → **+ Capability** → App Groups → `group.com.agredoapplication.panban`.
 6. Build Settings: `INFOPLIST_FILE` = `Resources/Info.plist`, `GENERATE_INFOPLIST_FILE` = No,
    `CODE_SIGN_ENTITLEMENTS` = `Resources/PenbanWidget.entitlements`, `SKIP_INSTALL` = Yes.
@@ -195,7 +201,7 @@ Connect lehnt ein Paket ohne sie ab, 90075).
 | --- | --- |
 | „Öffne Penban, um das Widget zu füllen." | Es liegt keine `widget.json` im geteilten Ordner: App Group fehlt in einem der beiden Ziele, oder die Übersicht wurde seit der Installation noch nicht geöffnet |
 | „Noch keine Boards." | Snapshot vorhanden, aber ohne Board |
-| Widget erscheint nicht in der Galerie | Bundle-ID-Präfix, App Group oder Version stimmen nicht; `scripts/ios-widget.sh build` prüft die ersten beiden |
+| Widget erscheint nicht in der Galerie | Bundle-ID-Präfix, App Group oder Version stimmen nicht; `scripts/ios-widget.sh build` prüft die ersten beiden, `scripts/ios-widget.sh check <Appex>` die Version |
 | Karte fehlt, Kachel bleibt leer | Das PNG zum Board fehlt – die Dateinamen in `widget.json` müssen zu den Bildern im Ordner passen (`w-<boardId>-<größe>-<hell\|dunkel>.png`) |
 | Änderungen kommen nicht an | Signatur unverändert, deshalb kein Neuschreiben; die App stößt `reloadAllTimelines` an, das System drosselt es aber |
 | Änderungen kommen nie an, auch nach Minuten nicht | `PenbanWidgetReloader` fehlt im App-Binary (Target `LinkWidgetReloader` nicht gelaufen) – siehe die `nm`-Gegenprobe unter „Prüfen"; Symptom ist ein stilles Nichts, weil `IosWidgetRefresh` ohne die Klasse nichts tut |

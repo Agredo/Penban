@@ -279,8 +279,8 @@ verify_widget_extension() { # <pfad/zur/App.app>
     die "Die Extension hat eine andere Version als die App (Extension: $ext_version ($ext_build),
     App: $app_version ($app_build)). Das ist eine veraltete .appex aus einem früheren Build, und
     App Store Connect weist sie mit 90473 zurück.
-    Lösung: '$REPO_ROOT/scripts/ios-widget.sh' build Release ausführen (VERSION und BUILD in
-    Penban.Widget.iOS/project.yml müssen zu Penban.Maui.csproj passen) und '$0 clean' + erneut bauen."
+    Lösung: '$REPO_ROOT/scripts/ios-widget.sh' build Release ausführen (das nimmt die Version aus
+    Penban.Maui.csproj) und '$0 clean' + erneut bauen."
   fi
   echo "Version:          $ext_version ($ext_build)"
 

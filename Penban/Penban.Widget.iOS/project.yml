@@ -41,9 +41,13 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Resources/PenbanWidget.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES
         # Muss zu ApplicationDisplayVersion / ApplicationVersion in Penban.Maui.csproj passen;
-        # App Store Connect weist eine Extension mit abweichender Version zurück.
-        MARKETING_VERSION: "0.5.2"
-        CURRENT_PROJECT_VERSION: "14"
+        # App Store Connect weist eine Extension mit abweichender Version zurück (90473).
+        # Die Werte hier sind nur ein Notnagel für einen Build von Hand in Xcode:
+        # scripts/ios-widget.sh liest die Version immer aus Penban.Maui.csproj und reicht sie als
+        # MARKETING_VERSION / CURRENT_PROJECT_VERSION an xcodebuild durch. Bei jeder Änderung der
+        # App-Version also hier nachziehen - Penban.Maui.csproj bleibt die Quelle.
+        MARKETING_VERSION: "0.5.5"
+        CURRENT_PROJECT_VERSION: "18"
         TARGETED_DEVICE_FAMILY: "1,2"
         SKIP_INSTALL: YES
         SWIFT_EMIT_LOC_STRINGS: YES
