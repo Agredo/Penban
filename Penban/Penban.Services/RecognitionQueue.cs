@@ -43,6 +43,19 @@ public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
     private bool closed;
 
     /// <summary>
+    /// Set while the app is not in front, so that the worker stops taking cards. Guarded by
+    /// <see cref="gate"/> like the rest of the queue's state.
+    /// </summary>
+    private bool paused;
+
+    /// <summary>
+    /// What the worker waits on while <see cref="paused"/>, given by <see cref="Resume"/>. A permit
+    /// that has been given cannot be taken back, so pausing installs a fresh one instead of rearming
+    /// this - and a queue that is never paused keeps the given one and waits on nothing.
+    /// </summary>
+    private TaskCompletionSource permitted = Completed();
+
+    /// <summary>
     /// Set while a card is being read, so that <see cref="PendingCount"/> plus this is what a caller
     /// has to wait for. Guarded by <see cref="gate"/> like the rest of the queue's state.
     /// </summary>
@@ -146,6 +159,39 @@ public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
         }
     }
 
+    /// <inheritdoc />
+    public void Pause()
+    {
+        lock (gate)
+        {
+            if (paused || closed)
+            {
+                return;
+            }
+
+            paused = true;
+            permitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+    }
+
+    /// <inheritdoc />
+    public void Resume()
+    {
+        TaskCompletionSource? permit;
+        lock (gate)
+        {
+            if (!paused)
+            {
+                return;
+            }
+
+            paused = false;
+            permit = permitted;
+        }
+
+        permit.SetResult();
+    }
+
     public async ValueTask DisposeAsync()
     {
         Task? running;
@@ -179,6 +225,10 @@ public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
             try
             {
                 await signal.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+                // Only after the count is taken, never before: a card that waits here has not been
+                // taken yet, so it is neither dropped nor read - it is read when the app is back.
+                await Permit().WaitAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -243,6 +293,27 @@ public sealed class RecognitionQueue : IRecognitionQueue, IAsyncDisposable
         }
 
         Recognized?.Invoke(this, work.CardId);
+    }
+
+    /// <summary>
+    /// The permit the worker waits on before it takes a card, taken under the lock so that a queue
+    /// that is paused right now cannot be missed. A queue that is not paused hands out one that is
+    /// already given.
+    /// </summary>
+    private Task Permit()
+    {
+        lock (gate)
+        {
+            return permitted.Task;
+        }
+    }
+
+    /// <summary>A permit that is given from the start, for a queue that has never been paused.</summary>
+    private static TaskCompletionSource Completed()
+    {
+        var permit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        permit.SetResult();
+        return permit;
     }
 
     private bool TryTake(out Work work)

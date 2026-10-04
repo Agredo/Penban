@@ -82,6 +82,20 @@ public partial class BoardViewModel : ObservableObject
     [ObservableProperty]
     private int cardCount;
 
+    /// <summary>
+    /// Whether the board is still on its way to the screen: its lanes are being read and its notes
+    /// built. Turned on by the board page for the visit that builds the board, and off again once the
+    /// notes stand.
+    /// <para>
+    /// A board is only ever built once: a board that is already up is not read and built again when
+    /// the page comes back from the editor, so this is only ever on for the way into a board - which
+    /// is the one moment a board with a lot on it takes long enough for the wait to look like a tap
+    /// that was missed.
+    /// </para>
+    /// </summary>
+    [ObservableProperty]
+    private bool isLoading;
+
     /// <summary>Most recent write to this board or any of its cards.</summary>
     public DateTimeOffset LastEditedUtc { get; private set; }
 

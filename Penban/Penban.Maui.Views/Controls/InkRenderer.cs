@@ -75,12 +75,16 @@ public static class InkRenderer
                 continue;
             }
 
+            // One path per stroke rather than one line per pair of points: the round caps and joins
+            // make the two look the same, and a board full of notes costs about half as much to draw.
+            var path = new PathF();
+            path.MoveTo(stroke.Points[0].X, stroke.Points[0].Y);
             for (var i = 1; i < stroke.Points.Count; i++)
             {
-                var a = stroke.Points[i - 1];
-                var b = stroke.Points[i];
-                canvas.DrawLine(a.X, a.Y, b.X, b.Y);
+                path.LineTo(stroke.Points[i].X, stroke.Points[i].Y);
             }
+
+            canvas.DrawPath(path);
         }
 
         canvas.RestoreState();

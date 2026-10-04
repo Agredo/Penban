@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
              xmlns:controls="clr-namespace:Penban.Maui.Views.Controls"
-             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:Class="Penban.Maui.Views.Pages.BoardsPage"
              x:Name="ThisPage"
              Title="{markup:Translate BoardsTitle}"
@@ -252,11 +251,11 @@
                     VerticalOptions="Center" />
         </Grid>
 
-        <!-- Empty state (only visible when no boards exist) -->
+        <!-- Empty state (nothing there and nothing on its way, see BoardsViewModel) -->
         <VerticalStackLayout Grid.Row="1"
                              Spacing="14"
                              VerticalOptions="Center"
-                             IsVisible="{Binding HasBoards, Converter={toolkit:InvertedBoolConverter}}">
+                             IsVisible="{Binding ShowEmptyState}">
             <Label Text="&#xf1e3;"
                    Style="{StaticResource IconLabel}"
                    FontSize="56"
@@ -270,5 +269,15 @@
 
         <!-- Board cards -->
         <CollectionView x:Name="BoardsList" Grid.Row="1" ItemsSource="{Binding Boards}" />
+
+        <!-- Over the list: what says that the overview is still reading. Every row is read with its
+             summary and a fan of its notes, which is the wait a visit to the overview begins with -
+             the empty state above is held back for as long as it lasts, so a list that is still
+             filling cannot claim there is nothing there. -->
+        <ActivityIndicator Grid.Row="1"
+                           IsVisible="{Binding IsLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
     </Grid>
 </ContentPage>

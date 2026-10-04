@@ -45,15 +45,15 @@ public static class MauiProgram
 
 #if IOS
         // The home screen widget reaches the app through its lifecycle rather than through a page:
-        // the board a tap on it asks for (penban://board/<id>, read in Platforms/iOS/SceneDelegate.cs),
-        // and the moment the app is left, which is when the copy the widget shows is brought up to
-        // date - and when the database file is given back.
+        // the board a tap on it asks for (penban://board/<id>, read in Platforms/iOS/SceneDelegate.cs).
+        // The moment the app is left is the other half of it, and it is when the database file is
+        // given back and the text recognition is held back - deliberately nothing more, see LeftTheApp.
         //
         // Asked for of the scene and of the process alike, because which of the two gets told is
         // iOS's business: since the scene manifest (see Platforms/iOS/Info.plist) the scene is what
         // the app is started as, while the process events keep coming as well. Both do the same
-        // thing, and both are safe to see twice - the second look at the request finds it taken, the
-        // snapshot is written again to the same place, and coming back is nothing to do twice.
+        // thing, and both are safe to see twice - the second look at the request finds it taken, and
+        // holding back what is already held back is nothing to do twice.
         builder.ConfigureLifecycleEvents(events => events.AddiOS(ios => ios
             .OnActivated(_ => ComeBack())
             .WillEnterForeground(_ => ComeBack())
@@ -110,7 +110,7 @@ public static class MauiProgram
         services.AddSingleton<IRecognitionQueue, RecognitionQueue>();
 
         // The widget's copy of the overview belongs to the app, not to the page that happens to hold
-        // the list: it is written again while the app is left, when no overview is on screen at all.
+        // the list: a board is left behind for good when its page is gone, and the copy outlives it.
         services.AddSingleton(sp => new WidgetSnapshotTrigger(sp.GetRequiredService<IPreferences>()));
         services.AddSingleton<WidgetBoardLink>();
 
@@ -155,44 +155,34 @@ public static class MauiProgram
     }
 
     /// <summary>
-    /// What happens on the way out of the app: the copy the widget shows is written again with the
-    /// current summaries, and then the database file is given back.
+    /// What happens on the way out of the app: the database file is given back, and the queue that
+    /// reads ink stops taking work.
     /// <para>
-    /// The order is the point of the whole exercise. An open LiteDB holds a lock on
-    /// <c>penban.db</c> for as long as it lives, and iOS kills an app that is suspended while it holds
-    /// one (<c>0xdead10cc</c>, which the crash reports of 0.5.x are full of). The summaries are the one
-    /// part of the snapshot that comes out of the database, so they are read first and separately;
-    /// everything after that - drawing the previews, which on a large board takes seconds - runs with
-    /// the file already given back, and can therefore neither hold the lock nor blow the ten seconds
-    /// iOS allows this transition.
+    /// An open LiteDB holds a lock on <c>penban.db</c> for as long as it lives, and iOS kills an app
+    /// that is suspended while it holds one (<c>0xdead10cc</c>, which the crash reports of 0.5.x are
+    /// full of). Giving the file back is all this has to do about it - and it is why the call is
+    /// synchronous: the lock has to be gone before iOS suspends the process.
     /// </para>
     /// <para>
-    /// Nobody passes the overview on the way out of a board, so a card added or a note written there
-    /// would otherwise not reach the home screen until the overview is opened again.
+    /// Nothing is started here, in particular no copy of the widget. The transition into the
+    /// background is watched by a clock - ten seconds of wall time and no more - and drawing a
+    /// board's previews on a device that has been in use for a while blew through it
+    /// (<c>0x8BADF00D</c>, FRONTBOARD). The copy is written while the app is in front instead, where
+    /// nobody is waiting on ten seconds: by the trigger when the overview changes, and by the
+    /// overview itself on every visit to it, which is also what carries a note written on a board to
+    /// the home screen (see BoardsPage).
     /// </para>
     /// </summary>
-    private static void LeftTheApp() => _ = LeftTheAppAsync();
-
-    private static async Task LeftTheAppAsync()
+    private static void LeftTheApp()
     {
-        try
-        {
-            if (IPlatformApplication.Current?.Services.GetService<WidgetSnapshotTrigger>() is { } widget)
-            {
-                // On the thread the overview belongs to - the rows are enumerated here, and the write
-                // reads the board list. Only the release below is indifferent to which thread it runs on.
-                await widget.RefreshSummariesAsync().ConfigureAwait(true);
+        // First of all, and before the file goes: the copy of the overview for the home screen is
+        // drawn while the app is in front, and never on this side of the transition - drawing one can
+        // take seconds, and iOS allows this transition ten of them (see WidgetSnapshotTrigger.Suspend).
+        Widget()?.Suspend();
 
-                // What is left of the snapshot - drawing, which takes seconds on a large board - has
-                // nothing more to read from the file. The overview is not passed on the way out of a
-                // board, so this is what carries a card added there to the home screen.
-                _ = widget.RefreshAsync(rowsAreFresh: true);
-            }
-        }
-        catch (Exception exception)
-        {
-            Debug.WriteLine($"Copy of the widget not written on the way out: {exception}");
-        }
+        // And before the file is given back as well, so that no card is picked up in between: reading
+        // one is the longest thing this app does, and it is worth even less here than in front of it.
+        Recognition()?.Pause();
 
         try
         {
@@ -206,14 +196,26 @@ public static class MauiProgram
         }
     }
 
-    /// <summary>The app is in front again: the database file may be opened as soon as it is wanted.</summary>
+    /// <summary>
+    /// The app is in front again: the database file may be opened as soon as it is wanted, the queue
+    /// may read again once it is, and a copy of the overview that was owed is written now - from here
+    /// on, where drawing one costs nobody anything but the app itself.
+    /// </summary>
     private static void ComeBack()
     {
         OpenRequestedBoard();
         Storage()?.Resume();
+        Recognition()?.Resume();
+        _ = Widget()?.Resume();
     }
 
     private static LiteDbContext? Storage()
         => IPlatformApplication.Current?.Services.GetService<LiteDbContext>();
+
+    private static IRecognitionQueue? Recognition()
+        => IPlatformApplication.Current?.Services.GetService<IRecognitionQueue>();
+
+    private static WidgetSnapshotTrigger? Widget()
+        => IPlatformApplication.Current?.Services.GetService<WidgetSnapshotTrigger>();
 #endif
 }

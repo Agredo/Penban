@@ -47,7 +47,7 @@ targets:
         # MARKETING_VERSION / CURRENT_PROJECT_VERSION an xcodebuild durch. Bei jeder Änderung der
         # App-Version also hier nachziehen - Penban.Maui.csproj bleibt die Quelle.
         MARKETING_VERSION: "0.5.5"
-        CURRENT_PROJECT_VERSION: "18"
+        CURRENT_PROJECT_VERSION: "19"
         TARGETED_DEVICE_FAMILY: "1,2"
         SKIP_INSTALL: YES
         SWIFT_EMIT_LOC_STRINGS: YES

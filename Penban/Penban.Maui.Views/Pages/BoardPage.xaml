@@ -334,5 +334,14 @@
                 </DataTemplate>
             </kanban:SfKanban.CardTemplate>
         </kanban:SfKanban>
+        <!-- Over the board: what says that it is still on its way. A board that is opened is read lane
+             by lane and built note by note, and on a board with a lot on it that takes long enough to
+             look like a tap that was never noticed. Shown for the visit that builds the board and for
+             no other - a board that is already up is not built a second time. -->
+        <ActivityIndicator Grid.Row="1"
+                           IsVisible="{Binding IsLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
     </Grid>
 </ContentPage>
