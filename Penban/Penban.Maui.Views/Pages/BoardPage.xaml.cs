@@ -318,13 +318,36 @@ public partial class BoardPage : ContentPage
                 RebuildKanbanCards();
             }
 
+            // Then, and not before the board is back on screen: the home screen's widget shows a
+            // picture of the overview, and that picture is drawn from the overview's rows - which
+            // know of a note only once it told them. Nothing else would: this page is left for the
+            // app itself rather than for the overview, and reading the rows is the app's job while it
+            // is in front, since the database file is given back the moment it is not (see
+            // MauiProgram). One row is read here, not the whole list.
+            await viewModel.LoadSummaryAsync();
+
             return;
         }
 
         autoSizeCards = ReadAutoSizeCards();
-        await LoadColumnsAndCardsAsync();
-        RebuildKanbanColumns();
-        RebuildKanbanCards();
+
+        // The board is the one thing on this page that is not there yet: it is read lane by lane and
+        // built note by note, and until the notes stand the page shows nothing but an empty board.
+        // Said out loud, because a board with a lot on it takes long enough for the wait to read as a
+        // tap that was missed - and taken back in the finally, so that a load that fails cannot leave
+        // the spinner turning over a board that will never come.
+        viewModel.IsLoading = true;
+        try
+        {
+            await LoadColumnsAndCardsAsync();
+            RebuildKanbanColumns();
+            RebuildKanbanCards();
+        }
+        finally
+        {
+            viewModel.IsLoading = false;
+        }
+
         isLoaded = true;
 
         // A board opened from a search result carries the note that was searched for, and that note

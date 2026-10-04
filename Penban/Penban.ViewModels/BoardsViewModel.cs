@@ -24,11 +24,39 @@ public partial class BoardsViewModel : ObservableObject
 
     public ObservableCollection<BoardViewModel> Boards { get; } = new();
 
-    /// <summary>Whether any boards exist; drives the empty state on the overview page.</summary>
-    public bool HasBoards => Boards.Count > 0;
+    /// <summary>
+    /// Whether the overview is still reading its rows. Every board on it is read with its summary -
+    /// how much sits on it, when it was last written to, a fan of its notes - and "nothing here yet"
+    /// has no business standing on screen during that.
+    /// </summary>
+    [ObservableProperty]
+    private bool isLoading;
 
+    partial void OnIsLoadingChanged(bool value) => OnPropertyChanged(nameof(ShowEmptyState));
+
+    /// <summary>Whether the "no boards yet" text belongs on screen: nothing there and nothing coming.</summary>
+    public bool ShowEmptyState => !IsLoading && Boards.Count == 0;
+
+    /// <summary>
+    /// Reads the list from the database. The wait is carried by the command around it rather than by
+    /// the reading itself, so that no way into this method - the visit to the overview, the import
+    /// behind it, a page that wants a board the list no longer holds - can leave the spinner running.
+    /// </summary>
     [RelayCommand]
     private async Task LoadBoardsAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            await ReadBoardsAsync();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ReadBoardsAsync()
     {
         var boards = await boardService.GetBoardsAsync();
 
@@ -60,9 +88,17 @@ public partial class BoardsViewModel : ObservableObject
 
         MergeRows(loaded);
 
-        // Raised once at the end: the empty state must not flash while the rows are still loading.
-        OnPropertyChanged(nameof(HasBoards));
+        // Raised once at the end, and not per row: the list is put together completely before it is
+        // shown, so it cannot build itself up in visible steps.
+        NotifyRowsChanged();
     }
+
+    /// <summary>
+    /// Says that the rows have changed. The empty state is read off the list rather than kept beside
+    /// it, and the list raises nothing by itself, so it is said here - once per change, and never
+    /// while a load is still on its way (see <see cref="IsLoading"/>).
+    /// </summary>
+    private void NotifyRowsChanged() => OnPropertyChanged(nameof(ShowEmptyState));
 
     private static int CompareRows(BoardViewModel left, BoardViewModel right)
     {
@@ -179,7 +215,7 @@ public partial class BoardsViewModel : ObservableObject
 
         var board = await boardService.CreateBoardAsync(name);
         await AddBoardViewModelAsync(board);
-        OnPropertyChanged(nameof(HasBoards));
+        NotifyRowsChanged();
     }
 
     [RelayCommand]
@@ -216,7 +252,7 @@ public partial class BoardsViewModel : ObservableObject
         if (board is not null)
         {
             Boards.Remove(board);
-            OnPropertyChanged(nameof(HasBoards));
+            NotifyRowsChanged();
         }
     }
 

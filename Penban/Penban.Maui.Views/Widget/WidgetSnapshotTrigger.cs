@@ -45,6 +45,15 @@ public sealed class WidgetSnapshotTrigger : IDisposable
     private bool suppress;
     private bool disposed;
 
+    /// <summary>Set while the app is not in front, see <see cref="Suspend"/>.</summary>
+    private bool suspended;
+
+    /// <summary>
+    /// Set when a copy was wanted while the app was away, so that it is made once it is back. See
+    /// <see cref="Resume"/>.
+    /// </summary>
+    private bool dropped;
+
     /// <summary>Watches the overview and writes into the shared folder.</summary>
     public WidgetSnapshotTrigger(IPreferences? preferences = null) : this(WidgetSharedStorage.Directory, preferences)
     {
@@ -113,6 +122,13 @@ public sealed class WidgetSnapshotTrigger : IDisposable
                 return;
             }
 
+            // Wanted, but not written: the app is not in front, and the copy is made when it is.
+            if (suspended)
+            {
+                dropped = true;
+                return;
+            }
+
             // Something changed, so whatever was read last is not what the rows hold now: the write
             // that follows reads them again rather than drawing from the ones it has.
             rowsFresh = false;
@@ -146,6 +162,52 @@ public sealed class WidgetSnapshotTrigger : IDisposable
             version++;
             return pending = WriteSafelyAsync();
         }
+    }
+
+    /// <summary>
+    /// Called on the way out of the app: nothing more is written for the home screen until the app is
+    /// in front again.
+    /// <para>
+    /// Drawing a copy takes seconds on a board that has been written on, and the step into the
+    /// background is allowed ten of them - for everything the app does there, not for this alone.
+    /// The app was already killed once for spending them here (<c>0x8BADF00D</c>), so a write that is
+    /// still waiting to settle is dropped rather than started. What it would have shown is not lost:
+    /// it is made when the app comes back.
+    /// </para>
+    /// <para>
+    /// Runs on the one thread the writes run on, immediately before the database file is given back
+    /// (see <c>MauiProgram</c>). That is what makes this exact: a write that has not reached the top
+    /// of <see cref="WriteAsync"/> by then never reaches it, and no thread is left holding anything.
+    /// </para>
+    /// </summary>
+    public void Suspend()
+    {
+        lock (gate)
+        {
+            suspended = true;
+        }
+    }
+
+    /// <summary>
+    /// The app is in front again. A copy that was wanted while it was away is made now - while
+    /// someone is looking at the app, where drawing one is nobody's time but its own.
+    /// </summary>
+    public Task Resume()
+    {
+        lock (gate)
+        {
+            suspended = false;
+
+            if (!dropped)
+            {
+                return Task.CompletedTask;
+            }
+
+            dropped = false;
+        }
+
+        // Read afresh: what the rows know is from before the trip out of the app.
+        return RefreshAsync();
     }
 
     /// <summary>
@@ -203,6 +265,14 @@ public sealed class WidgetSnapshotTrigger : IDisposable
 
     private async Task WriteAsync()
     {
+        // Not while the app is away: reached by a write that was already on its way when the app was
+        // left, and dropped here before it reads anything, so that neither the database nor the
+        // drawing it would start can reach into the background (see Suspend).
+        if (HeldBack())
+        {
+            return;
+        }
+
         // Nothing to draw from as long as no overview has been shown.
         if (boards is not { } overview)
         {
@@ -219,18 +289,45 @@ public sealed class WidgetSnapshotTrigger : IDisposable
             await RefreshSummariesAsync();
         }
 
+        // Again, and this time about the drawing: the app can be left in the middle of the read above
+        // (see Suspend), and a half read list is not drawn - least of all in the background, where the
+        // drawing is what blew the ten seconds (0x8BADF00D). Owed is it either way, and made when the
+        // app is back.
+        if (HeldBack())
+        {
+            return;
+        }
+
         await WidgetSnapshotWriter.UpdateAsync(overview.Boards, folder, WidgetPreferredBoard.Get(preferences));
+    }
+
+    /// <summary>
+    /// Whether the app is away, in which case no copy is written and one is owed instead. Taken under
+    /// the lock, like everything else that decides about a copy.
+    /// </summary>
+    private bool HeldBack()
+    {
+        lock (gate)
+        {
+            if (!suspended)
+            {
+                return false;
+            }
+
+            dropped = true;
+            return true;
+        }
     }
 
     /// <summary>
     /// Reads the rows again, so that the copy written next is written from current data.
     /// <para>
-    /// This is the only part of a snapshot that touches the database, which is why it stands on its
-    /// own: the app asks for it on its way out, before the file is given back, while the rest of the
-    /// snapshot - the drawing, which can take seconds - is left to run with no file in hand.
+    /// The one part of a snapshot that touches the database, and therefore the one part that has to
+    /// run while the app is in front: the file is given back when it is left (see <c>MauiProgram</c>).
+    /// The drawing that follows reads nothing.
     /// </para>
     /// </summary>
-    public async Task RefreshSummariesAsync()
+    private async Task RefreshSummariesAsync()
     {
         if (boards is not { } overview)
         {
@@ -244,6 +341,15 @@ public sealed class WidgetSnapshotTrigger : IDisposable
             // this runs.
             foreach (var board in overview.Boards.ToList())
             {
+                // The app can be left in the middle of this: the pass over every board is the longest
+                // part of a snapshot, and the file is given back the moment the app is away, so a pass
+                // that is no longer wanted is not worth finishing - the caller sees to it that nothing
+                // is drawn from what it did read (see Suspend).
+                if (HeldBack())
+                {
+                    return;
+                }
+
                 await board.LoadSummaryAsync();
             }
         }

@@ -29,6 +29,21 @@ public interface IRecognitionQueue
     /// </summary>
     void Forget(Guid cardId);
 
+    /// <summary>
+    /// Stops the queue from taking on the next card, because the app is no longer in front of someone
+    /// who is waiting for it. The card being read is left to finish - it is already half-read, and
+    /// what it writes waits for the database to be open again anyway - and everything still queued
+    /// stays queued until <see cref="Resume"/>.
+    /// <para>
+    /// Nothing is lost by this: a card that waits is a card that has not been read yet, and it is read
+    /// the moment the queue is let go again.
+    /// </para>
+    /// </summary>
+    void Pause();
+
+    /// <summary>Lets the queue read again, after the app came back to the front.</summary>
+    void Resume();
+
     /// <summary>How many cards are waiting. The card being read is not counted.</summary>
     int PendingCount { get; }
 
