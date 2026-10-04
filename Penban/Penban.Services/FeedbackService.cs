@@ -5,13 +5,16 @@ using Penban.Services.Abstractions;
 namespace Penban.Services;
 
 /// <summary>
-/// Posts feedback to the BugBear backend. The product key and the category ids are the public
-/// identifiers of the Penban project there, so they are constants rather than configuration.
+/// Posts feedback to the BugBear backend. The product feedback key and the category ids are the
+/// public identifiers of the Penban project there, so they are constants rather than configuration.
 /// </summary>
 public class FeedbackService : IFeedbackService
 {
     private const string ApiUrl = "https://api.bug-bear.com/api/feedback";
-    private const string ProductApiKey = "bb_96bdf8d5f8e04f018317f294ceaeada0";
+
+    /// <summary>Identifies the Penban project at BugBear. Public by design: it only lets a client
+    /// file feedback into that project, it grants no access to anything stored there.</summary>
+    private const string ProductFeedbackKey = "bb_96bdf8d5f8e04f018317f294ceaeada0";
 
     private static readonly Dictionary<FeedbackCategory, string> CategoryIds = new()
     {
@@ -32,7 +35,7 @@ public class FeedbackService : IFeedbackService
     public async Task<bool> SubmitFeedbackAsync(FeedbackCategory category, string description, string? submitterEmail = null)
     {
         var payload = new FeedbackRequest(
-            ProductApiKey,
+            ProductFeedbackKey,
             CategoryIds[category],
             description,
             submitterEmail,

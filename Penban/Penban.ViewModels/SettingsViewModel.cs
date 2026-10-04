@@ -14,13 +14,6 @@ namespace Penban.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ObservableObject
 {
-    /// <summary>Order of <see cref="RendererNames"/>; index in this array is the picked value.</summary>
-    private static readonly InkRenderer[] Renderers =
-    [
-        InkRenderer.Skia,
-        InkRenderer.CommunityToolkitDrawingView,
-    ];
-
     /// <summary>Order of <see cref="InkToolUiNames"/>; index in this array is the picked value.</summary>
     private static readonly InkToolUi[] ToolUis =
     [
@@ -54,9 +47,6 @@ public partial class SettingsViewModel : ObservableObject
         Refresh();
     }
 
-    /// <summary>Display names of the ink renderers, in the order of <see cref="SelectedRendererIndex"/>.</summary>
-    public IReadOnlyList<string> RendererNames { get; } = [Strings.InkRendererSkia, Strings.InkRendererToolkit];
-
     /// <summary>
     /// Display names of the two settings of <see cref="SelectedInkToolUiIndex"/>, in its order.
     /// </summary>
@@ -88,7 +78,6 @@ public partial class SettingsViewModel : ObservableObject
             TwoFingerTapUndoEnabled = ReadBool(PreferenceKeys.TwoFingerTapUndoEnabled, true);
             ThreeFingerTapRedoEnabled = ReadBool(PreferenceKeys.ThreeFingerTapRedoEnabled, true);
             RecognitionEnabled = ReadBool(PreferenceKeys.RecognitionEnabled, true);
-            SelectedRendererIndex = ReadRendererIndex();
         }
         finally
         {
@@ -148,18 +137,6 @@ public partial class SettingsViewModel : ObservableObject
     private bool pressureSensitiveWidth;
 
     partial void OnPressureSensitiveWidthChanged(bool value) => Persist(PreferenceKeys.PressureSensitiveWidth, value);
-
-    /// <summary>Which ink renderer a card's drawing surface uses.</summary>
-    [ObservableProperty]
-    private int selectedRendererIndex;
-
-    partial void OnSelectedRendererIndexChanged(int value)
-    {
-        if (!isLoading && value >= 0 && value < Renderers.Length)
-        {
-            preferences.Set(PreferenceKeys.InkRenderer, Renderers[value].ToString());
-        }
-    }
 
     /// <summary>
     /// Whether the pen's lean is read at all. It is not only a switch for the effect below: on its own
@@ -366,13 +343,6 @@ public partial class SettingsViewModel : ObservableObject
         {
             preferences.Set(key, value);
         }
-    }
-
-    private int ReadRendererIndex()
-    {
-        var stored = preferences.Get(PreferenceKeys.InkRenderer, InkRenderer.Skia.ToString());
-        var renderer = Enum.TryParse<InkRenderer>(stored, out var parsed) ? parsed : InkRenderer.Skia;
-        return Math.Max(Array.IndexOf(Renderers, renderer), 0);
     }
 
     /// <summary>
