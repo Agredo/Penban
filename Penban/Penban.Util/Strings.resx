@@ -439,12 +439,6 @@
   <data name="DeleteBoardNoteConfirmation" xml:space="preserve">
     <value>Delete the note of this board?</value>
   </data>
-  <data name="WidgetForBoard" xml:space="preserve">
-    <value>Widget for this board</value>
-  </data>
-  <data name="WidgetForBoardHelpFormat" xml:space="preserve">
-    <value>&quot;{0}&quot; is remembered for the next widget.&#10;&#10;iOS places a widget itself, never an app:&#10;&#10;1. Long press an empty spot on the home screen&#10;2. Tap &quot;+&quot; and search for &quot;Penban&quot;&#10;3. Pick a size and add the widget&#10;4. Keep holding the widget and pick &quot;{0}&quot; under &quot;Edit Widget&quot;</value>
-  </data>
   <data name="SettingsRecognitionSection" xml:space="preserve">
     <value>Search</value>
   </data>

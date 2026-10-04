@@ -1,8 +1,8 @@
 # Lasso und Formen
 
 Zwei Wege, das Geschriebene nach dem Schreiben noch zu ändern: eine Schleife um die Striche ziehen
-(**Lasso**) und einen Strich kurz still halten (**Formerkennung**). Beides fasst dieselben Striche an,
-beides schreibt nur, wo die Tinte eines Strichs liegt — und beides ist **ein** Schritt in der
+(**Lasso**) und den Stift auf einem Strich kurz still halten (**Formerkennung**). Beides fasst dieselben
+Striche an, beides schreibt nur, wo die Tinte eines Strichs liegt — und beides ist **ein** Schritt in der
 Historie, also mit einem Rückgängig wieder weg.
 
 ## Lassowerkzeug
@@ -12,7 +12,8 @@ Historie, also mit einem Rückgängig wieder weg.
 | Leiste → Lassoknopf (`LassoButton`, `CardInkEditorPage.xaml:63`) | Macht das Lasso zum Werkzeug. Es bleibt, bis ein anderes Werkzeug gewählt wird. |
 | Schleife ziehen | Alle Striche, die **ganz** in der Schleife liegen, werden aufgenommen und blau umrahmt. Ein Strich, der die Schleife nur durchquert, gehört nicht dazu. |
 | Auf der Auswahl ziehen | Trägt die ganze Gruppe; wo sie losgelassen wird, steht sie. Das gilt für **jedes** Werkzeug: solange etwas aufgenommen ist, trägt die Stiftspitze die Gruppe auch dann, wenn in der Hand längst wieder der Stift ist — siehe unten. |
-| Auf eine leere Stelle tippen/ziehen | Legt die Auswahl ab. Mit dem Lasso in der Hand beginnt hier die nächste Schleife, mit dem Stift ein neuer Strich (oder der Radierer) — beides erst, nachdem die Gruppe abgelegt ist, also ohne sie mitzunehmen. |
+| Auf eine leere Stelle tippen | Legt die Auswahl ab — und zeichnet dabei nichts: der Tipp, mit dem man die Schleife schliesst, hinterlässt keinen Punkt. |
+| Auf eine leere Stelle ziehen | Legt die Auswahl erst ab und zeichnet dann. Mit dem Lasso in der Hand beginnt hier die nächste Schleife, mit dem Stift ein neuer Strich (oder der Radierer) — beides erst, nachdem die Gruppe abgelegt ist, also ohne sie mitzunehmen. |
 | Papierkorb im Werkzeug (`SelectionDeleteButton`) | Steht nur, solange etwas aufgenommen ist, und wirft die Auswahl weg. |
 | Lassoknopf noch einmal | Legt die Auswahl ab und nimmt das Lasso weg: der Knopf, der die Gruppe aufgenommen hat, lässt sie auch wieder los. |
 | Stift-Taste (**Windows**) | So lange der Knopf am Stift gedrückt ist, ist das Lasso im Einsatz; loslassen bringt das vorherige Werkzeug zurück. Eine aufgenommene Gruppe bleibt dabei aufgenommen und wird von der Stiftspitze weitergetragen. |
@@ -41,6 +42,28 @@ ist — ein Finger, der scrollt, hat auf der Notiz nichts zu sagen.
 Der Preis dafür: ein Strich, der **auf** der Gruppe begonnen wird, zieht die Gruppe, statt zu zeichnen.
 Wer auf einer aufgenommenen Gruppe schreiben will, legt sie vorher ab — mit einem Tipp daneben oder mit
 dem Lassoknopf.
+
+**Der Tipp, der die Schleife schliesst, zeichnet nicht.** Das Lasso wird meist *nicht* von der Spitze
+geführt, sondern vom Knopf am Stift (Windows) oder vom Doppeltipp (iOS) — das Werkzeug fällt also
+genau in dem Moment zurück, in dem man die Schleife mit einem Tipp daneben schliesst. Mit dem Stift in
+der Hand wäre dieser Tipp der Anfang eines neuen Strichs und bliebe als Punkt stehen. Deshalb merkt
+sich der Kontakt, der auf eine aufgenommene Gruppe trifft, sein Kennzeichen
+(`putDownContactId` in `SkiaInkCanvasView.cs`), und der Strich, den er beginnt, wird beim Loslassen
+wieder verworfen, solange der Kontakt nicht weiter als `PutDownSlop` (6 px) gewandert ist
+(`DropPutDownTap` → `DropCurrentStroke`). Erst ein **Zug** daneben legt ab und zeichnet wirklich. Weil
+der verworfene Strich auch aus der Historie genommen wird, sieht Rückgängig nichts davon. Damit die
+Schleife dabei nicht verlorengeht, liest `PenButtonLassoBehavior.EndSelection` sie mit
+`FinishLasso()` aus, **bevor** es das vorherige Werkzeug zurücksetzt — sonst hätte der Tipp danach
+kein Lasso mehr vor sich und der nächste Kontakt würde nur noch zeichnen.
+
+**Die Auswahl hält nur fest, was noch da ist.** Wird ein aufgenommener Strich wegradiert (oder die ganze
+Notiz geleert, oder etwas rückgängig gemacht), verschwindet er auch aus der Auswahl
+(`PruneSelection` in `SkiaInkCanvasView.cs`). Sonst bliebe der blaue Rahmen um Striche stehen, die es
+nicht mehr gibt, und der nächste Kontakt **in** diesem Rahmen würde zu einem Zug auf eine Gruppe, die
+keinen Strich mehr enthält: ein Schritt in der Historie, der nichts tut. Genau daran hat sich der
+Rückgängig-Stapel verschoben — ein Rückgängig ohne Wirkung, das nächste brachte längst wegradierte
+Striche zurück. Aus demselben Grund schreibt `InkCommandStack` einen Zug nur noch für Striche, die
+wirklich in der Gruppe liegen.
 
 ### Was der Doppeltipp auf iOS wirklich tut
 
@@ -78,18 +101,42 @@ Zeichenfläche reicht `Tool`, `SelectionCount` und `ClearSelection` über
 
 | Ort | Verhalten |
 | --- | --- |
-| Strich zeichnen, dann 700 ms still halten | Der Strich wird zur Form, wenn er eine ist. Es gibt kein eigenes Werkzeug dafür: man zeichnet wie immer und hält danach kurz still. |
-| Anschließend weiterschreiben | Bricht das Warten ab, der Strich bleibt, wie er gemalt wurde. |
+| Strich zeichnen, dann den Stift 700 ms still halten — **ohne ihn abzuheben** | Der Strich wird zur Form, wenn er eine ist. Es gibt kein eigenes Werkzeug dafür: man zeichnet wie immer und hält am Ende kurz still. |
+| Den Stift dabei weiterbewegen | Startet die Wartezeit neu. Ein „o" oder eine „8" wird nie zur Form, weil der Stift dabei nie still steht. |
+| Nach dem Erkennen den Stift weiterbewegen | Die Form wird **gezogen**: sie wächst und schrumpft mit dem Stift, siehe *Ziehen nach dem Erkennen*. |
+| Stift abheben | Die Form steht. In der Historie ist das **ein** Schritt. |
 | Linie | Gerade von Anfang zu Ende, wenn der Strich nicht weit davon abweicht. |
 | Rechteck / Quadrat | Wenn der Strich um seine eigene Box herumläuft und alle vier Seiten da sind. Quadrat ist ein Rechteck mit gleicher Breite und Höhe. |
+| Dreieck / Fünfeck / Sechseck | Wenn der Strich um seine Box herumläuft, alle Seiten da sind und es an **jeder** Ecke wirklich um die Ecke geht. Für die Chemie: Dreieck, Fünfeck und Sechseck sind die Ringe, aus denen die meisten Moleküle gezeichnet werden. |
 | Kreis / Ellipse | Wenn der Strich um seine Box herumläuft und überall den gleichen Abstand zur Mitte hält; ein Kreis ist die Ellipse mit gleicher Breite und Höhe. |
 | Einstellungen → *Zeichnen* → „Linie, Rechteck und Ellipse …" | Schalter, Standard **an**. Aus bleibt das Gezeichnete unangetastet. |
-| Rückgängig | Bringt die Handzeichnung in einem Schritt zurück. |
+| Rückgängig | Bringt die Handzeichnung in einem Schritt zurück; ein zweites Mal nimmt den Strich ganz weg. |
 
 Die Form wird **in denselben Strich geschrieben**: der Strich bleibt derselbe Gegenstand, nur seine
-Punkte werden ersetzt (`RecognizeShape` in `SkiaInkCanvasView.cs`; das ist ein
-`InkStrokeMove`, kein Radieren-und-Neuschreiben). Deshalb bleiben die Auswahl des Lassos, die Historie
-und das Speichern der Notiz unverändert gültig.
+Punkte werden ersetzt (`RecognizeShape` in `SkiaInkCanvasView.cs`). Deshalb bleiben die Auswahl des
+Lassos, die Historie und das Speichern der Notiz unverändert gültig. Solange der Stift unten ist, steht
+die Form als **Entwurf** (`ShapeDraft`) da: was gezogen wird, ist noch nicht in der Historie, und erst
+das Abheben des Stifts schreibt **einen** `InkStrokeMove` von der Handzeichnung zur fertigen Form.
+
+### Ziehen nach dem Erkennen
+
+Der Stift ist nach dem Erkennen noch unten — also zieht er die Form, statt weiterzuschreiben.
+
+| Form | Was der Stift tut |
+| --- | --- |
+| Linie | Der zweite Punkt folgt dem Stift; der Anfang bleibt stehen. Die Linie lässt sich damit in einem Zug drehen und strecken. |
+| Rechteck, Dreieck, Vieleck, Kreis / Ellipse | Gezogen wird um die Ecke der Box, die dem Stift beim Erkennen **gegenüber** liegt: die bleibt stehen, der Stift zieht den Rest. Die beiden Richtungen werden **getrennt** skaliert, ein Kreis wird also zur Ellipse, wenn man ihn seitlich zieht. |
+
+* Gerechnet wird **im Bezugssystem der Form**, nicht in dem der Notiz (`RecognizedShape.Angle`): ein
+  schiefes Rechteck würde in Notiz-Koordinaten achsenweise skaliert zu einem Parallelogramm verzerrt.
+* Der Faktor ergibt sich aus dem Abstand des Stifts zur festen Ecke, verglichen mit dem Abstand beim
+  Erkennen (`ShapeResize` in `Penban.Recognition`). An der Stelle, an der erkannt wurde, ist er 1 — es
+  passiert also nichts, solange der Stift nicht bewegt wird.
+* Gezogen wird zwischen dem 0,15-fachen und dem 20-fachen der erkannten Größe; darüber hinaus folgt die
+  Form dem Stift nicht mehr. Eine Form, die man auf null zieht, wäre keine Form mehr, und aus einer
+  Linie kommt man nicht mehr heraus.
+* Wird der Entwurf aufgegeben — Rückgängig, Radieren, Werkzeugwechsel, ein neuer Strich — geht der Strich
+  auf die Handzeichnung zurück. Ein Entwurf, der keine Form mehr ist, ist auch kein Historien-Schritt.
 
 ### Wie gelesen wird
 
@@ -106,7 +153,9 @@ flowchart TD
   C -->|nein| D{Anfang und Ende nahe beieinander?}
   D -->|nein| N
   D -->|ja| E[Box im gedrehten Bezugssystem messen]
-  E --> F{berührt der Strich alle vier Ecken?}
+  E --> P{3, 5 oder 6 Ecken?}
+  P -->|ja| V[Dreieck, Fünfeck oder Sechseck]
+  P -->|nein| F{berührt der Strich alle vier Ecken?}
   F -->|ja| R[zuerst Rechteck prüfen]
   F -->|nein| K[zuerst Ellipse prüfen]
   R --> S[Rechteck oder Ellipse oder keine Form]
@@ -130,20 +179,33 @@ flowchart TD
 * **Beschneiden am Ende** (`TrimShare`): Wer ein Rechteck über die Ecke hinaus weiterzieht, bedeckt eine
   größere Box und wird sonst nicht mehr erkannt. Deshalb werden zum Schluss die Enden stückweise
   abgeschnitten und erneut geprüft.
+* **Vielecke vor der Ellipse** (`TryPolygon`): Die Ecken eines Sechsecks stehen nur etwa ein Siebtel
+  seines Halbmessers außerhalb der Ellipse seiner Box — es würde sonst als Ellipse durchgehen. Gesucht
+  werden deshalb zuerst 3, 5 oder 6 Ecken: die Punkte werden nach Abstand zur Mitte sortiert und der
+  Reihe nach als Ecke genommen, wenn sie weit genug von jeder schon gefundenen entfernt sind
+  (`CornerSeparation`). Verlangt wird zusätzlich, dass der Strich an jeder Ecke wirklich um die Ecke
+  geht (`CornerSharpness` über `Reached`) und dass **alle** Punkte nahe an einer der Seiten liegen
+  (`EdgeTolerance`) — deshalb wird nichts Rundes für einen Ring gehalten. Ein Strich mit vier Ecken wird
+  nie ein Vieleck; Rechtecke bleiben unberührt.
+* **Genau 3, 5, 6** (`PolygonSides`): Sieben- und Achtecke werden nicht gezählt und bleiben eine Ellipse.
+  Lieber nichts als etwas Falsches.
 
 ### Grenzen
 
 | Zeichnung | Wird gelesen als |
 | --- | --- |
 | Sehr rundes Rechteck (Eckenradius ab etwa der halben kurzen Seite) und Stadion | **Ellipse** — mit so runden Ecken ist der Unterschied zur Ellipse nicht mehr da. |
+| Sehr rundes Sechseck (Eckenradius ab etwa einem Viertel des Halbmessers) | **Fünfeck** oder **Ellipse** — die Ecken sind dann keine Ecken mehr. |
 | Ziffer „8", Buchstabe „o", kleines „O" | **Ellipse**, wenn sie groß genug sind. |
-| Spirale, Ellipse mit Schwanz | **Ellipse** (der Halbmesser-Test `EllipseMaxRadius` fängt nur die größten Ausreißer). |
+| Spirale, Ellipse mit Schwanz, Sechseck mit Schwanz | **Ellipse** (der Halbmesser-Test `EllipseMaxRadius` fängt nur die größten Ausreißer). |
 | Strich unter 24 Einheiten | **keine Form** — das ist ein Wackler beim Schreiben, keine Absicht. |
-| „C", „U", Dreieck | **keine Form**. Ein Dreieck hat drei Seiten und drei Ecken; dafür gibt es keine eigene Form. |
-| Rechteck, dessen Seite nachgefahren wurde; „8" aus zwei Runden | **keine Form** bzw. Ellipse — bewusst lieber nichts als etwas Falsches. |
+| „C", „U", offenes Dreieck | **keine Form**. Ein offener Ring ist keine der Formen, die es gibt. |
+| Sieben- und Achteck | **Ellipse** — gezählt werden nur 3, 5 und 6 Ecken. |
+| Rechteck, dessen Seite nachgefahren wurde | **keine Form** — bewusst lieber nichts als etwas Falsches. |
 
-Nicht gebaut: das **Ziehen nach dem Halten** („hold & drag to resize", Karte 1 des Feedback-Boards).
-Nach dem Halten ist die Form fertig; sie lässt sich über das Lasso aufnehmen und verschieben.
+Nicht gebaut: eine Form nach dem Erkennen **am Griff** zu drehen, und Formen als Objekte zu behalten
+(also später noch einmal ziehen zu können). Nach dem Abheben des Stifts ist die Form fertig; sie lässt
+sich über das Lasso aufnehmen und verschieben.
 
 ## Einstellungen und Schlüssel
 

@@ -24,12 +24,20 @@ public class BoardService : IBoardService
     /// themselves - the overview then puts the rows in the order of the date it prints on them, which
     /// counts the notes written on the board as well. Boards that carry the same timestamp - an import
     /// writes many at once - are ordered by title so the list is at least the same on every visit.
+    /// <para>
+    /// A board that the user dragged somewhere sits where it was put, whatever its date says: the
+    /// stored place comes first and the date only decides between boards that have none - every board
+    /// of a database written before that field existed, and any two that were never moved apart. A
+    /// board that was just created carries no place of its own either, and the date puts it on top,
+    /// where the newest board belongs.
+    /// </para>
     /// </summary>
     public async Task<List<Board>> GetBoardsAsync()
     {
         var boards = await repository.GetAllAsync();
         return boards
-            .OrderByDescending(b => b.UpdatedAtUtc)
+            .OrderBy(b => b.SortOrder)
+            .ThenByDescending(b => b.UpdatedAtUtc)
             .ThenBy(b => b.Title, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
     }
@@ -184,6 +192,39 @@ public class BoardService : IBoardService
 
         board.Columns.Sort((a, b) => a.SortOrder.CompareTo(b.SortOrder));
         await repository.SaveAsync(board);
+    }
+
+    /// <summary>
+    /// Stores the order the overview was dragged into: the given boards get the places 0, 1, 2 ... in
+    /// the order they were handed in, and a board that was not named - one that was created between
+    /// the drag and this write - keeps its place behind them.
+    /// <para>
+    /// Written through the import path rather than through <c>SaveAsync</c> on purpose: that one
+    /// stamps the board with the current time, and that timestamp is what the overview prints on the
+    /// card. Dragging a board would then claim it had just been written to, and the date the caption
+    /// is read for - when the board was really last touched - would be gone.
+    /// </para>
+    /// </summary>
+    public async Task ReorderBoardsAsync(IReadOnlyList<Guid> orderedBoardIds)
+    {
+        var boards = await repository.GetAllAsync();
+
+        var place = 0;
+        foreach (var boardId in orderedBoardIds)
+        {
+            var board = boards.FirstOrDefault(b => b.Id == boardId);
+            if (board is not null)
+            {
+                board.SortOrder = place++;
+            }
+        }
+
+        foreach (var board in boards.Where(b => !orderedBoardIds.Contains(b.Id)).OrderBy(b => b.SortOrder))
+        {
+            board.SortOrder = place++;
+        }
+
+        await repository.SaveAllAsync(boards);
     }
 
     private async Task<Board?> FindBoardAsync(Guid boardId)

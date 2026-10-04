@@ -8,8 +8,19 @@ QoL 1, 2, 3, 4 and 7 are built (PR #48); the lasso and the shape recognition sit
 written out in German, with the files and symbols behind them:
 [docs/lasso-und-formen.md](docs/lasso-und-formen.md).
 
+0.5.4 adds the rest of the shape card — holding with the pen still down, pulling the shape into its
+size, and triangles/pentagons/hexagons — and fixes the undo stack getting out of step with a picked-up
+group (see below). It also lets the board cards be dragged into an order of their own, keeps the pen
+tap that closes a lasso from leaving a dot behind, and gives the card page the same header as the
+other pages.
+
 ## Bugs
 
+- [x] The undo stack and a picked-up group got out of step: erasing a picked-up stroke left the blue
+  frame standing around strokes that were already gone, so a later contact inside that frame recorded a
+  step of the history that did nothing at all — one undo that did nothing, and the next one brought
+  back strokes erased long before. A selection is now pruned whenever a stroke leaves the note, and a
+  carried group only ever records the strokes that are really in it (0.5.4).
 - [ ] Swipe down on a card only works in the bottom half of the card, and when swiping horizontally in the middle of it.
 - [ ] Lines drawn with pen pressure always render at maximum width on the board, which makes them hard to read.
 - [~] Editing the title card sometimes changes its background colour when exiting to the menu. The stored colour is no longer wiped; the root cause is not reproduced yet.
@@ -36,15 +47,18 @@ written out in German, with the files and symbols behind them:
   - Fit it to size so the title card is easier to tell apart from a normal card stack.
   - Keep the card stack when no title card is given.
 - [x] Pen pressure toggle in the card draw toolbar: the switch now sits in the row of tools.
-- [ ] Reorder/sort boards in the list. The list is sorted by last change; a manual order and other
-      sort keys are missing.
+- [~] Reorder/sort boards in the list: a board card can be dragged onto another one and the new
+  order is stored (`SortOrder`), so the overview keeps it. Other sort keys and a "sort by" switch are
+  missing.
 
 ## Future cool stuff
 
-- [~] Shape recognition: draw and hold makes lines, rectangles/squares, circles/ellipses; trimming a
-  drawn shape back to hand-drawn ink is in on top of that. Hold and drag to resize is missing — after
-  the hold the shape is finished; pick it up with the lasso to move it. See
-  [docs/lasso-und-formen.md](docs/lasso-und-formen.md).
+- [x] Shape recognition: draw and hold with the pen still down makes lines, rectangles/squares,
+  circles/ellipses, and triangles/pentagons/hexagons (the rings molecules are drawn from); the pen
+  that is still down then pulls the shape into its size ("hold and drag to resize") — the box corner
+  across from the pen stays put, a circle pulled sideways becomes an ellipse, and a line follows the
+  pen at its far end. Recognising a shape is a single undo step, trimming it back to hand-drawn ink
+  is in on top of that. See [docs/lasso-und-formen.md](docs/lasso-und-formen.md).
 - [x] Lasso: a loop around strokes picks them up as a group, which can then be carried elsewhere or
   thrown away, each in a single undo step. Chosen with the button in the toolbar; the button on a
   Windows pen picks it up while it is held, and the Apple Pencil double-tap reaches it only where
@@ -52,7 +66,9 @@ written out in German, with the files and symbols behind them:
   [docs/lasso-und-formen.md](docs/lasso-und-formen.md)). A group that is picked up is carried by the
   pen tip whatever tool is in hand, and a contact away from it puts it down first.
 - [ ] Board tags for grouping and filtering.
-- [~] Widget with multiple boards: every widget picks its board, and the long press in the overview is only the suggestion. Selecting by tag and by last edited is missing.
+- [~] Widget with multiple boards: every widget picks its board, and the long press in the overview
+  that used to suggest one is gone (it blocked the long press that dragging a board card needs).
+  Selecting by tag and by last edited is missing.
 - [ ] Share selected columns/cards (the export knows the whole board or all of its cards, nothing in between).
 - [~] Card pins: emoji tags (fixed set, max 4 per card) are in and can be filtered in the board header. Hand-drawn pins and a set per board are missing.
 - [~] Group/filter cards: text search and the tag filter are in the board header. The colour filter and grouping are missing.

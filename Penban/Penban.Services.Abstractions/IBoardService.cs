@@ -29,4 +29,11 @@ public interface IBoardService
 
     /// <summary>Persists a new column order after the user reorders columns via touch drag.</summary>
     Task ReorderColumnsAsync(Guid boardId, IReadOnlyList<Guid> orderedColumnIds);
+
+    /// <summary>
+    /// Persists a new order of the boards themselves after the user drags a board card on the
+    /// overview: the boards are placed in the order they are handed in, which is the order the
+    /// overview is then read back in.
+    /// </summary>
+    Task ReorderBoardsAsync(IReadOnlyList<Guid> orderedBoardIds);
 }

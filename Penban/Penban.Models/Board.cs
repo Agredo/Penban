@@ -5,6 +5,14 @@ public class Board : SyncableEntity
 {
     public string Title { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Where the board sits on the overview, ascending. Only the overview writes it, when a board is
+    /// dragged to another place. A board that was never moved carries the default <c>0</c> and is
+    /// placed by the date it was last written to instead, so a database written before this field
+    /// existed keeps the order it had.
+    /// </summary>
+    public int SortOrder { get; set; }
+
     public List<BoardColumn> Columns { get; set; } = new();
 
     /// <summary>

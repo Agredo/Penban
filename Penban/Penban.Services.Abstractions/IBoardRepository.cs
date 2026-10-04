@@ -15,7 +15,8 @@ public interface IBoardRepository
     /// <summary>
     /// Writes every given board exactly as it is - id, timestamps and flags untouched, replacing any
     /// board that already carries the same id. Used when importing a file, where the ids have to be
-    /// the ones from the file so that the cards still find their columns.
+    /// the ones from the file so that the cards still find their columns, and when the overview
+    /// stores a new order of the boards, which must not look like a write to each of them.
     /// </summary>
     Task SaveAllAsync(IReadOnlyList<Board> boards);
 

@@ -352,6 +352,13 @@ public class InkCanvasHostView : ContentView
     /// <summary>Puts the picked-up group down without touching the note.</summary>
     public void ClearSelection() => activeRenderer.ClearSelection();
 
+    /// <summary>
+    /// Reads the loop the lasso is drawing now, without the contact that drew it having to be lifted -
+    /// see <see cref="IInkCanvasView.FinishLasso"/>. Called by the pen button being let go, which is what
+    /// drew the loop on the platforms where the button does that.
+    /// </summary>
+    public void FinishLasso() => activeRenderer.FinishLasso();
+
     /// <summary>Colour of new strokes as <c>#RRGGBB</c>.</summary>
     public string StrokeColor
     {

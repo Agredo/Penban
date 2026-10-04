@@ -66,10 +66,65 @@ public partial class BoardsViewModel : ObservableObject
 
     private static int CompareRows(BoardViewModel left, BoardViewModel right)
     {
+        // The place a board was dragged to comes first, so a board that was moved stays where it was
+        // put however long ago it was written to. Boards that were never moved apart - every board of
+        // a database written before places existed - all carry 0 and fall through to the date, which
+        // is the order the overview had before.
+        var byPlace = left.SortOrder.CompareTo(right.SortOrder);
+        if (byPlace != 0)
+        {
+            return byPlace;
+        }
+
         var byDate = right.LastEditedUtc.CompareTo(left.LastEditedUtc);
         return byDate != 0
             ? byDate
             : string.Compare(left.Title, right.Title, StringComparison.CurrentCultureIgnoreCase);
+    }
+
+    /// <summary>
+    /// Puts the dragged board where it was dropped and stores the new order, so the next visit to the
+    /// overview shows the same list. The row is moved here rather than in the page: the list the
+    /// reader sees and the order that is written down have to be the same one, and only this class
+    /// holds both.
+    /// </summary>
+    public async Task MoveBoardAsync(Guid boardId, int targetIndex)
+    {
+        var sourceIndex = IndexOf(boardId);
+        if (sourceIndex < 0 || Boards.Count < 2)
+        {
+            return;
+        }
+
+        var target = Math.Clamp(targetIndex, 0, Boards.Count - 1);
+        if (sourceIndex == target)
+        {
+            return;
+        }
+
+        Boards.Move(sourceIndex, target);
+
+        // The rows carry the new places right away, so the sort above agrees with the list until the
+        // next load reads them back from the database.
+        for (var index = 0; index < Boards.Count; index++)
+        {
+            Boards[index].SortOrder = index;
+        }
+
+        await boardService.ReorderBoardsAsync(Boards.Select(b => b.Id).ToList());
+    }
+
+    private int IndexOf(Guid boardId)
+    {
+        for (var index = 0; index < Boards.Count; index++)
+        {
+            if (Boards[index].Id == boardId)
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>

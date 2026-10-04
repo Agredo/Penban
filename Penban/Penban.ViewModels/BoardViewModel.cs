@@ -22,6 +22,7 @@ public partial class BoardViewModel : ObservableObject
         Id = board.Id;
         title = board.Title;
         LastEditedUtc = board.UpdatedAtUtc;
+        SortOrder = board.SortOrder;
         this.boardService = boardService;
         this.cardService = cardService;
         this.dialogService = dialogService;
@@ -33,6 +34,13 @@ public partial class BoardViewModel : ObservableObject
     }
 
     public Guid Id { get; }
+
+    /// <summary>
+    /// Where this board sits on the overview, read from the board and written only by
+    /// <c>BoardsViewModel.MoveBoardAsync</c> after a drag. The overview orders its rows by it, so the
+    /// board that was dragged to another place is still there when the list is read again.
+    /// </summary>
+    public int SortOrder { get; set; }
 
     /// <summary>
     /// Paper colour of this board's note: the colour the user picked, or - as long as there is none -
@@ -126,6 +134,7 @@ public partial class BoardViewModel : ObservableObject
         this.board = board;
         Title = board.Title;
         LastEditedUtc = board.UpdatedAtUtc;
+        SortOrder = board.SortOrder;
 
         var columns = board.Columns
             .OrderBy(c => c.SortOrder)

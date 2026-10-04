@@ -16,7 +16,15 @@
                 <DataTemplate x:Key="WideBoardCard">
                     <Border Style="{StaticResource CardBorder}" Padding="14" Margin="0,6">
                         <Border.GestureRecognizers>
+                            <!-- Tap opens the board, a drag carries it to another place in the list:
+                                 the two do not get in each other's way, because a drag only starts
+                                 once the card is moved. What is picked up is remembered in the
+                                 code-behind - the drop only names the row it lands on. -->
                             <TapGestureRecognizer Tapped="OnBoardTapped" />
+                            <DragGestureRecognizer CanDrag="True"
+                                                   DragStarting="OnBoardDragStarting"
+                                                   DropCompleted="OnBoardDropCompleted" />
+                            <DropGestureRecognizer AllowDrop="True" Drop="OnBoardDrop" />
                         </Border.GestureRecognizers>
 
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="20">
@@ -109,6 +117,10 @@
                     <Border Style="{StaticResource CardBorder}" Padding="14" Margin="0,6">
                         <Border.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnBoardTapped" />
+                            <DragGestureRecognizer CanDrag="True"
+                                                   DragStarting="OnBoardDragStarting"
+                                                   DropCompleted="OnBoardDropCompleted" />
+                            <DropGestureRecognizer AllowDrop="True" Drop="OnBoardDrop" />
                         </Border.GestureRecognizers>
 
                         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
