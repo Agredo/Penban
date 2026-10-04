@@ -85,12 +85,27 @@
        Sideload builds are signed with the local "Penban Local" certificate, whose public half ships
        as Penban\dist\penban-local.cer and which must also sit in the trusted root store. The
        thumbprint is machine specific - a build on a machine without that certificate has to pass
-       -p:AppxPackageSigningEnabled=false. -->
+       -p:AppxPackageSigningEnabled=false.
+
+       AppxBundleAutoResourcePackageQualifiers below is what keeps the German UI in the package;
+       see the comment on it. Dropping it silently produces a bundle that only ever speaks English,
+       which is easy to miss because the build stays green and the app still runs. -->
   <PropertyGroup Condition="$(TargetFramework.Contains('-windows')) And '$(PenbanMsix)' == 'true'">
     <WindowsPackageType>MSIX</WindowsPackageType>
     <EnableMsixTooling>true</EnableMsixTooling>
     <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
     <AppxBundle>Always</AppxBundle>
+
+    <!-- Keeps every language inside the app package instead of splitting it out into a separate
+         per-language resource package. The default qualifier list contains Language, and the MSIX
+         tooling then drops the .NET satellite assemblies (de\Penban.Util.resources.dll and the
+         Microsoft.Maui.Controls ones) from the app package without ever producing the matching
+         resource package - the packaged app silently falls back to the neutral English strings.
+         Dropping Language from the qualifier list is the documented workaround, see
+         https://github.com/microsoft/WindowsAppSDK/issues/5869. Scale and DXFeatureLevel stay so
+         the tile and splash images keep being resolved per scale factor. -->
+    <AppxBundleAutoResourcePackageQualifiers>Scale|DXFeatureLevel</AppxBundleAutoResourcePackageQualifiers>
+
     <UapAppxPackageBuildMode>SideloadOnly</UapAppxPackageBuildMode>
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
     <PackageCertificateThumbprint>8640103D683CB1AE63A24C9DE5C4587BB349AAEA</PackageCertificateThumbprint>

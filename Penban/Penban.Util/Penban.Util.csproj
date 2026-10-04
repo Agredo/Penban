@@ -8,7 +8,12 @@
     <!-- Strings.resx (neutral/English) generates a strongly-typed Strings class at build
          time via the SDK's built-in resource generator, without needing Visual Studio.
          Strings.de.resx needs no such metadata: it becomes a satellite resource assembly
-         that ResourceManager picks up automatically based on the current culture. -->
+         that ResourceManager picks up automatically based on the current culture.
+         That holds for the build output, but not by itself for the MSIX package: the Windows
+         packaging tooling filters satellite assemblies out of the app package unless
+         Penban.Maui sets AppxBundleAutoResourcePackageQualifiers. See the PenbanMsix property
+         group in Penban.Maui.csproj - without it the German satellite never reaches the .msix
+         and the packaged app silently falls back to the neutral English strings. -->
     <EmbeddedResource Update="Strings.resx">
       <Generator>MSBuild:Compile</Generator>
       <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
