@@ -616,6 +616,9 @@
   <data name="AboutLicenseSyncfusion" xml:space="preserve">
     <value>Syncfusion Community License</value>
   </data>
+  <data name="AboutModelAttribution" xml:space="preserve">
+    <value>Text recognition uses the kraken PP-OCRv6 model by Benjamin Kiessling (ALMAnaCH, Inria Paris), converted into Penban's own ONNX format.</value>
+  </data>
   <data name="AboutContactSection" xml:space="preserve">
     <value>Contact</value>
   </data>
