@@ -163,6 +163,12 @@ public partial class CardInkEditorPage : ContentPage
     private readonly List<Border> paletteSwatches = [];
     private readonly List<Border> recentSwatches = [];
 
+    /// <summary>
+    /// The colours of the palette as the row of the text has them, in the order of
+    /// <see cref="PenColors"/>, so the swatch of the colour the writing is set to can be marked out.
+    /// </summary>
+    private readonly List<Border> textSwatches = [];
+
     /// <summary>The pens of the row, in the order they stand in it. Read once, written back on every edit.</summary>
     private PenSlot[] penSlots = [];
 
@@ -224,6 +230,32 @@ public partial class CardInkEditorPage : ContentPage
     /// </summary>
     private Point? radialMenuOrigin;
 
+    /// <summary>
+    /// The note being edited, seen as a note that can carry typed text. <c>null</c> for a note that
+    /// cannot - the board's own note is written by hand alone - and then nothing on this page that
+    /// belongs to the text field's mode is offered at all.
+    /// </summary>
+    private readonly ITextNoteEditorTarget? textTarget;
+
+    /// <summary>
+    /// Which of the two the note is being written in right now. The card is told which one it was
+    /// when the page is left, not when the button is pressed, so a note that was looked at and left
+    /// stays the way it was written.
+    /// </summary>
+    private bool isTextMode;
+
+    /// <summary>
+    /// Set while the two text fields are being written to from here rather than by the user, so the
+    /// change they report is not read back as something the user typed.
+    /// </summary>
+    private bool isUpdatingTextFields;
+
+    /// <summary>
+    /// Set while the size slider is being written to from here rather than moved, for the same reason.
+    /// Giving a slider its range moves its value, and that move is reported like a drag.
+    /// </summary>
+    private bool isUpdatingTextSize;
+
     public CardInkEditorPage(
         INoteEditorTarget noteTarget,
         IPreferences preferences,
@@ -236,6 +268,12 @@ public partial class CardInkEditorPage : ContentPage
         this.preferences = preferences;
         this.settingsViewModel = settingsViewModel;
         this.feedbackViewModel = feedbackViewModel;
+
+        // The card behind the note may be one that carries typed text beside its ink - the board's own
+        // note does not, and then the mode belongs to no card and what belongs to it is not offered at
+        // all. The card opens in the mode it was last written in.
+        textTarget = noteTarget as ITextNoteEditorTarget;
+        isTextMode = textTarget?.Mode == CardContentMode.Text;
 
         // The header draws the title itself, like the board's own header does, so the name of the
         // board the card came from stands in the same place before and after the card is opened.
@@ -288,11 +326,19 @@ public partial class CardInkEditorPage : ContentPage
         activePenSlot = ReadActivePenSlot();
         BuildColorPicker();
         BuildTagPicker();
+        BuildTextColors();
         BuildPenSlots();
         BuildPenFlyout();
         ApplyPenSlot();
         ApplyToolUi();
         UpdateToolButtons();
+
+        // The text the card carries, into the fields, and then what the two modes decide: which row is
+        // up, what is on the note, how large the writing is. Reading the card in before the page is
+        // shown is what makes a note that opens in the text field's mode the note that was last written
+        // in it, and it has to come after the row is built, since the row is what is put in step.
+        FillTextFields();
+        ApplyTextUi();
 
 #if IOS
         // Apple Pencil double-tap switches to the eraser, and the pencil's tilt feeds the
@@ -341,6 +387,10 @@ public partial class CardInkEditorPage : ContentPage
 
         NoteSurface.WidthRequest = side;
         NoteSurface.HeightRequest = side;
+
+        // The writing is measured in the note's own units and drawn in the note's own points, so a note
+        // that changed size is a note whose text is a different size on the glass.
+        RefreshTextSizes();
     }
 
     /// <summary>
@@ -1184,6 +1234,13 @@ public partial class CardInkEditorPage : ContentPage
             return;
         }
 
+        // What stands in the fields is the card's, and so is the mode the note is being written in: the
+        // card is read on the board in the mode that was left behind, so the two go in before the card
+        // is written. The card is what carries the text into the search as well - see CardService - and
+        // it is read from the card rather than from the fields.
+        ReadTextFields();
+        textTarget?.Mode = isTextMode ? CardContentMode.Text : CardContentMode.Ink;
+
         await noteTarget.SaveCommand.ExecuteAsync(null);
     }
 
@@ -1212,6 +1269,11 @@ public partial class CardInkEditorPage : ContentPage
         // reads back - they sit on the renderer - so the pen in hand is handed to it again here,
         // whether the settings page swapped the renderer or not.
         ApplyPenSlot();
+
+        // The text is put back in step for the same reason: the mode may have been changed on the
+        // settings page - which is where the mode a new card opens in lives - and whether the ink is
+        // shown while the keyboard writes can have been changed there too.
+        ApplyTextUi();
     }
 
     protected override void OnDisappearing()
@@ -1271,6 +1333,426 @@ public partial class CardInkEditorPage : ContentPage
             UpdateToolButtons();
         }
     }
+
+    /// <summary>
+    /// The note between the two ways of putting something on it: the pen, and the keyboard. It is the
+    /// same note either way - what is drawn stays drawn and what is typed stays typed, so going back
+    /// and forth loses nothing of either - and it is the card that is told, in <see cref="SaveAsync"/>,
+    /// which of the two it was last written in.
+    /// </summary>
+    private void OnTextModeClicked(object? sender, EventArgs e) => SetTextMode(!isTextMode);
+
+    private void SetTextMode(bool on)
+    {
+        if (on == isTextMode || textTarget is null)
+        {
+            return;
+        }
+
+        isTextMode = on;
+
+        // What is in the fields is the card's by now, and what is handed over here is what was typed
+        // rather than what is drawn: the ink is handed over stroke by stroke as it is drawn.
+        ReadTextFields();
+
+        // Going over to the keyboard puts down what the pen was holding: a loop that is still being
+        // drawn, a group that was picked up, the eraser in hand, and the ring and the flyout that stand
+        // over the note. None of them belongs to the mode being entered, and each of them would
+        // otherwise be left waiting for a touch that now goes into the text.
+        InkHost.FinishLasso();
+        InkHost.ClearSelection();
+        InkHost.Tool = InkTool.Pen;
+        CloseRadialMenu();
+        ClosePenFlyout();
+
+        if (!on)
+        {
+            // The keyboard goes with the mode. Coming back to the pen with the caret still in the note
+            // would put the two in each other's way over the same square.
+            TextTitleEntry.Unfocus();
+            TextBodyEditor.Unfocus();
+        }
+
+        // The mode is written at once rather than after the writing stops: it says how the note is read
+        // as much as how it is written, and a card left in the text field's mode has to come back in it
+        // even if nothing was typed.
+        textTarget.Mode = on ? CardContentMode.Text : CardContentMode.Ink;
+
+        ApplyTextUi();
+        UpdateToolButtons();
+        _ = SaveAsync();
+    }
+
+    /// <summary>
+    /// The note was touched in the text field's mode, outside the two fields: the caret goes where the
+    /// writing goes next. The empty part of the field is the surface underneath the fields, and a
+    /// surface does not take a caret - so it is put there from here.
+    /// </summary>
+    private void OnTextSurfaceTapped(object? sender, TappedEventArgs e)
+    {
+        if (!isTextMode)
+        {
+            return;
+        }
+
+        // The title is the first line of the note, the body everything under it: which of the two is
+        // meant follows from where the touch landed, and a touch below the title is the body even if it
+        // is well past the last line that was written.
+        if (e.GetPosition(TextSurface) is { } point && point.Y < TextTitleEntry.Height)
+        {
+            TextTitleEntry.Focus();
+            return;
+        }
+
+        TextBodyEditor.Focus();
+    }
+
+    /// <summary>
+    /// A letter was typed or taken back. It is written into the card as it is typed - the board and the
+    /// search read the card, not the field - and the note is stored the way a stroke is, once the
+    /// writing has stopped for a moment.
+    /// </summary>
+    private void OnTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (isUpdatingTextFields)
+        {
+            return;
+        }
+
+        ReadTextFields();
+        QueueSave();
+    }
+
+    /// <summary>
+    /// The title's line was left with the return key: the writing carries on in the body, which is
+    /// where the rest of the note goes. With nothing in the title there is nothing to carry on from, so
+    /// the keyboard goes away instead.
+    /// </summary>
+    private void OnTextTitleCompleted(object? sender, EventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(TextTitleEntry.Text))
+        {
+            TextTitleEntry.Unfocus();
+            return;
+        }
+
+        TextBodyEditor.Focus();
+    }
+
+    /// <summary>
+    /// How large the writing is was moved. The size is the card's and is written on every move, so what
+    /// is read beside the slider is the size that will be stored; the note itself is written when the
+    /// hand has stopped, like every other edit.
+    /// </summary>
+    private void OnTextSizeChanged(object? sender, ValueChangedEventArgs e)
+    {
+        if (isUpdatingTextSize || textTarget is null)
+        {
+            return;
+        }
+
+        var size = CardText.Snap((float)e.NewValue, CardText.SliderStep);
+        if (Math.Abs(textTarget.TextSize - size) < 0.01f)
+        {
+            return;
+        }
+
+        textTarget.TextSize = size;
+        WithoutTextSizeFeedback(() => TextSizeSlider.Value = size);
+        RefreshTextSizes();
+        UpdateTextToolbar();
+        QueueSave();
+    }
+
+    /// <summary>
+    /// Bold for the whole note, not for a word in it. The title keeps its own weight, which is what
+    /// sets it apart from the body, so what the switch decides is the body.
+    /// </summary>
+    private void OnTextBoldClicked(object? sender, EventArgs e)
+    {
+        if (textTarget is null)
+        {
+            return;
+        }
+
+        textTarget.TextBold = !textTarget.TextBold;
+        ApplyTextFace();
+        UpdateTextToolbar();
+        QueueSave();
+    }
+
+    /// <summary>Italic for the whole note, the same way bold is.</summary>
+    private void OnTextItalicClicked(object? sender, EventArgs e)
+    {
+        if (textTarget is null)
+        {
+            return;
+        }
+
+        textTarget.TextItalic = !textTarget.TextItalic;
+        ApplyTextFace();
+        UpdateTextToolbar();
+        QueueSave();
+    }
+
+    /// <summary>
+    /// Gives the writing its colour. The ink keeps its own - the two are not one colour, and a note can
+    /// carry both - so what is set here is the colour of what is typed. A code that cannot be read
+    /// leaves the colour as it is.
+    /// </summary>
+    private void SetTextColor(string hex)
+    {
+        if (textTarget is null || !PenColor.TryNormalize(hex, out var normalised))
+        {
+            return;
+        }
+
+        if (string.Equals(textTarget.TextColorHex, normalised, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        textTarget.TextColorHex = normalised;
+        ApplyTextFace();
+        UpdateTextToolbar();
+        QueueSave();
+    }
+
+    /// <summary>
+    /// Hands what stands in the fields to the card. The title is one line by nature - a line break in
+    /// it would be a break that the field cannot show and the board cannot draw - so it is taken
+    /// trimmed of the space around it, while the body is kept as it was typed, empty lines and all.
+    /// </summary>
+    private void ReadTextFields()
+    {
+        if (textTarget is null)
+        {
+            return;
+        }
+
+        textTarget.TextTitle = TextTitleEntry.Text?.Trim() ?? string.Empty;
+        textTarget.TextBody = TextBodyEditor.Text ?? string.Empty;
+    }
+
+    /// <summary>
+    /// The other way round: the card's text into the fields, when the note opens. What is written is
+    /// only written where it differs, so a caret that stands in the text is not thrown back to the
+    /// start by a read that changes nothing - and the flag keeps the writing from being read back as if
+    /// it had been typed.
+    /// </summary>
+    private void FillTextFields()
+    {
+        if (textTarget is null)
+        {
+            return;
+        }
+
+        isUpdatingTextFields = true;
+        try
+        {
+            if (!string.Equals(TextTitleEntry.Text, textTarget.TextTitle, StringComparison.Ordinal))
+            {
+                TextTitleEntry.Text = textTarget.TextTitle;
+            }
+
+            if (!string.Equals(TextBodyEditor.Text, textTarget.TextBody, StringComparison.Ordinal))
+            {
+                TextBodyEditor.Text = textTarget.TextBody;
+            }
+        }
+        finally
+        {
+            isUpdatingTextFields = false;
+        }
+    }
+
+    /// <summary>
+    /// Puts the note, the two rows and the text controls in step with the mode. Everything read here is
+    /// read off the card rather than remembered, so this can be run again whenever either of them has
+    /// changed - on the way in, after the settings page, on a size change.
+    /// </summary>
+    private void ApplyTextUi()
+    {
+        DrawingToolBar.IsVisible = !isTextMode;
+        TextToolBar.IsVisible = isTextMode;
+
+        // The board's own note carries no text, so there is no mode to switch it into and no button
+        // that would pretend otherwise.
+        TextModeButton.IsVisible = textTarget is not null;
+
+        ApplyTextVisibility();
+        ApplyTextFace();
+
+        WithoutTextSizeFeedback(() =>
+        {
+            TextSizeSlider.Minimum = CardText.Minimum;
+            TextSizeSlider.Maximum = CardText.Maximum;
+            TextSizeSlider.Value = textTarget?.TextSize ?? CardText.Default;
+        });
+
+        RefreshTextSizes();
+        UpdateTextToolbar();
+    }
+
+    /// <summary>
+    /// What is on the note while each of the two modes is the one being written in. In the text
+    /// field's mode the field comes up over the ink, which then steps back unless the setting says the
+    /// two should be seen together; in the pen's mode it is the other way round and the typed text
+    /// stays in sight as part of the note - a card is read on the board with what is drawn and what is
+    /// typed both showing - but it is not something to write in, so it takes no touch and no caret.
+    /// </summary>
+    private void ApplyTextVisibility()
+    {
+        // Nothing can be typed on a note that has no text field, so the ink never steps back for it.
+        // The ink is faded rather than hidden: it keeps the surface it is drawn on - a surface that is
+        // taken out of the layout and put back is one that has to be drawn all over again - and the
+        // field over it is what takes the touches either way.
+        var stepsBack = textTarget is not null && isTextMode && ReadHideInkInTextMode();
+        InkHost.Opacity = stepsBack ? 0 : 1;
+        InkHost.InputTransparent = stepsBack;
+
+        // In the pen's mode the field is only up when there is something in it - an empty field over
+        // the ink would be a placeholder standing on its own, with nothing in the note behind it.
+        TextSurface.IsVisible = isTextMode || (textTarget?.HasText ?? false);
+        TextSurface.InputTransparent = !isTextMode;
+        TextTitleEntry.IsReadOnly = !isTextMode;
+        TextBodyEditor.IsReadOnly = !isTextMode;
+    }
+
+    /// <summary>
+    /// Lays the size of the writing on the note: the size kept in the card, measured in the note's own
+    /// units, is turned into the points the fields are written in - the same turn of the same scale the
+    /// ink is drawn through, so a note can be any size and the writing keeps its place in it. Nothing is
+    /// laid on with no note to lay it on, which is what happens before the first layout pass.
+    /// </summary>
+    private void RefreshTextSizes()
+    {
+        var side = NoteSide;
+        if (side <= 0)
+        {
+            return;
+        }
+
+        var size = textTarget?.TextSize ?? CardText.Default;
+        TextBodyEditor.FontSize = CardText.FontSizeFor(size, side);
+
+        // The number beside the slider is what the writing is on this very note, so it is worked out
+        // here, where the size of the note is known: before the first layout pass there is no such
+        // size and the row would read out a number that belongs to nothing.
+        TextSizeValue.Text = FormatTextSize(size, side);
+
+        // The title's size is the size of the body times its own factor rather than a size of its own -
+        // it goes up and down with the writing it is the title of - and it is capped at the size the
+        // note can carry rather than at the body's largest, so a title can always stand above its body.
+        TextTitleEntry.FontSize = CardText.TitleFontSizeFor(size, side);
+    }
+
+    /// <summary>
+    /// Puts the size, the colour and the two faces on the fields themselves. The title keeps its weight
+    /// of its own - it is what tells it apart from the body - while the two switches are for the whole
+    /// note, so both fields follow the italic and the body is what follows the bold.
+    /// </summary>
+    private void ApplyTextFace()
+    {
+        if (textTarget is null)
+        {
+            return;
+        }
+
+        var colour = Color.FromArgb(textTarget.TextColorHex);
+        var italic = textTarget.TextItalic;
+
+        TextTitleEntry.TextColor = colour;
+        TextBodyEditor.TextColor = colour;
+        TextTitleEntry.FontAttributes = italic ? FontAttributes.Bold | FontAttributes.Italic : FontAttributes.Bold;
+        TextBodyEditor.FontAttributes = (textTarget.TextBold ? FontAttributes.Bold : FontAttributes.None)
+            | (italic ? FontAttributes.Italic : FontAttributes.None);
+    }
+
+    /// <summary>
+    /// The row of the text in step with the card: the two switches lit while they are on, the size beside
+    /// the slider, and the swatch of the colour that is written in marked out of the palette.
+    /// </summary>
+    private void UpdateTextToolbar()
+    {
+        if (textTarget is null)
+        {
+            return;
+        }
+
+        var resources = Application.Current!.Resources;
+        TextBoldButton.Style = (Style)resources[textTarget.TextBold ? "AccentIconButton" : "GhostIconButton"];
+        TextItalicButton.Style = (Style)resources[textTarget.TextItalic ? "AccentIconButton" : "GhostIconButton"];
+        TextSizeValue.Text = FormatTextSize(textTarget.TextSize, NoteSide);
+        MarkTextColor(textTarget.TextColorHex);
+    }
+
+    /// <summary>
+    /// Fills the row with one swatch per colour of the pen's palette, so the writing is written in the
+    /// colours the ink is drawn in and a colour that is picked is picked the same way in both rows.
+    /// </summary>
+    private void BuildTextColors()
+    {
+        foreach (var (hex, name) in PenColors)
+        {
+            var swatch = new Border
+            {
+                BackgroundColor = Color.FromArgb(hex),
+                StrokeShape = new Ellipse(),
+                WidthRequest = PenSwatchSize,
+                HeightRequest = PenSwatchSize,
+            };
+            SemanticProperties.SetDescription(swatch, name);
+
+            var chosen = hex;
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (_, _) => SetTextColor(chosen);
+            swatch.GestureRecognizers.Add(tap);
+
+            textSwatches.Add(swatch);
+            TextColorPicker.Add(swatch);
+        }
+    }
+
+    /// <summary>Outlines the swatch of the colour the writing is set to and leaves the others plain.</summary>
+    private void MarkTextColor(string hex)
+    {
+        for (var index = 0; index < textSwatches.Count; index++)
+        {
+            MarkSwatch(
+                textSwatches[index],
+                string.Equals(PenColors[index].Hex, hex, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    /// <summary>
+    /// Writes to the text controls without the writes being read back as choices. The size slider
+    /// reports every value that is put into it the way it reports one a finger moves - and giving a
+    /// slider its range does move its value, from zero onto the smallest size there is.
+    /// </summary>
+    private void WithoutTextSizeFeedback(Action write)
+    {
+        isUpdatingTextSize = true;
+        try
+        {
+            write();
+        }
+        finally
+        {
+            isUpdatingTextSize = false;
+        }
+    }
+
+    /// <summary>The size the writing is measured at on this note, in points, as the row reads it out.</summary>
+    private static string FormatTextSize(float size, double side) =>
+        CardText.FontSizeFor(size, side).ToString("0", CultureInfo.CurrentCulture);
+
+    /// <summary>
+    /// Whether the ink steps back while the keyboard has the note. On unless it was turned off, which is
+    /// what the settings page writes - see <see cref="PreferenceKeys.TextHideInkInTextMode"/>.
+    /// </summary>
+    private bool ReadHideInkInTextMode() =>
+        !bool.TryParse(preferences.Get(PreferenceKeys.TextHideInkInTextMode, bool.TrueString), out var hide) || hide;
 
     /// <summary>
     /// The tool changed without a button being pressed - a pencil tap, the button on a pen, or the
@@ -1673,7 +2155,7 @@ public partial class CardInkEditorPage : ContentPage
 
     /// <summary>
     /// Puts the ring in or out of reach, following the setting. The row of tools - <see
-    /// cref="ToolBar"/> holds the tools, the pens and the paper colours together - is always drawn,
+    /// cref="DrawingToolBar"/> holds the tools, the pens and the paper colours together - is always drawn,
     /// because it shares its row with the buttons that leave the card: taking it away takes no
     /// height off the note, it only puts the tools out of reach. What the setting picks is whether the
     /// ring is there as well. With it, the note is what a free finger taps and the button beside the

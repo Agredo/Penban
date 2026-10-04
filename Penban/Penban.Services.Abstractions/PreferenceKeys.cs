@@ -69,6 +69,20 @@ public static class PreferenceKeys
     /// <summary>Whether cards grow to fit their ink instead of keeping a fixed note size.</summary>
     public const string AutoSizeCards = "Board.AutoSizeCards";
 
+    /// <summary>
+    /// Which of the two ways a new, empty card is written in, as a member of <c>CardContentMode</c> in
+    /// lower case: <c>ink</c> or <c>text</c>. Only a wish for the next card - a card that already
+    /// carries writing keeps the mode it was written in.
+    /// </summary>
+    public const string CardDefaultContentMode = "Card.DefaultContentMode";
+
+    /// <summary>
+    /// Whether the ink steps back while a note is being written on the keyboard. On by default: the
+    /// two are the same note, and the ink showing through the field is the thing that makes a card
+    /// hard to read while it is being typed into.
+    /// </summary>
+    public const string TextHideInkInTextMode = "Draw.HideInkInTextMode";
+
     /// <summary>Whether the board reads tilt data from the stylus.</summary>
     public const string TiltDetectionEnabled = "Draw.TiltDetectionEnabled";
 

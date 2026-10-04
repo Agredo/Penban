@@ -8,10 +8,11 @@ using Penban.Util;
 namespace Penban.ViewModels;
 
 /// <summary>
-/// Represents a single card. Card content is exclusively the handwritten ink strokes held
-/// by <see cref="InkCanvas"/>; there is no typed-text content.
+/// Represents a single card. A card carries handwritten ink strokes, through <see cref="InkCanvas"/>,
+/// or typed text, or both - which of the two is being written is <see cref="Mode"/>, and switching
+/// between the two keeps what the other one holds.
 /// </summary>
-public partial class CardViewModel : ObservableObject, INoteEditorTarget
+public partial class CardViewModel : ObservableObject, INoteEditorTarget, ITextNoteEditorTarget
 {
     private readonly ICardService cardService;
     private readonly IDialogService dialogService;
@@ -73,6 +74,129 @@ public partial class CardViewModel : ObservableObject, INoteEditorTarget
 
     /// <summary>Tilt of this card's note in degrees.</summary>
     public double NoteTilt => NoteStyle.TiltFor(card.Id);
+
+    /// <summary>
+    /// Which of the two the note is being written in. It is kept with the card and not with the page,
+    /// so a note left in the text field is opened in it again.
+    /// </summary>
+    public CardContentMode Mode
+    {
+        get => card.Mode;
+        set
+        {
+            if (card.Mode == value)
+            {
+                return;
+            }
+
+            card.Mode = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Title line of the note; empty when the user wrote a body only.</summary>
+    public string TextTitle
+    {
+        get => card.TextTitle ?? string.Empty;
+        set
+        {
+            var text = value ?? string.Empty;
+            if (string.Equals(card.TextTitle, text, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            card.TextTitle = text;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasText));
+        }
+    }
+
+    /// <summary>Everything under the title, over as many lines as the user needs.</summary>
+    public string TextBody
+    {
+        get => card.TextBody ?? string.Empty;
+        set
+        {
+            var text = value ?? string.Empty;
+            if (string.Equals(card.TextBody, text, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            card.TextBody = text;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasText));
+        }
+    }
+
+    /// <summary>Whether the note carries typed text, which is what the board shows as its preview.</summary>
+    public bool HasText => CardText.HasText(card);
+
+    /// <summary>Size of the note's text in document units, see <see cref="CardText"/>.</summary>
+    public float TextSize
+    {
+        get => CardText.SizeOf(card);
+        set
+        {
+            var size = CardText.Clamp(value);
+            if (card.TextSize == size)
+            {
+                return;
+            }
+
+            card.TextSize = size;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Colour the note's text is written in, as <c>#RRGGBB</c>.</summary>
+    public string TextColorHex
+    {
+        get => CardText.ColorHexOf(card);
+        set
+        {
+            if (string.Equals(card.TextColorHex, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            card.TextColorHex = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Whether the note is written in bold.</summary>
+    public bool TextBold
+    {
+        get => card.TextBold;
+        set
+        {
+            if (card.TextBold == value)
+            {
+                return;
+            }
+
+            card.TextBold = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Whether the note is written in italics.</summary>
+    public bool TextItalic
+    {
+        get => card.TextItalic;
+        set
+        {
+            if (card.TextItalic == value)
+            {
+                return;
+            }
+
+            card.TextItalic = value;
+            OnPropertyChanged();
+        }
+    }
 
     [ObservableProperty]
     private int sortOrder;

@@ -57,6 +57,14 @@ public static class CardText
         side <= 0 ? 0 : Clamp(size) / InkDocument.Size * side;
 
     /// <summary>
+    /// The size the title is drawn at on screen, worked out the way the body's is and then made as
+    /// much larger as a title is - see <see cref="TitleScale"/>. Not <see cref="FontSizeFor"/> of
+    /// <see cref="TitleSize"/>: that would clamp the title back down to the largest body size.
+    /// </summary>
+    public static double TitleFontSizeFor(float size, double side) =>
+        side <= 0 ? 0 : TitleSize(size) / InkDocument.Size * side;
+
+    /// <summary>
     /// The colour the text is written in, as <c>#RRGGBB</c>. A colour that cannot be read - a stored
     /// value from an older or hand-edited file - falls back on the default instead of drawing nothing
     /// the user could see.
@@ -66,6 +74,18 @@ public static class CardText
         ArgumentNullException.ThrowIfNull(card);
 
         return PenColor.TryNormalize(card.TextColorHex, out var hex) ? hex : DefaultColorHex;
+    }
+
+    /// <summary>
+    /// The size a note's text is written at, read off the card. A card that was never given one - the
+    /// field is <c>0</c> on a card from before text existed, and on every brand new card - gets the
+    /// default rather than the smallest size there is.
+    /// </summary>
+    public static float SizeOf(Card card)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+
+        return card.TextSize > 0f ? Clamp(card.TextSize) : Default;
     }
 
     /// <summary>Whether the note carries any typed text at all. Whitespace is not text.</summary>

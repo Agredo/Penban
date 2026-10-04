@@ -466,6 +466,30 @@
   <data name="SearchTypedBadge" xml:space="preserve">
     <value>Typed</value>
   </data>
+  <data name="TextMode" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="TextModeOn" xml:space="preserve">
+    <value>Writing by keyboard</value>
+  </data>
+  <data name="TextModeOff" xml:space="preserve">
+    <value>Writing by hand</value>
+  </data>
+  <data name="TextTitlePlaceholder" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="TextSizeTitle" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="TextColorTitle" xml:space="preserve">
+    <value>Text colour</value>
+  </data>
+  <data name="TextBoldTitle" xml:space="preserve">
+    <value>Bold</value>
+  </data>
+  <data name="TextItalicTitle" xml:space="preserve">
+    <value>Italic</value>
+  </data>
   <data name="SearchStillReadingFormat" xml:space="preserve">
     <value>Still reading notes ({0} to go)</value>
   </data>
