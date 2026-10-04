@@ -463,6 +463,9 @@
   <data name="SearchBoardLabelFormat" xml:space="preserve">
     <value>in {0}</value>
   </data>
+  <data name="SearchTypedBadge" xml:space="preserve">
+    <value>Typed</value>
+  </data>
   <data name="SearchStillReadingFormat" xml:space="preserve">
     <value>Still reading notes ({0} to go)</value>
   </data>

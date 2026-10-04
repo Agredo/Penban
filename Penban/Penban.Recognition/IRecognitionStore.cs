@@ -22,14 +22,30 @@ public interface IRecognitionStore
         RecognizerProfile profile,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Writes or replaces the stored text for a card.</summary>
+    /// <summary>Writes or replaces the read text for a card, leaving its typed text as it is.</summary>
     Task SaveAsync(StoredRecognition recognition, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Writes or replaces the text the user typed on a card, leaving the read text as it is.
+    /// <para>
+    /// Typed text needs no model and no queue: it is searchable the moment it is written, which is
+    /// why it comes in through this door rather than through the recognition service. Both forms have
+    /// to be handed in, and they are folded by the same <see cref="TextNormalizer"/> the read text
+    /// goes through - a query is compared against the two in one and the same form.
+    /// </para>
+    /// </summary>
+    Task SaveTextAsync(
+        Guid cardId,
+        string typedText,
+        string normalizedTypedText,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Drops the stored text of a card, e.g. when the card is deleted.</summary>
     Task RemoveAsync(Guid cardId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns the stored texts whose searchable form contains <paramref name="normalizedQuery"/>.
+    /// Returns the stored texts whose searchable form contains <paramref name="normalizedQuery"/> -
+    /// the form read off the ink, or the form that was typed, whichever matches.
     /// The query must already have been through <see cref="TextNormalizer"/>.
     /// </summary>
     Task<IReadOnlyList<StoredRecognition>> SearchAsync(

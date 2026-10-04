@@ -41,12 +41,57 @@ public class LiteDbRecognitionStore : IRecognitionStore
         }, cancellationToken);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// What the user typed on the card is not part of a reading and is carried over from the row that
+    /// is already there: a card that carries both kinds of text is read again and again as its ink
+    /// changes, and none of those readings may take the typed text out of the search.
+    /// </remarks>
     public Task SaveAsync(StoredRecognition recognition, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(recognition);
 
         return DatabaseWork.RunAsync(
-            () => recognitions.Upsert(RecognitionRow.From(recognition)),
+            () =>
+            {
+                var row = RecognitionRow.From(recognition);
+
+                if (recognitions.FindById(recognition.CardId) is { } existing)
+                {
+                    row.TypedText = existing.TypedText;
+                    row.NormalizedTypedText = existing.NormalizedTypedText;
+                }
+
+                recognitions.Upsert(row);
+            },
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The other way round from <see cref="SaveAsync"/>: here the read text is the one that is carried
+    /// over. A card that was never written in ink - the whole point of typed text - has no reading at
+    /// all yet, and gets its row from this call.
+    /// </remarks>
+    public Task SaveTextAsync(
+        Guid cardId,
+        string typedText,
+        string normalizedTypedText,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(typedText);
+        ArgumentNullException.ThrowIfNull(normalizedTypedText);
+
+        return DatabaseWork.RunAsync(
+            () =>
+            {
+                var row = recognitions.FindById(cardId) ?? new RecognitionRow { Id = cardId };
+
+                row.TypedText = typedText;
+                row.NormalizedTypedText = normalizedTypedText;
+                row.UpdatedAtUtc = DateTime.UtcNow;
+
+                recognitions.Upsert(row);
+            },
             cancellationToken);
     }
 
@@ -71,16 +116,23 @@ public class LiteDbRecognitionStore : IRecognitionStore
             () => recognitions.FindAll()
                 // Ordinal, because both sides have already been through TextNormalizer: comparing
                 // culture-sensitively here would fold them a second time, in a different way.
-                // The null test is not defensiveness: LiteDB keeps an empty string as a null, so a
-                // card that nothing was read from comes back with a null here. One such card - a
-                // doodle, a single dot, a card whose lines all decoded to nothing - would otherwise
-                // make every search throw.
-                .Where(row => row.NormalizedText is not null
-                    && row.NormalizedText.Contains(normalizedQuery, StringComparison.Ordinal))
-                // Most recently recognised first. Recognition happens after the ink was last written,
-                // so this reads as "the notes I touched last come first", which is the order that
-                // helps while a card is still being worked on. Ranking by relevance needs the board
-                // and the match position, which this store does not have.
+                // The null tests are not defensiveness: LiteDB keeps an empty string as a null, so a
+                // card that nothing was read from comes back with a null in the first of the two, and
+                // a card that was never typed on has a null in the second. One such card - a doodle,
+                // a single dot, a card whose lines all decoded to nothing - would otherwise make
+                // every search throw.
+                //
+                // A card is a hit on either of its two texts. Which of them matched is not decided
+                // here: the result carries both, and the caller asks the match.
+                .Where(row => (row.NormalizedText is not null
+                        && row.NormalizedText.Contains(normalizedQuery, StringComparison.Ordinal))
+                    || (row.NormalizedTypedText is not null
+                        && row.NormalizedTypedText.Contains(normalizedQuery, StringComparison.Ordinal)))
+                // Most recently written first. Recognition happens after the ink was last written and
+                // typing stamps the row as it is saved, so this reads as "the notes I touched last
+                // come first", which is the order that helps while a card is still being worked on.
+                // Ranking by relevance needs the board and the match position, which this store does
+                // not have.
                 .OrderByDescending(row => row.UpdatedAtUtc)
                 .Take(limit)
                 .Select(row => row.ToStored())
