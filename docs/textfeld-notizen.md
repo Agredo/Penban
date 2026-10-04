@@ -232,6 +232,15 @@ eigener kleiner Schritt.
 - `Penban.Services/DataTransferService.cs`, `CloneCard` (:218) kopiert eine feste Feldliste. Ohne
   `Mode`, `TextTitle`, `TextBody`, `TextSize`, `TextColorHex`, `TextBold` und `TextItalic` käme eine
   exportierte Textkarte leer zurück. Das ist die eine Stelle, die man beim Modell leicht vergisst.
+  Auch `Board.SortOrder` gehört dazu: ohne das landet ein importiertes Board hinter allen anderen,
+  egal wo es auf der anderen Seite stand.
+- Der **Suchindex** wird beim Speichern über `CardService` gefüllt, ein Import schreibt aber direkt
+  über die Repositories. Tinte heilt sich selbst (das Öffnen eines Boards stellt jede Karte mit
+  Strichen in die Queue), getippter Text hat nichts zu lesen — eine importierte Textkarte wäre in der
+  Suche unsichtbar, bis sie einmal geöffnet und gespeichert wird. Eine wiederhergestellte Sicherung
+  käme auf einem neuen Gerät also ohne durchsuchbare Textnotizen an. `IndexTypedTextAsync` schreibt
+  deshalb nach jedem Import für jede importierte Karte dieselbe Zeile, die ein Speichern schreibt —
+  leer oder nicht, wie `CardService.SaveCardAsync` es auch tut.
 - `PenbanFile.CurrentVersion` bleibt **1**: die neuen Felder sind optional, eine Datei aus einer
   älteren Version hat sie einfach nicht, und ein älterer Leser überliest sie (unbekannte
   JSON-Felder). Kein Versionssprung nötig.
