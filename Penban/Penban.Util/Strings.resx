@@ -490,6 +490,12 @@
   <data name="TextItalicTitle" xml:space="preserve">
     <value>Italic</value>
   </data>
+  <data name="TextModeDefault" xml:space="preserve">
+    <value>New notes start with the keyboard</value>
+  </data>
+  <data name="TextHideInkTitle" xml:space="preserve">
+    <value>Hide ink while typing</value>
+  </data>
   <data name="SearchStillReadingFormat" xml:space="preserve">
     <value>Still reading notes ({0} to go)</value>
   </data>

@@ -490,6 +490,12 @@
   <data name="TextItalicTitle" xml:space="preserve">
     <value>Kursiv</value>
   </data>
+  <data name="TextModeDefault" xml:space="preserve">
+    <value>Neue Notizen starten mit der Tastatur</value>
+  </data>
+  <data name="TextHideInkTitle" xml:space="preserve">
+    <value>Tinte beim Tippen ausblenden</value>
+  </data>
   <data name="SearchStillReadingFormat" xml:space="preserve">
     <value>Notizen werden noch gelesen ({0} ausstehend)</value>
   </data>

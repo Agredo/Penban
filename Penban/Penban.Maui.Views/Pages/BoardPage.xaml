@@ -276,6 +276,31 @@
                                                          BackgroundColor="Transparent"
                                                          SourceRect="{Binding NoteSource}"
                                                          StrokesSource="{Binding Card.InkCanvas.Strokes}" />
+                                <!-- What was typed on the note, over what was drawn on it: on the
+                                     board a note is what stands on it either way, and the two are
+                                     the same note rather than two kinds of note. Drawn in the
+                                     colour, the size and the weight the editor last wrote it in,
+                                     through the same conversion the ink is drawn through, so the
+                                     note reads on the board as it does in the editor. Transparent to
+                                     input: what takes the touch is the note under it. -->
+                                <VerticalStackLayout Margin="0,0,0,16"
+                                                     Spacing="2"
+                                                     VerticalOptions="Start"
+                                                     InputTransparent="True">
+                                    <Label Text="{Binding TextTitle}"
+                                           IsVisible="{Binding HasTitle}"
+                                           FontSize="{Binding TextTitleSize}"
+                                           FontAttributes="{Binding TextTitleAttributes}"
+                                           TextColor="{Binding TextColor}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="2" />
+                                    <Label Text="{Binding TextBody}"
+                                           FontSize="{Binding TextBodySize}"
+                                           FontAttributes="{Binding TextBodyAttributes}"
+                                           TextColor="{Binding TextColor}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="{Binding TextBodyMaxLines}" />
+                                </VerticalStackLayout>
                                 <!-- The tags pinned to the note, in its lower right corner. -->
                                 <Label Text="{Binding Card.TagsText}"
                                        FontSize="16"

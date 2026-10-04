@@ -66,6 +66,19 @@ public partial class BoardPage : ContentPage
     /// </summary>
     private const double NoteCellPadding = 10;
 
+    /// <summary>
+    /// Height of one line of a note's writing, as a multiple of its size. What the board counts with
+    /// when it works out how many lines of a body fit on a note - the platform's own line spacing is
+    /// not something a note can be laid out from beforehand.
+    /// </summary>
+    private const double LineHeight = 1.4;
+
+    /// <summary>
+    /// Lines the title of a note may take. A title is a headline, so it is given a short leash: what
+    /// does not fit in two lines is cut off rather than kept from the body.
+    /// </summary>
+    private const int TitleLines = 2;
+
     private readonly SettingsViewModel settingsViewModel;
     private readonly FeedbackViewModel feedbackViewModel;
     private readonly IPreferences preferences;
@@ -788,11 +801,22 @@ public partial class BoardPage : ContentPage
         foreach (var card in viewModel.Columns.SelectMany(column => column.Cards))
         {
             var layout = NoteLayoutFor(card);
-            if (shown.TryGetValue(card.Id, out var item) && item.Layout != layout)
+            if (!shown.TryGetValue(card.Id, out var item))
+            {
+                continue;
+            }
+
+            if (item.Layout != layout)
             {
                 item.Layout = layout;
                 changed = true;
             }
+
+            // The note's writing is read off the card, and the card is what the editor wrote into
+            // while this board was off screen: a note that came back with other text - or with
+            // another size, colour or weight - is put in step here, where every returning visit
+            // passes anyway, instead of building the whole board again for it.
+            item.RefreshText();
         }
 
         return changed;
@@ -1313,6 +1337,80 @@ public partial class BoardPage : ContentPage
 
         /// <summary>See <see cref="CellWidth"/>.</summary>
         public double CellHeight => NoteHeight + (2 * NoteCellPadding);
+
+        /// <summary>
+        /// Side of the paper the typed text is written on, in the units the note is laid out in. The
+        /// same side the ink is drawn over - the paper less the inset the note keeps around both -
+        /// which is what makes the writing the same share of the note here as in the editor.
+        /// </summary>
+        private double TextSide => Math.Max(1, NoteWidth - (2 * NoteInset));
+
+        /// <summary>Whether the note carries typed text, which is what its two lines stand for.</summary>
+        public bool HasText => Card.HasText;
+
+        /// <summary>Title line of the note, empty when only a body was written.</summary>
+        public string TextTitle => Card.TextTitle;
+
+        /// <summary>Whether there is a title line to draw at all.</summary>
+        public bool HasTitle => Card.TextTitle.Length > 0;
+
+        /// <summary>The body, over as many lines as the note shows of it.</summary>
+        public string TextBody => Card.TextBody;
+
+        /// <summary>Size the title is drawn at on the board, from the size kept in the card.</summary>
+        public double TextTitleSize => CardText.TitleFontSizeFor(Card.TextSize, TextSide);
+
+        /// <summary>Size the body is drawn at on the board, from the size kept in the card.</summary>
+        public double TextBodySize => CardText.FontSizeFor(Card.TextSize, TextSide);
+
+        /// <summary>
+        /// Colour the writing is drawn in. The same colour the editor writes it in, so a note is not
+        /// read in one colour on the board and written in another.
+        /// </summary>
+        public Color TextColor => Color.FromArgb(Card.TextColorHex);
+
+        /// <summary>The title is always in its own weight, which is what sets it apart from the body.</summary>
+        public FontAttributes TextTitleAttributes =>
+            Card.TextItalic ? FontAttributes.Bold | FontAttributes.Italic : FontAttributes.Bold;
+
+        /// <summary>Weight the body is drawn in, as the two switches in the editor left it.</summary>
+        public FontAttributes TextBodyAttributes =>
+            (Card.TextBold ? FontAttributes.Bold : FontAttributes.None)
+            | (Card.TextItalic ? FontAttributes.Italic : FontAttributes.None);
+
+        /// <summary>
+        /// How many lines of the body a note has room for. The title takes its own lines off the top
+        /// first - it may wrap twice - and what is left is divided by the height of one line, so a
+        /// long note is cut off at its lower edge instead of running over the paper.
+        /// </summary>
+        public int TextBodyMaxLines
+        {
+            get
+            {
+                var titleRoom = HasTitle ? TextTitleSize * LineHeight * TitleLines : 0;
+                var room = (NoteHeight - (2 * NoteInset)) - titleRoom;
+                return Math.Max(1, (int)(room / (TextBodySize * LineHeight)));
+            }
+        }
+
+        /// <summary>
+        /// Puts the card's writing on the note again. The note is read off the card rather than
+        /// remembered, so it is the note that is told - the editor writes into the card, and coming
+        /// back from it is when this runs, before the board is drawn again.
+        /// </summary>
+        public void RefreshText()
+        {
+            Raise(nameof(HasText));
+            Raise(nameof(TextTitle));
+            Raise(nameof(HasTitle));
+            Raise(nameof(TextBody));
+            Raise(nameof(TextTitleSize));
+            Raise(nameof(TextBodySize));
+            Raise(nameof(TextColor));
+            Raise(nameof(TextTitleAttributes));
+            Raise(nameof(TextBodyAttributes));
+            Raise(nameof(TextBodyMaxLines));
+        }
 
         /// <summary>
         /// Whether the board is picking notes, which is when every note shows its pick box. Kept on

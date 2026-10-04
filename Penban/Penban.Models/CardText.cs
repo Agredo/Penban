@@ -36,6 +36,29 @@ public static class CardText
     /// <summary>Colour typed text starts in, and the colour used when the stored one cannot be read.</summary>
     public const string DefaultColorHex = "#000000";
 
+    /// <summary>Stored form of the mode a note is written in with the pen.</summary>
+    private const string InkModeKey = "ink";
+
+    /// <summary>Stored form of the mode a note is written in with the keyboard.</summary>
+    private const string TextModeKey = "text";
+
+    /// <summary>
+    /// One of the two modes as it is stored in the settings. Written and read in one place, so the
+    /// page that offers the choice and the service that makes a new note cannot drift apart.
+    /// </summary>
+    public static string FormatMode(CardContentMode mode) =>
+        mode == CardContentMode.Text ? TextModeKey : InkModeKey;
+
+    /// <summary>
+    /// The mode a stored value stands for. Anything that is not the text field - another value left
+    /// behind by an older or a newer version, or nothing at all - is read as ink, which is what a
+    /// note has always been written in.
+    /// </summary>
+    public static CardContentMode ParseMode(string? stored) =>
+        string.Equals(stored?.Trim(), TextModeKey, StringComparison.OrdinalIgnoreCase)
+            ? CardContentMode.Text
+            : CardContentMode.Ink;
+
     /// <summary>Keeps a stored size inside the range text can be set to.</summary>
     public static float Clamp(float size) =>
         float.IsFinite(size) ? Math.Clamp(size, Minimum, Maximum) : Default;

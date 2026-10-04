@@ -1,6 +1,7 @@
 // Framework-agnostic: no Microsoft.Maui.* usings allowed in this file.
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Penban.Models;
 using Penban.Services.Abstractions;
 using Penban.Util;
 
@@ -78,6 +79,9 @@ public partial class SettingsViewModel : ObservableObject
             PenButtonLassoEnabled = ReadBool(PreferenceKeys.PenButtonLassoEnabled, true);
             PressureSensitiveWidth = ReadBool(PreferenceKeys.PressureSensitiveWidth, true);
             AutoSizeCards = ReadBool(PreferenceKeys.AutoSizeCards, false);
+            TextModeDefault = CardText.ParseMode(
+                preferences.Get(PreferenceKeys.CardDefaultContentMode, string.Empty)) == CardContentMode.Text;
+            HideInkInTextMode = ReadBool(PreferenceKeys.TextHideInkInTextMode, true);
             TiltDetectionEnabled = ReadBool(PreferenceKeys.TiltDetectionEnabled, false);
             TiltRenderingEffect = ReadBool(PreferenceKeys.TiltRenderingEffect, false);
             ShapeRecognitionEnabled = ReadBool(PreferenceKeys.ShapeRecognitionEnabled, true);
@@ -193,6 +197,28 @@ public partial class SettingsViewModel : ObservableObject
     private bool autoSizeCards;
 
     partial void OnAutoSizeCardsChanged(bool value) => Persist(PreferenceKeys.AutoSizeCards, value);
+
+    /// <summary>
+    /// Whether a new, empty note starts in the text field rather than under the pen. Only a start:
+    /// a note that already carries writing opens in the mode it was left in, because a setting that
+    /// reached back into existing notes would hide what is on them.
+    /// </summary>
+    [ObservableProperty]
+    private bool textModeDefault;
+
+    partial void OnTextModeDefaultChanged(bool value) => Persist(
+        PreferenceKeys.CardDefaultContentMode,
+        CardText.FormatMode(value ? CardContentMode.Text : CardContentMode.Ink));
+
+    /// <summary>
+    /// Whether the ink steps back while a note is written on the keyboard. On by default: ink under
+    /// the field is what makes a note hard to read while it is being typed into, and whoever wants
+    /// it as a background can say so here.
+    /// </summary>
+    [ObservableProperty]
+    private bool hideInkInTextMode;
+
+    partial void OnHideInkInTextModeChanged(bool value) => Persist(PreferenceKeys.TextHideInkInTextMode, value);
 
     /// <summary>
     /// Two- and three-finger taps on the writing surface are shortcuts for the undo and redo
@@ -332,11 +358,13 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
-    private void Persist(string key, bool value)
+    private void Persist(string key, bool value) => Persist(key, value.ToString());
+
+    private void Persist(string key, string value)
     {
         if (!isLoading)
         {
-            preferences.Set(key, value.ToString());
+            preferences.Set(key, value);
         }
     }
 

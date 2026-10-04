@@ -124,6 +124,11 @@ public class CardService : ICardService
             // have to be recoloured one by one. Without a stored choice it stays null and
             // CardViewModel falls back to the colour derived from the card's id.
             NoteColorIndex = ReadLastNoteColor(),
+
+            // And it starts in the mode the settings ask for: pen or keyboard. Only the start is
+            // decided here - a note that already carries something opens in the mode it was left in,
+            // which is kept on the card itself.
+            Mode = ReadDefaultContentMode(),
         };
 
         await repository.SaveAsync(card);
@@ -223,4 +228,11 @@ public class CardService : ICardService
         && index < NoteStyle.PaperCount
             ? index
             : null;
+
+    /// <summary>
+    /// The mode a new note is to start in, as the settings keep it. Nothing stored - the usual case,
+    /// since the pen is the default - reads as the pen.
+    /// </summary>
+    private CardContentMode ReadDefaultContentMode() =>
+        CardText.ParseMode(preferences.Get(PreferenceKeys.CardDefaultContentMode, string.Empty));
 }
