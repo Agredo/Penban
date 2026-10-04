@@ -1,6 +1,7 @@
 // Framework-agnostic: no Microsoft.Maui.* usings allowed in this file.
 using System.Text.Json;
 using Penban.Models;
+using Penban.Recognition;
 using Penban.Services.Abstractions;
 
 namespace Penban.Services;
@@ -20,15 +21,18 @@ public class DataTransferService : IDataTransferService
     private readonly IBoardRepository boardRepository;
     private readonly ICardRepository cardRepository;
     private readonly IFileShareService fileShareService;
+    private readonly IRecognitionStore recognitionStore;
 
     public DataTransferService(
         IBoardRepository boardRepository,
         ICardRepository cardRepository,
-        IFileShareService fileShareService)
+        IFileShareService fileShareService,
+        IRecognitionStore recognitionStore)
     {
         this.boardRepository = boardRepository;
         this.cardRepository = cardRepository;
         this.fileShareService = fileShareService;
+        this.recognitionStore = recognitionStore;
     }
 
     public async Task<ExportResult> ExportAsync(ExportScope scope, Guid? boardId = null)
@@ -123,6 +127,7 @@ public class DataTransferService : IDataTransferService
 
         await boardRepository.SaveAllAsync(file.Boards);
         await cardRepository.SaveAllAsync(file.Cards);
+        await IndexTypedTextAsync(file.Cards);
 
         return new ImportResult(file.Boards.Count, file.Cards.Count);
     }
@@ -143,6 +148,11 @@ public class DataTransferService : IDataTransferService
                 Id = Guid.NewGuid(),
                 Title = source.Title,
                 UpdatedAtUtc = source.UpdatedAtUtc,
+
+                // The order the user dragged the boards into is part of the board: without this an
+                // imported board would land at the end of the overview, behind everything already
+                // there, no matter where it sat on the other side.
+                SortOrder = source.SortOrder,
 
                 // The note belongs to the board, so it travels with it: importing a board that had
                 // one must not quietly lose the only note that says what the board is about. The
@@ -181,6 +191,7 @@ public class DataTransferService : IDataTransferService
 
         await boardRepository.SaveAllAsync(boards);
         await cardRepository.SaveAllAsync(cards);
+        await IndexTypedTextAsync(cards);
 
         return new ImportResult(boards.Count, cards.Count);
     }
@@ -206,8 +217,32 @@ public class DataTransferService : IDataTransferService
         }
 
         await cardRepository.SaveAllAsync(cards);
+        await IndexTypedTextAsync(cards);
 
         return new ImportResult(0, cards.Count);
+    }
+
+    /// <summary>
+    /// Puts the typed text of freshly imported cards into the search index, the way a save does.
+    /// </summary>
+    /// <remarks>
+    /// An import writes through the repositories, and the index is filled on the way through
+    /// <see cref="CardService"/> - so without this the rows would only appear once every imported
+    /// card had been opened and saved again. Ink heals itself, because opening a board queues every
+    /// card that carries ink to be read; typed text has nothing to read, so a restored backup would
+    /// arrive on a new device with every typed note unfindable. Written for every card, empty text
+    /// included, exactly as a save writes it: an id that already had a row must not keep the text of
+    /// what used to be there.
+    /// </remarks>
+    private async Task IndexTypedTextAsync(IReadOnlyList<Card> cards)
+    {
+        foreach (var card in cards)
+        {
+            var typedText = CardText.Flatten(card);
+            await recognitionStore
+                .SaveTextAsync(card.Id, typedText, TextNormalizer.Normalize(typedText))
+                .ConfigureAwait(false);
+        }
     }
 
     /// <summary>

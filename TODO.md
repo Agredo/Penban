@@ -77,7 +77,8 @@ findable the moment it is saved. All of it is written out in German in
   several lines, an optional title, one font size and one colour for the note, bold and italic, all
   in a second toolbar the switch at the head of the row leads to. Nothing is lost when switching:
   the pen mode shows ink and text, the text mode steps the ink back (a setting), and both stay
-  searchable. The mode a new, empty card starts in is a setting as well (0.5.5, see
+  searchable — an import writes the typed notes into the search as it brings them in. The mode a new,
+  empty card starts in is a setting as well (0.5.5, see
   [docs/textfeld-notizen.md](docs/textfeld-notizen.md)).
 - [ ] Board tags for grouping and filtering.
 - [~] Widget with multiple boards: every widget picks its board, and the long press in the overview
