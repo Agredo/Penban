@@ -84,6 +84,13 @@ findable the moment it is saved. All of it is written out in German in
 - [~] Widget with multiple boards: every widget picks its board, and the long press in the overview
   that used to suggest one is gone (it blocked the long press that dragging a board card needs).
   Selecting by tag and by last edited is missing.
+- [x] Compressed `.penban` files: the export is written through gzip, which takes a board with a
+  page of handwriting to about an eighth of its size (9.66 MB → 1.12 MB on a real board with 55
+  cards, in 90 ms), and the reader takes both the compressed file and the plain JSON every earlier
+  version wrote — the two are told apart by gzip's own magic number, so nothing had to be declared or
+  migrated. An install older than 0.5.5 cannot read a file written after it (it reports it as
+  unreadable rather than importing half of something). See
+  [docs/textfeld-notizen.md](docs/textfeld-notizen.md).
 - [ ] Share selected columns/cards (the export knows the whole board or all of its cards, nothing in between).
 - [~] Card pins: emoji tags (fixed set, max 4 per card) are in and can be filtered in the board header. Hand-drawn pins and a set per board are missing.
 - [~] Group/filter cards: text search and the tag filter are in the board header. The colour filter and grouping are missing.

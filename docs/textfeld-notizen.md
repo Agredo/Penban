@@ -229,7 +229,7 @@ eigener kleiner Schritt.
 
 ## Austausch, Speicherung, Sync
 
-- `Penban.Services/DataTransferService.cs`, `CloneCard` (:218) kopiert eine feste Feldliste. Ohne
+- `Penban.Services/DataTransferService.cs`, `CloneCard` (:258) kopiert eine feste Feldliste. Ohne
   `Mode`, `TextTitle`, `TextBody`, `TextSize`, `TextColorHex`, `TextBold` und `TextItalic` käme eine
   exportierte Textkarte leer zurück. Das ist die eine Stelle, die man beim Modell leicht vergisst.
   Auch `Board.SortOrder` gehört dazu: ohne das landet ein importiertes Board hinter allen anderen,
@@ -244,6 +244,24 @@ eigener kleiner Schritt.
 - `PenbanFile.CurrentVersion` bleibt **1**: die neuen Felder sind optional, eine Datei aus einer
   älteren Version hat sie einfach nicht, und ein älterer Leser überliest sie (unbekannte
   JSON-Felder). Kein Versionssprung nötig.
+- Seit 0.5.5 wird die Datei **gzip-komprimiert** geschrieben (`ExportAsync`, `OpenPayloadAsync`). Eine
+  `.penban`-Datei ist fast nur Tinte, und Tinte ist fast nur Wiederholung: dieselben sechs
+  Schlüsselnamen (`X`, `Y`, `Pressure`, `Tilt`, `Azimuth`, `TimestampMs`) und Zeitstempel mit
+  gemeinsamem Präfix. Gemessen an einer echten Datei mit 55 Karten: 9,66 MB → 1,12 MB, also 8,6×, in
+  90 ms (`CompressionLevel.Optimal`; `SmallestSize` war nicht kleiner, nur 3× langsamer). Brotli
+  `Optimal` wäre 2 % kleiner gewesen — die Entscheidung fiel trotzdem auf gzip, weil gzip eine
+  Magic Number hat (`1F 8B`) und Brotli nicht: der Leser erkennt das Format dadurch selbst, ohne
+  Marker von uns, ohne Migration, ohne Zusatzfeld. `CurrentVersion` bleibt deshalb bei 1.
+- Der Leser nimmt **beide Formate**. Er liest zwei Bytes und schaut auf `1F 8B`; dafür öffnet er die
+  Datei über `PickedFile.OpenRead` ein zweites Mal, was dessen Vertrag ausdrücklich zulässt („opens a
+  fresh stream every time it is called") und deutlich billiger ist, als eine ganze Sicherung im
+  Speicher zu halten, um zwei Bytes ansehen zu können. `InvalidDataException` steht mit im `catch`:
+  eine Datei, die behauptet gzip zu sein und es nicht ist, landet in derselben Meldung
+  („The file is not a readable Penban file.") statt als Absturz.
+- Die eine Richtung, die nicht gehen kann: eine Installation **vor** 0.5.5 kann eine danach
+  geschriebene Datei nicht lesen. Sie meldet „not a readable Penban file", verliert also nichts und
+  tut nichts Falsches — die Sicherung bleibt vollständig, nur das Einlesen scheitert. Deshalb der
+  Schnitt bei 0.5.5 und nicht früher.
 - LiteDB braucht keine Migration: fehlende Felder liest LiteDB als `null`/`0`, und `Mode = 0` ist
   genau „Tinte".
 - `SyncableEntity` bleibt, wie es ist — `UpdatedAtUtc` wird beim Speichern gesetzt wie heute.

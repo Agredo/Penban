@@ -9,7 +9,13 @@ namespace Penban.Services.Abstractions;
 /// </summary>
 /// <remarks>
 /// Deliberately plain JSON rather than a copy of the LiteDB files: it is readable, it survives a
-/// LiteDB upgrade, and it can be handed to the share sheet as one self-contained file.
+/// LiteDB upgrade, and it can be handed to the share sheet as one self-contained file. Since 0.5.5
+/// that JSON is written through gzip, which is worth it because a Penban file is mostly ink and ink
+/// is mostly repeated key names and near-identical timestamps. The reader takes both, and tells them
+/// apart by gzip's magic number rather than by a marker of ours - so <see cref="CurrentVersion"/>
+/// stays where it is, and a file written before 0.5.5 still imports unchanged. The one direction
+/// that cannot work is an install older than 0.5.5 reading a file written after it; that one reports
+/// itself as "not a readable Penban file" instead of quietly importing half of something.
 /// </remarks>
 public sealed class PenbanFile
 {
