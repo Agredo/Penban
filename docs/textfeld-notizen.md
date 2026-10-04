@@ -116,9 +116,10 @@ StickyNoteBorder NoteSurface
 
 Die Zeile über der Notiz bekommt einen zweiten Zustand statt einer zweiten Zeile:
 
-- **Neuer Knopf am Kopf der Zeile**, vor `DrawModeButton`: `TextModeButton`, Glyphe `U+E765`
-  (Keyboard), Beschriftung über `SemanticProperties.Description` aus `Strings`. Wie `DrawModeButton`
-  trägt er den Zustand: hell = Stift, hervorgehoben = Textfeld.
+- **Neuer Knopf am Kopf der Zeile**, vor `DrawModeButton`: `TextModeButton`, Glyphe `U+F4B8`
+  (Keyboard; `U+E765` ist die *line*-Variante und im Fluent-Font nicht vorhanden), Beschriftung über
+  `SemanticProperties.Description` aus `Strings`. Wie `DrawModeButton` trägt er den Zustand: hell =
+  Stift, hervorgehoben = Textfeld.
 - **`DrawingToolBar`** = die heutige `HorizontalStackLayout` in `ToolBar` (Stifte, Radierer, Lasso,
   Rückgängig, Dicken, Farben, Druck, Papierfarben).
 - **`TextToolBar`** = eine zweite, ebenso scrollbare `HorizontalStackLayout`, `IsVisible` genau dann,
@@ -135,9 +136,17 @@ Die Zeile über der Notiz bekommt einen zweiten Zustand statt einer zweiten Zeil
 - Der Ring (`RadialMenuView`) bleibt das Zeichenmenü für den Stift; der Textknopf sitzt nur in der
   Leiste.
 
+- **Der Kopf jeder der beiden Zeilen trägt das andere Werkzeug**: in `DrawingToolBar` der
+  Keyboard-Knopf (`TextModeButton`), in `TextToolBar` derselbe Knopf mit dem Stift-Glyph
+  (`U+E8D8`, ohne Namen). Beide hängen an `OnTextModeClicked`; jeder zeigt also an, wohin das
+  Drücken führt, und der Weg zurück wandert nicht. `TextModeButton.IsVisible` folgt
+  `textTarget is not null` — eine Board-Notiz (`BoardNoteViewModel`) hat kein Textfeld.
+
 Die neuen Texte kommen in `Penban.Maui/Resources/Strings` (de/en) wie alle anderen:
 `TextMode`, `TextModeOn/Off`, `TextTitlePlaceholder`, `TextSizeTitle`, `TextColorTitle`,
-`TextBoldTitle`, `TextItalicTitle`, `CardStartsWith`, `TextHideInkTitle`.
+`TextBoldTitle`, `TextItalicTitle`, `TextModeDefault`, `TextHideInkTitle`. (`CardStartsWith` stand
+im Entwurf für die Board-Vorschau; die Karte zeigt statt einer Zeile „beginnt mit …" Titel und Rumpf
+über der Tinte, deshalb gibt es den Text nicht.)
 
 ## Einstellungen
 
@@ -147,9 +156,16 @@ Die neuen Texte kommen in `Penban.Maui/Resources/Strings` (de/en) wie alle ander
   Tinte im Textfeldmodus ausgeblendet wird. Ohne diese Einstellung wäre eine Karte, auf der beides
   steht, im Textmodus unleserlich; mit ihr kann man sie als Hintergrund behalten.
 - `SettingsViewModel`: `ObservableProperty` für beide mit `ReadBool`/`Persist` wie
-  `ShapeRecognitionEnabled` (:83, :189).
+  `ShapeRecognitionEnabled` (:83, :189). Der Modus wird über `CardText.FormatMode`/`ParseMode` als
+  `"ink"`/`"text"` geschrieben und gelesen, `Persist` hat dafür eine `string`-Überladung.
 - `SettingsPage.xaml`: zwei Umschalter im Notiz-Bereich, Textvorschlag „Neue Notiz startet mit:
-  Stift/Textfeld" und „Tinte ausblenden, während getippt wird".
+  Stift/Textfeld" und „Tinte ausblenden, während getippt wird". Gebaut sind „Neue Notizen starten mit
+  der Tastatur" (`TextModeDefault`) und „Tinte beim Tippen ausblenden" (`TextHideInkTitle`); ein
+  Schalter statt einer Auswahl, weil der Notiz-Bereich durchweg aus Schaltern besteht.
+- **Wo der Startmodus gelesen wird**: in `CardService.CreateCardAsync` (neben `ReadLastNoteColor`) —
+  dort entsteht die Karte, und der Dienst hat `IPreferences` schon im Konstruktor. Eine leere Karte,
+  die der Benutzer dann doch mit dem Stift beginnt, schaltet ihren Modus beim ersten Umschalten um;
+  der Startmodus ist nur der Start.
 - **Wirkung**: Die Einstellung entscheidet nur, in welchem Modus eine *neue* (noch leere) Karte
   beginnt. Eine Karte, die schon Text oder Tinte trägt, öffnet in ihrem gespeicherten `Mode` — sonst
   würde eine Einstellung alten Notizen den Inhalt verdecken.
@@ -238,6 +254,12 @@ eigener kleiner Schritt.
 
 Ein Testprojekt gibt es in `Penban.slnx` nicht; geprüft wird wie bisher auf dem iPad (Dev-Deploy) und
 über TestFlight, mit den Prüfpunkten aus dieser Liste.
+
+**Stand:** Die Schritte 1 bis 6 sind gebaut (`b9d9f66` Schritt 1+2, `e89ae8b` Schritt 3+4,
+`38ee2f1` Schritt 5+6), Schritt 7 ist diese Datei und ihre Nachbarn, Schritt 8 ist die Auslieferung
+als 0.5.5. Zwei Punkte sind gebaut, aber noch nicht auf dem Gerät geprüft: dass eine Textkarte nicht
+als „ausstehend" gezählt wird und dass die Board-Vorschau nach dem Zurückkommen aus dem Editor
+nachzieht.
 
 ## Entschieden
 

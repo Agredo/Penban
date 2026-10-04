@@ -14,6 +14,14 @@ group (see below). It also lets the board cards be dragged into an order of thei
 tap that closes a lasso from leaving a dot behind, and gives the card page the same header as the
 other pages.
 
+0.5.5 adds notes that are **typed** instead of written: a card can be filled in on the keyboard, in as
+many lines as fit, with a title (optional), one size and one colour for the whole note, and bold or
+italic. The switch sits at the head of the toolbar and swaps the row of drawing tools for the text
+one; a setting decides which mode a new, empty card starts in, and whether the ink steps back while
+typing. Both kinds of text are searchable in the same search — typed text needs no reading, so it is
+findable the moment it is saved. All of it is written out in German in
+[docs/textfeld-notizen.md](docs/textfeld-notizen.md).
+
 ## Bugs
 
 - [x] The undo stack and a picked-up group got out of step: erasing a picked-up stroke left the blue
@@ -65,6 +73,12 @@ other pages.
   iOS's own double-tap setting is "previous tool" (see
   [docs/lasso-und-formen.md](docs/lasso-und-formen.md)). A group that is picked up is carried by the
   pen tip whatever tool is in hand, and a contact away from it puts it down first.
+- [x] Notes with a text field: a card can be written on the keyboard instead of with the pen —
+  several lines, an optional title, one font size and one colour for the note, bold and italic, all
+  in a second toolbar the switch at the head of the row leads to. Nothing is lost when switching:
+  the pen mode shows ink and text, the text mode steps the ink back (a setting), and both stay
+  searchable. The mode a new, empty card starts in is a setting as well (0.5.5, see
+  [docs/textfeld-notizen.md](docs/textfeld-notizen.md)).
 - [ ] Board tags for grouping and filtering.
 - [~] Widget with multiple boards: every widget picks its board, and the long press in the overview
   that used to suggest one is gone (it blocked the long press that dragging a board card needs).
