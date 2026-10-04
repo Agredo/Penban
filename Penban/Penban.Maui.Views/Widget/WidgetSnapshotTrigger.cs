@@ -113,6 +113,10 @@ public sealed class WidgetSnapshotTrigger : IDisposable
                 return;
             }
 
+            // Something changed, so whatever was read last is not what the rows hold now: the write
+            // that follows reads them again rather than drawing from the ones it has.
+            rowsFresh = false;
+
             var mine = ++version;
             pending = SettleThenWriteAsync(mine);
         }
@@ -212,24 +216,27 @@ public sealed class WidgetSnapshotTrigger : IDisposable
         // compares the rows against the copy on disk, so a stale row would not even be written.
         if (!rowsFresh)
         {
-            await RefreshSummariesAsync(overview);
+            await RefreshSummariesAsync();
         }
 
         await WidgetSnapshotWriter.UpdateAsync(overview.Boards, folder, WidgetPreferredBoard.Get(preferences));
     }
 
     /// <summary>
-    /// Reads every row again before it is written.
+    /// Reads the rows again, so that the copy written next is written from current data.
     /// <para>
-    /// A row only knows what it knew when it was built: a board is not rebuilt when something is done
-    /// on it - a card moved, a note written, a column renamed - so the card count and the time under
-    /// the title would still be the old ones behind a newly drawn picture. And because the writer
-    /// compares the rows against the copy on disk, it would not even write: as far as it can see,
-    /// nothing has changed.
+    /// This is the only part of a snapshot that touches the database, which is why it stands on its
+    /// own: the app asks for it on its way out, before the file is given back, while the rest of the
+    /// snapshot - the drawing, which can take seconds - is left to run with no file in hand.
     /// </para>
     /// </summary>
-    private async Task RefreshSummariesAsync(BoardsViewModel overview)
+    public async Task RefreshSummariesAsync()
     {
+        if (boards is not { } overview)
+        {
+            return;
+        }
+
         SetSuppress(true);
         try
         {

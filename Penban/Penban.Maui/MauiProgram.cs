@@ -47,18 +47,20 @@ public static class MauiProgram
         // The home screen widget reaches the app through its lifecycle rather than through a page:
         // the board a tap on it asks for (penban://board/<id>, read in Platforms/iOS/SceneDelegate.cs),
         // and the moment the app is left, which is when the copy the widget shows is brought up to
-        // date.
+        // date - and when the database file is given back.
         //
         // Asked for of the scene and of the process alike, because which of the two gets told is
         // iOS's business: since the scene manifest (see Platforms/iOS/Info.plist) the scene is what
         // the app is started as, while the process events keep coming as well. Both do the same
-        // thing, and both are safe to see twice - the second look at the request finds it taken, and
-        // the snapshot is written again to the same place.
+        // thing, and both are safe to see twice - the second look at the request finds it taken, the
+        // snapshot is written again to the same place, and coming back is nothing to do twice.
         builder.ConfigureLifecycleEvents(events => events.AddiOS(ios => ios
-            .OnActivated(_ => OpenRequestedBoard())
-            .DidEnterBackground(_ => RefreshWidgetCopy())
-            .SceneOnActivated(_ => OpenRequestedBoard())
-            .SceneDidEnterBackground(_ => RefreshWidgetCopy())));
+            .OnActivated(_ => ComeBack())
+            .WillEnterForeground(_ => ComeBack())
+            .DidEnterBackground(_ => LeftTheApp())
+            .SceneOnActivated(_ => ComeBack())
+            .SceneWillEnterForeground(_ => ComeBack())
+            .SceneDidEnterBackground(_ => LeftTheApp())));
 #endif
 
 #if DEBUG
@@ -153,23 +155,65 @@ public static class MauiProgram
     }
 
     /// <summary>
-    /// Writes the copy the widget shows again, with what the data holds now. Nobody passes the
-    /// overview on the way out of a board, so a card added or a note written there would otherwise
-    /// not reach the home screen until the overview is opened again.
+    /// What happens on the way out of the app: the copy the widget shows is written again with the
+    /// current summaries, and then the database file is given back.
+    /// <para>
+    /// The order is the point of the whole exercise. An open LiteDB holds a lock on
+    /// <c>penban.db</c> for as long as it lives, and iOS kills an app that is suspended while it holds
+    /// one (<c>0xdead10cc</c>, which the crash reports of 0.5.x are full of). The summaries are the one
+    /// part of the snapshot that comes out of the database, so they are read first and separately;
+    /// everything after that - drawing the previews, which on a large board takes seconds - runs with
+    /// the file already given back, and can therefore neither hold the lock nor blow the ten seconds
+    /// iOS allows this transition.
+    /// </para>
+    /// <para>
+    /// Nobody passes the overview on the way out of a board, so a card added or a note written there
+    /// would otherwise not reach the home screen until the overview is opened again.
+    /// </para>
     /// </summary>
-    private static void RefreshWidgetCopy()
+    private static void LeftTheApp() => _ = LeftTheAppAsync();
+
+    private static async Task LeftTheAppAsync()
     {
         try
         {
             if (IPlatformApplication.Current?.Services.GetService<WidgetSnapshotTrigger>() is { } widget)
             {
-                _ = widget.RefreshAsync();
+                // On the thread the overview belongs to - the rows are enumerated here, and the write
+                // reads the board list. Only the release below is indifferent to which thread it runs on.
+                await widget.RefreshSummariesAsync().ConfigureAwait(true);
+
+                // What is left of the snapshot - drawing, which takes seconds on a large board - has
+                // nothing more to read from the file. The overview is not passed on the way out of a
+                // board, so this is what carries a card added there to the home screen.
+                _ = widget.RefreshAsync(rowsAreFresh: true);
             }
         }
         catch (Exception exception)
         {
-            Debug.WriteLine($"Copy of the widget not written: {exception}");
+            Debug.WriteLine($"Copy of the widget not written on the way out: {exception}");
+        }
+
+        try
+        {
+            Storage()?.Suspend();
+        }
+        catch (Exception exception)
+        {
+            // The file stays locked, which is where the app was before this existed - nothing to be
+            // gained by letting a failing release reach the lifecycle callback.
+            Debug.WriteLine($"Database not given back on the way out: {exception}");
         }
     }
+
+    /// <summary>The app is in front again: the database file may be opened as soon as it is wanted.</summary>
+    private static void ComeBack()
+    {
+        OpenRequestedBoard();
+        Storage()?.Resume();
+    }
+
+    private static LiteDbContext? Storage()
+        => IPlatformApplication.Current?.Services.GetService<LiteDbContext>();
 #endif
 }
