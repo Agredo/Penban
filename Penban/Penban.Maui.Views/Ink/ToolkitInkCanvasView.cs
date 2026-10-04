@@ -111,6 +111,12 @@ public class ToolkitInkCanvasView : ContentView, IInkCanvasView
     {
     }
 
+    /// <summary>See the class remarks: this renderer never draws a loop, so there is never one to read
+    /// before the contact that drew it has been lifted.</summary>
+    public void FinishLasso()
+    {
+    }
+
     /// <summary>See the class remarks: <see cref="DrawingView"/> cannot tell input devices apart.</summary>
     public bool AllowFingerDrawing { get; set; } = true;
 

@@ -88,9 +88,10 @@ public static class PreferenceKeys
     public const string ThreeFingerTapRedoEnabled = "Gesture.ThreeFingerTapRedoEnabled";
 
     /// <summary>
-    /// The board a widget placed from the overview should start on, as written by holding down a
-    /// board card. Only a wish: iOS places a widget for the user, never for the app, so this is what
-    /// the configuration sheet pre-selects rather than something that puts a widget anywhere.
+    /// The board a widget placed from the overview should start on. Only a wish: iOS places a widget
+    /// for the user, never for the app, so this is what the configuration sheet pre-selects rather
+    /// than something that puts a widget anywhere. Nothing writes it any more - the pick used to come
+    /// from holding down a board card - so only a value left behind by an older version is read.
     /// </summary>
     public const string WidgetBoard = "Widget.PreferredBoard";
 

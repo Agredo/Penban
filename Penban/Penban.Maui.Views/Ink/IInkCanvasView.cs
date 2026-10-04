@@ -85,6 +85,13 @@ public interface IInkCanvasView
     void ClearSelection();
 
     /// <summary>
+    /// Reads the loop being drawn the way lifting the pen does, without the contact that drew it having
+    /// to be lifted: this is the pen's own button being let go, where the button is what drew the loop -
+    /// see <see cref="SkiaInkCanvasView.FinishLasso"/>. Renderers that cannot draw a loop ignore this.
+    /// </summary>
+    void FinishLasso();
+
+    /// <summary>
     /// Colour of strokes drawn from now on, as <c>#RRGGBB</c> - the same format as
     /// <see cref="InkStroke.Color"/>, so it survives the round trip through the database.
     /// </summary>

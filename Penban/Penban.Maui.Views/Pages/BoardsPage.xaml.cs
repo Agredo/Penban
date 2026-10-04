@@ -122,6 +122,59 @@ public partial class BoardsPage : ContentPage
     }
 
     /// <summary>
+    /// The board that is in the air. Kept because the two halves of the gesture are told different
+    /// things: the drag knows what was picked up and the drop only knows the row it landed on, and
+    /// the row is where the dragged board has to be put.
+    /// </summary>
+    private BoardViewModel? draggedBoard;
+
+    /// <summary>
+    /// A board card was picked up to be put somewhere else. The package is given something to carry
+    /// so the platform accepts the drag at all; what it carries is not read back, since the board
+    /// itself is already known here.
+    /// </summary>
+    private void OnBoardDragStarting(object? sender, DragStartingEventArgs e)
+    {
+        draggedBoard = (sender as Element)?.BindingContext as BoardViewModel;
+
+        if (draggedBoard is not null)
+        {
+            e.Data.Text = draggedBoard.Id.ToString();
+        }
+    }
+
+    /// <summary>
+    /// The drag is over, wherever it ended: a board that was let go over nothing must not be dropped
+    /// onto the next row that is touched.
+    /// </summary>
+    private void OnBoardDropCompleted(object? sender, DropCompletedEventArgs e)
+    {
+        draggedBoard = null;
+    }
+
+    /// <summary>
+    /// A board was dropped onto another one: the dragged board takes the place of the row it was
+    /// dropped on and everything else shifts along, which is the order the overview then stores.
+    /// </summary>
+    private async void OnBoardDrop(object? sender, DropEventArgs e)
+    {
+        var dragged = draggedBoard;
+        draggedBoard = null;
+
+        if (dragged is null || BindingContext is not BoardsViewModel viewModel)
+        {
+            return;
+        }
+
+        if ((sender as Element)?.BindingContext is not BoardViewModel target || target.Id == dragged.Id)
+        {
+            return;
+        }
+
+        await viewModel.MoveBoardAsync(dragged.Id, viewModel.Boards.IndexOf(target));
+    }
+
+    /// <summary>
     /// Shows one board of the overview. Used by the tap on a row and by the board a tapped home
     /// screen widget stands for, which is the same thing asked for by something that is not a row.
     /// </summary>

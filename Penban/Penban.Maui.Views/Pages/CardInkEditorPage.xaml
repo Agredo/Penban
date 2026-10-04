@@ -1,21 +1,37 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<!-- The editor is a page of the shell's own stack rather than a modal, so the shell's bar stands above
-     it and carries the way back and the title - the board the card came from, handed in by the
-     constructor. It is the only page in the app that keeps that bar: the others switch it off and draw
-     their own header, because their headers carry buttons that would otherwise have to be squeezed
-     into the bar's title view. This page has nothing to move up there - the row below is the tools -
-     so it leaves the bar to the shell and takes its back button and its title with it.
-     The bar's back button leaves the card the way "Fertig" does, and both keep the ink either way,
-     see OnDisappearing in the code-behind. -->
+<!-- The editor draws its own header instead of leaving it to the shell, like every other page in the
+     app: the bar the shell draws looks different on every platform - and on Windows it renders no
+     back button at all - while the way out of a page has to be in the same place everywhere. It is
+     the header of the board this card came from, down to the padding and the spacing, so opening a
+     card and closing it again does not move the arrow or the title. The title is the board the card
+     came from, handed in by the constructor.
+     The back button leaves the card the way "Fertig" does, and both keep the ink either way, see
+     OnDisappearing in the code-behind. -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
              xmlns:ink="clr-namespace:Penban.Maui.Views.Ink"
              xmlns:controls="clr-namespace:Penban.Maui.Views.Controls"
              x:Class="Penban.Maui.Views.Pages.CardInkEditorPage"
+             Shell.NavBarIsVisible="False"
              Style="{StaticResource AppPage}">
 
-    <Grid RowDefinitions="Auto,*" Padding="16" RowSpacing="12">
+    <Grid RowDefinitions="Auto,Auto,*" Padding="12" RowSpacing="12">
+
+        <!-- The same header as on the board the card was opened from: the way back, and the name of
+             the board it leads to. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+            <Button Grid.Column="0"
+                    x:Name="BackButton"
+                    Text="&#xf15c;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnBackClicked" />
+            <Label Grid.Column="1"
+                   x:Name="BoardTitleLabel"
+                   Style="{StaticResource TitleLabel}"
+                   LineBreakMode="TailTruncation"
+                   VerticalOptions="Center" />
+        </Grid>
 
         <!-- Everything that is a button or a colour lives in the one row above the note, so the note
              keeps the whole height underneath it: the drawing tools, the two pens and the paper
@@ -36,7 +52,7 @@
              them stands the button that wipes the note - one edit, so undo brings it back - and behind
              that the paper colours, each palette behind its own hairline. Horizontally scrollable,
              because the tools and the colours together are wider than any phone held upright. -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
             <ScrollView x:Name="ToolBar" Grid.Column="0" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
                 <HorizontalStackLayout Spacing="8">
                     <!-- The pen and the finger share one button: it carries the mode that is drawing
@@ -189,7 +205,7 @@
              (set from the view model in the constructor). Strokes are stored dark-on-light.
              NoteArea is only a measuring cell: it reports the free space so the note can be kept
              square without the note ever feeding its own size back into the layout. -->
-        <Grid Grid.Row="1" x:Name="NoteArea">
+        <Grid Grid.Row="2" x:Name="NoteArea">
             <Border x:Name="NoteFrame"
                     Padding="10"
                     HorizontalOptions="Center"
@@ -306,7 +322,7 @@
              around the point it was opened at. Last child, so it is above the note it was asked for
              from. -->
         <ink:RadialMenuView x:Name="RadialMenu"
-                            Grid.RowSpan="2"
+                            Grid.RowSpan="3"
                             BackgroundColor="Transparent"
                             InputTransparent="True" />
     </Grid>

@@ -18,6 +18,13 @@ namespace Penban.Maui.Views.Ink;
 /// already works in canvas pixels and so needs no coordinate conversion here.
 /// </para>
 /// <para>
+/// Letting the button go reads the loop, the way lifting the pen does: the gesture is hold, draw a
+/// loop, let go, and the pen is usually still on the surface when the button comes up - see
+/// <see cref="FinishLasso"/>, which is why that is asked for before the tool is put back. A pen that
+/// is lifted with the button still held has already been read by the canvas itself, so nothing is
+/// read twice.
+/// </para>
+/// <para>
 /// A press that comes while the button is already held is read from the hover events, which arrive
 /// before the pen touches down - which is how it is meant to be used anyway: press, then draw. A
 /// contact the button is pressed on after the pen is already on the surface is drawn first and picked
@@ -96,10 +103,10 @@ public class PenButtonLassoBehavior : PlatformBehavior<View, FrameworkElement>
     private void OnPointerMoved(object sender, PointerRoutedEventArgs e) => Track(sender, e);
 
     /// <summary>
-    /// Whether the button is still down is read here as well - letting go of a pen that is still
-    /// writing ends the loop but not the picking up, and a lift of the pen that keeps the button held
-    /// must not take the tool away for the next loop. Only a pointer that is gone for good - capture
-    /// lost, or out of range - ends it without asking.
+    /// Whether the button is still down is read here as well - a pen that is lifted with the button
+    /// still held has already had its loop read by the canvas, and the button is let go afterwards to
+    /// give the pen back the surface, which must not take the tool away from the next loop either. Only
+    /// a pointer that is gone for good - capture lost, or out of range - ends it without asking.
     /// </summary>
     private void OnPointerEnded(object sender, PointerRoutedEventArgs e) => Track(sender, e);
 
@@ -139,6 +146,13 @@ public class PenButtonLassoBehavior : PlatformBehavior<View, FrameworkElement>
         }
 
         toolWithoutButton = null;
+
+        // The button going up is the gesture that says the loop is done - hold it, draw a loop, let it
+        // go - so what the loop encloses is picked up here, before the pen is handed back the surface.
+        // Waiting for the pen to be lifted instead would lose the loop outright: putting the tool back
+        // is what ends the lasso, and a loop that is still being drawn goes with it.
+        host.FinishLasso();
+
         host.Tool = previous;
     }
 

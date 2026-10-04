@@ -237,9 +237,10 @@ public partial class CardInkEditorPage : ContentPage
         this.settingsViewModel = settingsViewModel;
         this.feedbackViewModel = feedbackViewModel;
 
-        // The shell's bar stands above this page and reads its title, and the title that says where the
-        // back button leads is the board the card came from.
-        Title = boardTitle;
+        // The header draws the title itself, like the board's own header does, so the name of the
+        // board the card came from stands in the same place before and after the card is opened.
+        BoardTitleLabel.Text = boardTitle;
+        SemanticProperties.SetDescription(BackButton, boardTitle);
 
         // Attaching the store also restores the renderer and the drawing settings, so it has to
         // happen before anything is loaded into the host.
@@ -1342,6 +1343,13 @@ public partial class CardInkEditorPage : ContentPage
     }
 
     private async void OnDoneClicked(object? sender, EventArgs e) => await CloseAsync();
+
+    /// <summary>
+    /// The header's back button, in the same place as on every other page: it leaves the card the
+    /// way <see cref="OnDoneClicked"/> does, so which of the two was pressed cannot change what is
+    /// kept.
+    /// </summary>
+    private async void OnBackClicked(object? sender, EventArgs e) => await CloseAsync();
 
     /// <summary>
     /// Opens the settings over the card. The card is a page of the shell's stack, so the settings page

@@ -101,12 +101,30 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     private const float LassoLoopWidth = 2.5f;
 
     /// <summary>
-    /// How long a stroke has to be left alone after the pen is lifted before it is read as a shape -
-    /// see <see cref="StartShapeHold"/>. Long enough that going straight on to the next letter, which
-    /// never leaves a gap this long, cancels the reading; short enough that someone waiting for a
+    /// How long a stroke has to be left alone - with the pen still on the note - before it is read as a
+    /// shape - see <see cref="StartShapeHold"/>. Long enough that writing on, which never leaves the pen
+    /// standing anywhere this long, is never read as a shape; short enough that someone waiting for a
     /// shape to appear does not think the note missed it.
     /// </summary>
     private static readonly TimeSpan ShapeHoldDelay = TimeSpan.FromMilliseconds(700);
+
+    /// <summary>
+    /// How far the pen has to have travelled between two points of a stroke for that to count as the
+    /// pen still writing rather than as the pen standing still - see <see cref="StartShapeHold"/>. A
+    /// surface keeps reporting the pen at the very place it is resting, and the wait for a shape is
+    /// restarted by movement, so without a floor under it a pen that is being held still would never
+    /// be read as a shape at all.
+    /// </summary>
+    private const float ShapeHoldMovement = 2f;
+
+    /// <summary>
+    /// How far a contact that put a picked-up group down may go before it counts as drawing rather than
+    /// as the tap that put the group down - see <see cref="putDownContactId"/>. Wider than
+    /// <see cref="ShapeHoldMovement"/> because a tap of a pen is not perfectly still: it is reported a
+    /// little away from where it touched down, and the mark that must not appear is not allowed to
+    /// depend on how steady the hand was.
+    /// </summary>
+    private const float PutDownSlop = 6f;
 
     /// <summary>
     /// Colour of the frame and of the loop. Deliberately not one of the pen colours: these mark a
@@ -149,6 +167,15 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     /// <summary>The contact the stroke being drawn belongs to, for as long as there is one.</summary>
     private long currentStrokeContactId;
+
+    /// <summary>
+    /// The contact that put a picked-up group down and has not yet written anything of its own, for as
+    /// long as it is the contact that is down. A group is put down by touching anywhere but on it, and
+    /// a touch that only says "this group is done with" must not leave a mark on the note as well -
+    /// see <see cref="HandlePickedUpTouch"/>. The contact stops being that one as soon as it goes
+    /// somewhere, because then it is drawing and the dot it began with is the start of a line.
+    /// </summary>
+    private long putDownContactId;
 
     /// <summary>
     /// Whether the first point of the stroke being drawn was recorded before the platform had reported
@@ -247,6 +274,13 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     private IDispatcherTimer? shapeHoldTimer;
 
+    /// <summary>
+    /// The shape the pen is still holding, if it is holding one - see <see cref="RecognizeShape"/>. It
+    /// is only there for as long as the pen that drew the stroke is on the note: it is what the pen
+    /// pulls while it is still down, and what goes into the history as one change when it is lifted.
+    /// </summary>
+    private ShapeDraft? shapeDraft;
+
     public SkiaInkCanvasView()
     {
         canvasView = new SKCanvasView { EnableTouchEvents = true };
@@ -343,14 +377,19 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// </summary>
     public bool DeleteSelection()
     {
+        // The same reason as EraseAll: an eraser sweep that is still open is one change of its own,
+        // and it has to be in the history before this one is put on top of it.
+        EndEraseSession();
+
         if (selection.Count == 0)
         {
             return false;
         }
 
         // A stroke that was waiting to be read as a shape is taken off the note here, so the wait is
-        // given up with it.
-        CancelShapeHold();
+        // given up with it - and a shape that is still being pulled goes back to what was written, so
+        // that what is deleted is what is on the note.
+        CancelShape();
 
         // Ascending, and carrying the position each stroke has right now, which is the same shape an
         // "erase everything" records its strokes in - see EraseAll.
@@ -397,6 +436,35 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         }
 
         selection.Clear();
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Takes every stroke that is no longer in the set out of the picked-up group. A group names the
+    /// strokes themselves rather than their places, which is what lets it survive the set around it
+    /// being added to - and it is also what makes this necessary, because nothing else tells a group
+    /// that one of its strokes was erased from under it.
+    /// <para>
+    /// What is left behind without this is a mark around a stroke that is gone: the group keeps
+    /// holding the erased stroke, so the mark stays drawn around the empty place it covered, and the
+    /// next contact inside that mark takes hold of a group whose strokes are not on the note any more.
+    /// That contact is swallowed - nothing is drawn where the pen was put down - and the move it makes
+    /// records an edit that carries nothing and still costs one step of the history, which is what made
+    /// undo appear to do nothing once and bring back old strokes the time after.
+    /// </para>
+    /// </summary>
+    private void PruneSelection()
+    {
+        if (selection.Count == 0)
+        {
+            return;
+        }
+
+        if (selection.RemoveWhere(stroke => !Strokes.Contains(stroke)) == 0)
+        {
+            return;
+        }
+
         SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -452,21 +520,29 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     public bool ShapeRecognition { get; set; } = true;
 
     /// <summary>
-    /// Waits, after the pen has been lifted, for the stroke to be left alone - see
-    /// <see cref="ShapeHoldDelay"/>. Held as long as that, it is taken to have been drawn as a shape
-    /// rather than written, and is replaced by the shape it was read as.
+    /// Waits, while the pen is still on the note, for the stroke to be left alone - see
+    /// <see cref="ShapeHoldDelay"/>. Held that long without the pen moving, it is taken to have been
+    /// drawn as a shape rather than written, and is replaced by the shape it was read as.
     /// <para>
     /// The wait is what makes this liveable-with: someone writing a letter that happens to be round -
-    /// an "o", a "0", the loop of a "g" - is already on to the next stroke by then, and that next
-    /// stroke is what cancels the wait. Only someone who has stopped writing, and is waiting for the
-    /// shape to appear, gets one.
+    /// an "o", a "0", the loop of a "g" - is moving the pen all the while, and every point of that
+    /// movement starts the wait again. Only a pen that has come to rest, and is waiting for the shape
+    /// to appear, gets one.
+    /// </para>
+    /// <para>
+    /// It runs with the pen down rather than after it is lifted, because the pen that is still there is
+    /// what pulls the shape into its size - see <see cref="ShapeResize"/>. Read after the pen was
+    /// lifted, a shape would be stuck at the size it happened to be drawn at, and ending a note on a
+    /// shape would mean drawing another stroke on top of it.
     /// </para>
     /// </summary>
     private void StartShapeHold(InkStroke stroke)
     {
         CancelShapeHold();
 
-        if (!ShapeRecognition || stroke.Points.Count < 2 || !Strokes.Contains(stroke))
+        // Only the stroke the pen is still on: the wait is for the pen to come to rest over what it is
+        // drawing, and there is nothing to come to rest over before the pen has moved at all.
+        if (!ShapeRecognition || stroke != currentStroke || stroke.Points.Count < 2 || !Strokes.Contains(stroke))
         {
             return;
         }
@@ -495,6 +571,17 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         shapeHoldStroke = null;
     }
 
+    /// <summary>
+    /// Gives up on a shape altogether: the wait for one, and one that is being pulled into size - see
+    /// <see cref="AbandonShapeDraft"/>. Called wherever the note is changed from somewhere other than
+    /// the pen that is holding the shape.
+    /// </summary>
+    private void CancelShape()
+    {
+        CancelShapeHold();
+        AbandonShapeDraft();
+    }
+
     private void OnShapeHoldElapsed(object? sender, EventArgs e)
     {
         shapeHoldTimer?.Stop();
@@ -502,17 +589,20 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         var stroke = shapeHoldStroke;
         shapeHoldStroke = null;
 
-        if (stroke is not null)
+        // The pen has been standing still long enough - but only if it is still standing there at all:
+        // the stroke that is no longer the one being drawn is one whose pen is gone.
+        if (stroke is not null && stroke == currentStroke)
         {
             RecognizeShape(stroke);
         }
     }
 
     /// <summary>
-    /// Replaces <paramref name="stroke"/> by the shape it was read as, if it was read as one. The
-    /// stroke object itself stays and only its points are written over: the group the lasso picked up
-    /// holds the stroke itself, the history names it, and the note is saved from the set - so a stroke
-    /// that was read as a shape is the very stroke that was written, drawn differently.
+    /// Replaces <paramref name="stroke"/> by the shape it was read as, if it was read as one, and hands
+    /// the pen the shape to pull into size. The stroke object itself stays and only its points are
+    /// written over: the group the lasso picked up holds the stroke itself, the history names it, and
+    /// the note is saved from the set - so a stroke that was read as a shape is the very stroke that was
+    /// written, drawn differently.
     /// </summary>
     private void RecognizeShape(InkStroke stroke)
     {
@@ -527,15 +617,107 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             return;
         }
 
-        // Recorded as a move rather than as an erase and a write: nothing was taken off the note and
-        // nothing was put on it, only where the ink of one stroke lies. That is also what makes undoing
-        // a shape bring the stroke back as it was written, in a single step.
-        var before = stroke.Points.ToList();
+        var freehand = stroke.Points.ToList();
+        var pen = freehand[^1];
+        var resize = ShapeResize.Begin(shape, pen.X, pen.Y);
+
+        if (resize is null)
+        {
+            return;
+        }
+
+        // Nothing goes into the history here: the size the shape is to have is not decided until the
+        // pen is lifted, and a change recorded before then would be a step of the history for a shape
+        // that never existed. What is recorded at the end is the whole of it, as one change - see
+        // FinishShapeDraft.
         stroke.Points = shape.Points.ToList();
-        commands.RecordMoved([new InkStrokeMove(stroke, before, stroke.Points)]);
+        shapeDraft = new ShapeDraft(stroke, freehand, resize);
 
         canvasView.InvalidateSurface();
-        StrokeCompleted?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Follows the pen that is pulling the shape it is holding: the shape is drawn the size the pen
+    /// asks for, so what is seen while the pen is still down is what is kept when it is lifted.
+    /// </summary>
+    private void PullShapeDraft(ShapeDraft draft, SKTouchEventArgs e)
+    {
+        var pen = ToDocument(e.Location);
+        draft.Stroke.Points = draft.Resize.At(pen.X, pen.Y).ToList();
+    }
+
+    /// <summary>
+    /// Puts the shape the pen is holding into the history, as the single change it was: the stroke as it
+    /// was written, and the stroke as it is now that the pen is done pulling it. Undoing a shape is
+    /// therefore one step, and the stroke it brings back is the one that was written.
+    /// </summary>
+    private void FinishShapeDraft()
+    {
+        if (shapeDraft is not { } draft)
+        {
+            return;
+        }
+
+        shapeDraft = null;
+
+        // A stroke that is no longer on the note has nothing to put right - an eraser took it, and the
+        // erase is the change the history has of it.
+        if (!Strokes.Contains(draft.Stroke))
+        {
+            return;
+        }
+
+        commands.RecordMoved([new InkStrokeMove(draft.Stroke, draft.Freehand, draft.Stroke.Points.ToList())]);
+        canvasView.InvalidateSurface();
+    }
+
+    /// <summary>
+    /// Gives up on a shape that is being pulled and puts the stroke back the way it was written. Called
+    /// wherever the note is changed from somewhere other than the pen that is holding the shape: the
+    /// points the shape was read into were never recorded as a change, so a shape left standing would be
+    /// a note that no undo step knows about.
+    /// </summary>
+    private void AbandonShapeDraft()
+    {
+        if (shapeDraft is not { } draft)
+        {
+            return;
+        }
+
+        shapeDraft = null;
+
+        if (!Strokes.Contains(draft.Stroke))
+        {
+            return;
+        }
+
+        draft.Stroke.Points = draft.Freehand.ToList();
+        canvasView.InvalidateSurface();
+    }
+
+    /// <summary>
+    /// A shape that has been read and is being pulled into size by the pen that drew it, before that pen
+    /// has been lifted: the stroke, the points it was written with, and where it is being pulled from.
+    /// <see cref="Freehand"/> is kept because it is what the single change recorded at the end of the
+    /// pull starts from - and what the stroke goes back to if the shape is given up on.
+    /// </summary>
+    private sealed class ShapeDraft
+    {
+        public ShapeDraft(InkStroke stroke, List<InkPoint> freehand, ShapeResize resize)
+        {
+            Stroke = stroke;
+            Freehand = freehand;
+            Resize = resize;
+        }
+
+        /// <summary>The stroke the shape was read from, which is the stroke it is drawn as.</summary>
+        public InkStroke Stroke { get; }
+
+        /// <summary>The points that stroke had before it was read as a shape.</summary>
+        public List<InkPoint> Freehand { get; }
+
+        /// <summary>Where the shape is being pulled from, and to where the pen says.</summary>
+        public ShapeResize Resize { get; }
     }
 
     /// <summary>
@@ -700,6 +882,12 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     public bool EraseAll()
     {
+        // A sweep that is still open is closed first, so the strokes it took are recorded before the
+        // rest of the note is: the two are two changes to the set, and each of them is a step of the
+        // history that can be taken back on its own. Left open, the sweep would be dropped by the
+        // reset below and its strokes would be gone for good.
+        EndEraseSession();
+
         if (Strokes.Count == 0)
         {
             return false;
@@ -725,7 +913,15 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     {
         // A shape that has not appeared yet must not appear on a note that has just been wound back: the
         // stroke it would be read from may be gone, or may have been put back as it was first written.
-        CancelShapeHold();
+        // A shape that is being pulled goes back to what was written, for the same reason: it is not in
+        // the history yet, so a shape left standing here would be a note no undo step knows about.
+        CancelShape();
+
+        // An eraser sweep that is still open is the most recent change to the set, so it is what this
+        // undo is asking for: closing it records it, and the undo below takes it back. Left open, the
+        // undo would wind back the change before the sweep and the sweep would be recorded afterwards,
+        // out of order.
+        EndEraseSession();
 
         if (!commands.Undo())
         {
@@ -741,7 +937,8 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     public void Redo()
     {
-        CancelShapeHold();
+        CancelShape();
+        EndEraseSession();
 
         if (!commands.Redo())
         {
@@ -777,8 +974,9 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
         // A stroke that was waiting to be read as a shape belongs to the set that is being replaced,
         // and the history is being reset alongside this - reading it now would record an edit for a
-        // stroke the history no longer knows about.
-        CancelShapeHold();
+        // stroke the history no longer knows about. A shape that was being pulled goes back to what was
+        // written for the same reason: the change that would have recorded it is never coming.
+        CancelShape();
 
         // A sweep that was being remembered belongs to the set that has just been replaced, so it is
         // dropped rather than recorded - the same reason the press behind it is.
@@ -820,6 +1018,18 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         if (e.ActionType == SKTouchAction.Pressed)
         {
             CancelShapeHold();
+
+            // Whatever put a group down before this contact began, this contact is not it: the flag
+            // only ever names the contact that is down - see putDownContactId.
+            putDownContactId = 0;
+
+            // A press that is not the pen that is holding a shape means that pen is gone: the change
+            // that would have kept the shape is never coming, so what was being pulled goes back to
+            // what was written - see AbandonShapeDraft.
+            if (currentStroke is null)
+            {
+                AbandonShapeDraft();
+            }
         }
 
         // A drawing surface has nothing else to do with the right mouse button, so on a desktop that
@@ -911,9 +1121,41 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                 break;
 
             case SKTouchAction.Moved:
-                if (currentStroke is not null && e.InContact)
+                if (shapeDraft is not null && e.InContact)
                 {
+                    // The pen is on a shape it has just been given: it is no longer drawing, it is
+                    // saying how big the shape is to be - see PullShapeDraft.
+                    PullShapeDraft(shapeDraft, e);
+                    canvasView.InvalidateSurface();
+                }
+                else if (currentStroke is not null && e.InContact)
+                {
+                    // A contact that put a picked-up group down has not gone anywhere yet, so it is
+                    // still the tap that put the group down and nothing is written for it - see
+                    // DropPutDownTap. The moment it does go somewhere it is drawing, and what it draws
+                    // from there on is a stroke like any other.
+                    if (e.Id == putDownContactId)
+                    {
+                        if (!LeftPutDownSlop(currentStroke, ToDocument(e.Location)))
+                        {
+                            e.Handled = true;
+                            break;
+                        }
+
+                        putDownContactId = 0;
+                    }
+
                     AddPoint(currentStroke, e);
+
+                    // Writing again, so the wait for a shape starts over - but only for a pen that has
+                    // actually gone somewhere: a surface reports a pen that is resting on the note over
+                    // and over at the same place, and a shape is drawn by holding the pen still - see
+                    // StartShapeHold.
+                    if (Traveled(currentStroke))
+                    {
+                        StartShapeHold(currentStroke);
+                    }
+
                     canvasView.InvalidateSurface();
                 }
 
@@ -922,17 +1164,27 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
             case SKTouchAction.Released:
             case SKTouchAction.Cancelled:
+                // A shape that was being pulled is done being pulled, and what it looks like now is
+                // what the pen asked for, so this is where it becomes the change the history keeps.
+                FinishShapeDraft();
+
+                // A contact that only put a picked-up group down leaves nothing of its own behind - see
+                // DropPutDownTap. This has to happen before the stroke is closed off, because what it
+                // drops is a stroke that was never drawn.
+                DropPutDownTap(e.Id);
+
                 if (currentStroke is not null)
                 {
                     var finished = currentStroke;
                     currentStroke = null;
                     currentStrokeContactId = 0;
+
+                    // The pen is off the note, so there is no longer anything standing still over the
+                    // stroke for it to be read as a shape: a stroke is read as one while the pen that
+                    // drew it is still on it - see StartShapeHold.
+                    CancelShapeHold();
                     canvasView.InvalidateSurface();
                     StrokeCompleted?.Invoke(this, EventArgs.Empty);
-
-                    // The stroke is written; whether it was drawn as a shape is decided by what happens
-                    // over the next moment - see StartShapeHold.
-                    StartShapeHold(finished);
                 }
 
                 // The contact is over, so what was learned about it is over too: Apple hands the same
@@ -1210,6 +1462,12 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// </summary>
     private void StartStroke(SKTouchEventArgs e, bool isFinger)
     {
+        // Whatever was being written before this contact, this is a new stroke - and a new stroke is
+        // the pen coming back to the note, so it is never a shape being pulled. Nothing is recorded for
+        // a shape given up here: the stroke goes back to what was written and that is what the history
+        // already has.
+        AbandonShapeDraft();
+
         currentStroke = new InkStroke
         {
             Color = StrokeColor,
@@ -1306,6 +1564,14 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             return;
         }
 
+        // A shape that was being pulled by this stroke goes with it. The stroke object is the same one
+        // that was written, so it is enough to forget the pull: the stroke is about to leave the note
+        // and its entry in the history is about to be taken back with it.
+        if (shapeDraft is not null && shapeDraft.Stroke == currentStroke)
+        {
+            shapeDraft = null;
+        }
+
         Strokes.Remove(currentStroke);
         commands.Discard(currentStroke);
 
@@ -1350,6 +1616,12 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         if (e.ActionType == SKTouchAction.Pressed)
         {
             EndEraseSession();
+
+            // A shape that is still being pulled goes back to what was written before the eraser
+            // starts: what the eraser takes off the note has to be what is on the note, and a shape
+            // whose points were never recorded as a change must not be the thing that gets recorded as
+            // erased - see AbandonShapeDraft.
+            AbandonShapeDraft();
         }
 
         BeginEraseSession();
@@ -1498,6 +1770,10 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             return false;
         }
 
+        // Whatever the sweep took out of the set goes out of the picked-up group with it - see
+        // PruneSelection. Erasing is the one way a stroke leaves the set while a group is still up.
+        PruneSelection();
+
         if (eraseSession is { } session)
         {
             // The contact that made this sweep is still down, so what it took is only remembered: the
@@ -1574,7 +1850,11 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
             if (!IsInsideSelection(touch))
             {
                 // Anywhere but the group itself puts it down before the contact does its own work, so
-                // the stroke this press is about to start is drawn and not added to the group.
+                // the stroke this press is about to start is drawn and not added to the group. The
+                // contact is remembered as the one that put the group down: if it only goes on to lift
+                // again, it said no more than "this group is done with", and a mark left behind for
+                // that would be one nobody asked for - see DropPutDownTap.
+                putDownContactId = e.Id;
                 ClearSelection();
                 canvasView.InvalidateSurface();
                 return false;
@@ -1693,6 +1973,29 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         if (Select(picked))
         {
             canvasView.InvalidateSurface();
+        }
+    }
+
+    /// <summary>
+    /// Reads the loop being drawn the way lifting the pen does, without the contact that drew it having
+    /// to be lifted: this is the pen's own button being let go. On Windows the button is what draws the
+    /// loop, and letting it go is the gesture that says the loop is done - so what it encloses has to be
+    /// picked up there and then. The contact that drew it is usually still on the note at that moment,
+    /// which is why the loop cannot simply be waited out: the tool goes back to the pen the instant the
+    /// button comes up, and the point that ends the loop would otherwise be written as the first dot of
+    /// a new stroke.
+    /// <para>
+    /// The contact that is still down does not go on to carry the group it has just picked up: it is
+    /// already a stroke's worth of touching the note, and reading it as a drag would move the group by
+    /// however far the loop travelled. Pressing the group carries it, exactly as it does after a loop
+    /// that was closed by lifting the pen.
+    /// </para>
+    /// </summary>
+    public void FinishLasso()
+    {
+        if (isLassoDrawing)
+        {
+            EndLassoContact();
         }
     }
 
@@ -2019,6 +2322,58 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         return new SKPoint(
             location.X / size.Width * InkDocument.Size,
             location.Y / size.Height * InkDocument.Size);
+    }
+
+    /// <summary>
+    /// Whether the last point of <paramref name="stroke"/> is far enough from the one before it for the
+    /// pen to have been going somewhere - see <see cref="ShapeHoldMovement"/>.
+    /// </summary>
+    private static bool Traveled(InkStroke stroke)
+    {
+        var points = stroke.Points;
+        if (points.Count < 2)
+        {
+            return false;
+        }
+
+        var dx = points[^1].X - points[^2].X;
+        var dy = points[^1].Y - points[^2].Y;
+        return (dx * dx) + (dy * dy) > ShapeHoldMovement * ShapeHoldMovement;
+    }
+
+    /// <summary>
+    /// Whether the contact that put a picked-up group down has gone anywhere since it touched down,
+    /// which is what it has to do before it writes: the press that puts a group down is a tap on the
+    /// note like any other, and one that only says the group is done with must not leave a mark of its
+    /// own - see <see cref="DropPutDownTap"/>.
+    /// </summary>
+    private bool LeftPutDownSlop(InkStroke stroke, SKPoint to)
+    {
+        if (stroke.Points.Count == 0)
+        {
+            return false;
+        }
+
+        var dx = to.X - stroke.Points[0].X;
+        var dy = to.Y - stroke.Points[0].Y;
+        return (dx * dx) + (dy * dy) > PutDownSlop * PutDownSlop;
+    }
+
+    /// <summary>
+    /// Takes back the dot a contact began that never went anywhere, for the contact that put a
+    /// picked-up group down: it said no more than "this group is done with", and a mark left behind for
+    /// that would be one nobody asked for. A contact that went somewhere cleared itself as the one that
+    /// put the group down as it did so, so what it drew is a stroke and stays.
+    /// </summary>
+    private void DropPutDownTap(long contactId)
+    {
+        if (contactId == 0 || contactId != putDownContactId)
+        {
+            return;
+        }
+
+        putDownContactId = 0;
+        DropCurrentStroke();
     }
 
     private void AddPoint(InkStroke stroke, SKTouchEventArgs e)

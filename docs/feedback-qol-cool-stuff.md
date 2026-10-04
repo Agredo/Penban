@@ -16,6 +16,10 @@ Nachgezogen bis PR #49 (Lassowerkzeug und Formerkennung): **Future 1** ist damit
 Lassowerkzeug, das auf keiner Karte steht und deshalb nur im Abschnitt „Ohne Karte dazu" (ganz unten)
 und in [docs/lasso-und-formen.md](lasso-und-formen.md) auftaucht.
 
+Nachgezogen bis Version 0.5.4: **Future 1** ist damit **erledigt** — das Halten passiert jetzt mit
+aufgesetztem Stift, und der Stift zieht die Form anschließend in ihre Größe; dazu Dreieck, Fünfeck und
+Sechseck (für die Chemie). Die Wartezeit ist dieselbe wie vorher, sie beginnt nur früher.
+
 Legende: **offen** = nichts davon ist gebaut · **teilweise** = ein Teil ist gebaut, der Rest steht
 dabei · **erledigt** = der Punkt ist abgehakt und steht nur noch unter
 „Nicht mehr auf der Liste" (ganz unten).
@@ -37,34 +41,22 @@ füllen den Rest (`BoardViewModel.LoadSummaryAsync`, `:173` ff., `PreviewNoteLim
 also weiterhin **auf** dem Stapel statt allein zu stehen. Das zweite, kleinere Anliegen der Karte
 (größer, damit man die Titelkarte vom Stapel unterscheiden kann) fehlt ebenfalls.
 
-### QoL 9 (Karte 9) – Boards in der Liste sortieren · **offen**
+### QoL 9 (Karte 9) – Boards in der Liste sortieren · **teilweise**
 
 > Reorder/sort boards in list.
 
-Die Übersicht sortiert fest nach letzter Änderung und dann nach Titel
-(`BoardsViewModel.RefreshAsync`/`CompareRows`). Weder eine Handsortierung noch eine andere
-Sortierreihenfolge (Name, angelegt am) oder eine Gruppierung lässt sich wählen.
+Erledigt: Eine Boardkarte lässt sich auf eine andere ziehen und legt sich dort ab
+(`BoardsPage.xaml`: `DragGestureRecognizer`/`DropGestureRecognizer` an beiden Kartenvorlagen,
+`BoardsPage.xaml.cs`: `OnBoardDragStarting`/`OnBoardDrop`; `BoardsViewModel.MoveBoardAsync`). Die
+Reihenfolge steht in `Board.SortOrder`, wird von `BoardService.ReorderBoardsAsync` in einem Zug
+geschrieben und von `GetBoardsAsync`/`CompareRows` zuerst gelesen — sie überlebt also den Neustart.
+Offen: andere Sortierschlüssel (Name, angelegt am) und eine Gruppierung. Ein Board, das vor 0.5.4
+angelegt wurde, hat `SortOrder == 0` und fällt auf „letzte Änderung" zurück.
 
 ## Future cool Stuff
 
-Auf der Liste bleiben alle 15 Karten — keine ist ganz erledigt: elf sind offen, vier teilweise.
-
-### Future 1 (Karte 1) – Formerkennung · **teilweise**
-
-> Shape recognition – draw & hold makes lines, rectangles/squares, circles/ellipses; hold & drag to
-> resize; maybe just straight lines for the beginning.
-
-Erledigt: Zeichnen und kurz halten macht die Form daraus — Linie, Rechteck/Quadrat, Kreis/Ellipse
-(`Penban.Recognition/ShapeRecognizer.cs`, gehalten wird 700 ms in `SkiaInkCanvasView.StartShapeHold`;
-Schalter „Linie, Rechteck und Ellipse nach kurzem Halten begradigen" in den Einstellungen,
-`Draw.ShapeRecognitionEnabled`). Die Form wird in denselben Strich geschrieben und ist damit ein
-einziger Rückgängig-Schritt. Dazu das Lassowerkzeug, das man aus derselben Karte heraus mitlesen kann
-(siehe unten). Offen: **halten und dann ziehen**, um die Form zu vergrößern oder zu verkleinern — der
-Teil von „hold & drag to resize". Nach dem Halten ist die Form fertig; verschieben lässt sie sich
-über das Lasso.
-
-Was die Erkennung leistet und wo ihre Grenzen liegen (rundes Rechteck und Stadion werden zur Ellipse,
-„C" und Dreieck bleiben Striche): [docs/lasso-und-formen.md](lasso-und-formen.md).
+Auf der Liste bleiben 14 der 15 Karten: Future 1 ist erledigt und steht unten unter „Nicht mehr auf der
+Liste", elf sind offen, drei teilweise.
 
 ### Future 2 (Karte 2) – Board-Tags · **offen**
 
@@ -78,8 +70,9 @@ Tags gibt es nur auf Karten (Emoji, bis vier), und der Filter im Board-Kopf filt
 > Widget with multiple boards – select by tag & last edited → probably wait for board tags.
 
 Erledigt: Jedes Widget wählt sein Board selbst, im Konfigurationsblatt aus der Liste
-(`PenbanBoardIntent`/`PenbanBoardQuery`, `Penban.Widget.iOS/Sources/`); ein langer Druck auf eine
-Boardkarte in der Übersicht stellt dieses Board nach vorn und macht es zum Vorschlag (0.5.0).
+(`PenbanBoardIntent`/`PenbanBoardQuery`, `Penban.Widget.iOS/Sources/`). Der frühere lange Druck auf
+eine Boardkarte (0.5.0), der das Board als Vorschlag nach vorn stellte, ist in #37 wieder entfernt
+worden — er hat den langen Druck belegt, den das Umsortieren per Drag & Drop braucht.
 Offen: die Auswahl nach Tag und nach „zuletzt geändert" — beides braucht die Board-Tags
 (Future 2).
 
@@ -197,6 +190,7 @@ Erledigt und deshalb aus der Liste gestrichen:
 | QoL 5 – „Clear card button in toolbar" | Der Knopf ist da: `ClearButton` mit `ClearNote` in der Zeichenleiste (`CardInkEditorPage.xaml:84`), löscht die Tinte einer Notiz in einem Schritt. |
 | QoL 7 – „Add pen pressure toggle to card draw toolbar" | Der Schalter sitzt als Knopf in der Leiste (`PressureButton`, `OnPressureClicked`, Glyph `InkStrokeArrowUpDown`) und zeigt zwei Texte, `PressureWidthOn`/`PressureWidthOff` (PR #48). |
 | QoL 8 – „Scroll to board after exiting to main menu" | Die Übersicht rollt beim Zurückkommen zum zuletzt geöffneten Board (`BoardsPage.xaml.cs:95/169`, `ScrollToLastOpenedBoard`, ohne Animation). |
+| Future 1 – „Shape recognition" | Zeichnen und kurz halten macht die Form daraus, und der noch aufgesetzte Stift zieht sie anschließend in ihre Größe („hold & drag to resize", 0.5.4). Erkannt werden Linie, Rechteck/Quadrat, Kreis/Ellipse sowie Dreieck, Fünfeck und Sechseck — die Vielecke sind für die Chemie da. Gehalten wird mit **aufgesetztem** Stift 700 ms ohne Bewegung (`SkiaInkCanvasView.StartShapeHold`); jeder weitere Punkt startet die Wartezeit neu, deshalb wird aus einem „o" oder einer „8" nie eine Form. Gezogen wird um die Ecke der Box, die dem Stift gegenüberliegt, ein Kreis wird dabei zur Ellipse; bei der Linie folgt der zweite Punkt dem Stift. Die Form wird in denselben Strich geschrieben und ist ein einziger Rückgängig-Schritt. Schalter „Linie, Rechteck und Ellipse nach kurzem Halten begradigen" (`Draw.ShapeRecognitionEnabled`). Alles Weitere in [docs/lasso-und-formen.md](lasso-und-formen.md). |
 | Future 3, Teil 1 – Board pro Widget | Jedes Widget hat seine eigene Board-Auswahl (`PenbanBoardIntent`); der lange Druck in der Übersicht ist nur noch der Vorschlag. |
 | Future 5, Teil 1 – Karten-Pins als Tags | Emoji-Tags auf Karten (bis vier) samt Filter im Board-Kopf (0.5.0). |
 | Future 6, Teil 1 – Textsuche und Tag-Filter | Beides im Board-Kopf (0.5.0, Suche über den gelesenen Notiztext). |

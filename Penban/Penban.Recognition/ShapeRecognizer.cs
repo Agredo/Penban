@@ -13,17 +13,43 @@ public enum InkShape
 
     /// <summary>A closed round shape - a circle when it came out as wide as it is tall.</summary>
     Ellipse,
+
+    /// <summary>A closed three-cornered shape - the ring a three-membered molecule is drawn as.</summary>
+    Triangle,
+
+    /// <summary>A closed five-cornered shape - the ring a five-membered molecule is drawn as.</summary>
+    Pentagon,
+
+    /// <summary>A closed six-cornered shape - the ring a six-membered molecule, benzene above all, is
+    /// drawn as.</summary>
+    Hexagon,
 }
 
 /// <summary>What a stroke was read as, together with the points the shape is drawn from.</summary>
 /// <param name="Shape">The shape itself, which the note stores nothing about - only the points are.</param>
 /// <param name="Points">The stroke's points as the shape sees them, in <see cref="InkDocument"/> units.</param>
-public sealed record RecognizedShape(InkShape Shape, IReadOnlyList<InkPoint> Points);
+public sealed record RecognizedShape(InkShape Shape, IReadOnlyList<InkPoint> Points)
+{
+    /// <summary>
+    /// How far the shape was turned to be read, in radians, and therefore how far its points have been
+    /// turned back to sit in the note's own frame. Zero for every shape that was read upright, which is
+    /// every line, and for the closed shapes that were drawn upright to begin with.
+    /// <para>
+    /// A shape that is scaled has to be scaled in the frame it was read in: its box is only the shape's
+    /// own box there. Pulling an upright box around a slanted rectangle shears it into a parallelogram
+    /// instead of resizing it.
+    /// </para>
+    /// </summary>
+    public float Angle { get; init; }
+}
 
 /// <summary>
-/// Reads a freehand stroke as one of the shapes a note is drawn from: a line, a rectangle or an
-/// ellipse. Square and circle are those same two shapes with equal sides, so a square is not a thing
-/// of its own here - a rectangle that came out as wide as it is tall simply is one.
+/// Reads a freehand stroke as one of the shapes a note is drawn from: a line, a rectangle, an ellipse,
+/// or a ring of three, five or six corners. Square and circle are those same two shapes with equal
+/// sides, so a square is not a thing of its own here - a rectangle that came out as wide as it is tall
+/// simply is one. The rings are the shapes a molecule is drawn as, and they are the only ones here that
+/// are counted rather than measured: three, five and six are what a ring can be drawn as and still be
+/// told from the round shapes it would otherwise be taken for.
 /// <para>
 /// Everything is measured against the box the stroke covers rather than against an ideal drawn from
 /// the ends of the stroke, because that is what makes a hand-drawn shape read the same as a carefully
@@ -130,6 +156,43 @@ public static class ShapeRecognizer
     private const float TrimShare = 0.12f;
 
     /// <summary>
+    /// How many corners a stroke may be read as having, in the order they are tried. Three, five and
+    /// six are the rings a molecule is drawn as; four is left out because a four-cornered stroke is a
+    /// rectangle, and it is read as one from its box rather than from where its corners came out.
+    /// </summary>
+    private static readonly int[] PolygonSides = [3, 5, 6];
+
+    /// <summary>How many times the corners of a ring are looked for again before they are taken as they
+    /// came out - see <see cref="TrySides"/>. Two rounds are enough to settle a shape drawn by hand;
+    /// the rounds after them change nothing and are there for the ones that do not settle.</summary>
+    private const int CornerRounds = 4;
+
+    /// <summary>
+    /// How far apart two corners of a ring have to sit, as a share of the angle one side of it covers.
+    /// Two corners closer together than this are not two corners but one the stroke wandered around,
+    /// and a shape built from them would have a side of no length in it.
+    /// </summary>
+    private const float CornerSeparation = 0.5f;
+
+    /// <summary>
+    /// How far along the stroke either side of a corner the corner is measured over, as a share of the
+    /// side of the ring it belongs to. Measured over the stroke rather than over the corners, because
+    /// what is being asked is whether the stroke turns there at all.
+    /// </summary>
+    private const float CornerReach = 0.15f;
+
+    /// <summary>
+    /// How far a corner has to stand out of the straight line between the two points the reach either
+    /// side of it lands on, as a share of that reach, before it counts as a corner at all. A corner of
+    /// a ring drawn by hand stands out by about half the reach - cos of half the angle it turns, which
+    /// is 0.5 for the 120 degrees of a hexagon and 0.87 for the 60 of a triangle. The same place on a
+    /// circle stands out by the sagitta of an arc, a twentieth of the reach and less. This is what
+    /// tells a hexagon from the ellipse it would otherwise be read as, and it is the one test here that
+    /// a round stroke cannot pass.
+    /// </summary>
+    private const float CornerSharpness = 0.22f;
+
+    /// <summary>
     /// Reads <paramref name="points"/> as a shape, or returns <c>null</c> when they are none of them.
     /// The points are the ones a stroke is made of, in <see cref="InkDocument"/> units, and the ones
     /// that come back are what the stroke is to be drawn from instead - the shape itself is not
@@ -203,25 +266,40 @@ public static class ShapeRecognizer
         var polygon = TouchesCorners(turned, box);
         RecognizedShape? found = null;
 
-        // The ellipse before the rectangle because the two overlap everywhere else: a circle drawn
-        // with flat sides and a rectangle drawn with rounded corners are the same stroke, and the
-        // ellipse is the reading that keeps the stroke's roundness. Only a stroke that was drawn with
-        // corners - which the ellipse test would flatten, sides and all - is asked for the rectangle
-        // first.
-        if ((!polygon && TryEllipse(turned, box, out found)) || TryRectangle(turned, box, out found))
+        // The rings of three, five and six corners come before the two round shapes, and a hexagon is
+        // the reason: its corners sit only a seventh of its radius outside the ellipse of its box, so
+        // it passes for one and would never be found if the ellipse were asked first. Nothing round
+        // can be taken for a ring in its place, because a ring is only read from a stroke that turns a
+        // corner at every one of its corners - see TryPolygon.
+        if (!TryPolygon(turned, box, out found))
         {
-            if (found is null)
+            // The ellipse before the rectangle because the two overlap everywhere else: a circle drawn
+            // with flat sides and a rectangle drawn with rounded corners are the same stroke, and the
+            // ellipse is the reading that keeps the stroke's roundness. Only a stroke that was drawn
+            // with corners - which the ellipse test would flatten, sides and all - is asked for the
+            // rectangle first.
+            var rounded = !polygon && TryEllipse(turned, box, out found);
+
+            if (!rounded && !TryRectangle(turned, box, out found))
             {
-                shape = null;
                 return false;
             }
-
-            shape = angle == 0f ? found : found with { Points = Turned(found.Points, -angle) };
-            return true;
         }
 
-        shape = null;
-        return false;
+        if (found is null)
+        {
+            return false;
+        }
+
+        // The shape was read in the frame the stroke sits most squarely in, and what the stroke is
+        // drawn from has to sit in the note's own frame again. Which frame that was is kept on the
+        // shape, because scaling one has to happen in the frame it was read in: pulling an upright box
+        // around a slanted rectangle shears it into a parallelogram.
+        shape = angle == 0f
+            ? found
+            : found with { Points = Turned(found.Points, -angle), Angle = angle };
+
+        return true;
     }
 
     private static bool TryLine(IReadOnlyList<InkPoint> points, out RecognizedShape? shape)
@@ -363,6 +441,341 @@ public static class ShapeRecognizer
             ]);
 
         return true;
+    }
+
+    /// <summary>
+    /// Whether a closed stroke is a ring of three, five or six corners.
+    /// <para>
+    /// The corners are not looked for by their angles, which a stroke drawn by hand never holds: they
+    /// are found by how far out they sit. Seen from the middle of a closed shape, the distance to the
+    /// stroke grows towards every corner and shrinks again along every side - no point between two
+    /// corners can be further out than the corners themselves, whatever shape the ring has. So the
+    /// stroke is cut into as many shares of the circle as the ring has corners, and the point furthest
+    /// out in each share is one of them.
+    /// </para>
+    /// <para>
+    /// What comes out of that is then asked for everything a ring has to be: every corner turned the
+    /// same way round, every point of the stroke near one of the sides, and every corner a corner the
+    /// stroke actually turns at rather than a point on a round stroke that a share happened to land on.
+    /// The last of those is what keeps a circle from being read as a hexagon, which is the one mistake
+    /// that would be made here otherwise - see <see cref="CornerSharpness"/>.
+    /// </para>
+    /// </summary>
+    private static bool TryPolygon(IReadOnlyList<InkPoint> points, InkBounds box, out RecognizedShape? shape)
+    {
+        shape = null;
+
+        // A ring of any of the three sizes covers most of the box it was drawn in, so a stroke that is
+        // flat in one direction is none of them - and the shares below would be cut across nothing.
+        if (MathF.Min(box.Width, box.Height) < MinimumExtent)
+        {
+            return false;
+        }
+
+        var centerX = box.MinX + (box.Width / 2f);
+        var centerY = box.MinY + (box.Height / 2f);
+
+        // Where every point sits as seen from the middle of the box, and how far out it is.
+        var angles = new float[points.Count];
+        var radii = new float[points.Count];
+
+        for (var i = 0; i < points.Count; i++)
+        {
+            var dx = points[i].X - centerX;
+            var dy = points[i].Y - centerY;
+            radii[i] = MathF.Sqrt((dx * dx) + (dy * dy));
+            angles[i] = MathF.Atan2(dy, dx);
+        }
+
+        // The point furthest out is one of the corners, and the middle of the box the middle the
+        // corners are seen from.
+        foreach (var sides in PolygonSides)
+        {
+            if (TrySides(points, angles, radii, sides, box, out shape))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether the stroke is a ring of <paramref name="sides"/> corners, given where each of its points
+    /// sits around the middle and how far out it is.
+    /// </summary>
+    private static bool TrySides(
+        IReadOnlyList<InkPoint> points,
+        float[] angles,
+        float[] radii,
+        int sides,
+        InkBounds box,
+        out RecognizedShape? shape)
+    {
+        shape = null;
+
+        var span = (2f * MathF.PI) / sides;
+
+        // The corners are the points furthest out. The distance to a closed stroke, seen from the
+        // middle of it, grows towards every corner and falls away along the sides next to it, so a
+        // corner is a point nothing else on the stroke stands further out than - and the corner count
+        // is the count of those. They are taken from the furthest out inwards, and a point that close
+        // to a corner already taken is part of that corner rather than a corner of its own: a side of a
+        // ring drawn by hand bulges, and the bulge stands out nearly as far as a corner does.
+        var apart = span * CornerSeparation;
+        var corners = new List<int>(sides);
+
+        foreach (var i in Enumerable.Range(0, angles.Length).OrderByDescending(i => radii[i]))
+        {
+            if (corners.All(corner => MathF.Abs(Shortest(angles[i], angles[corner])) >= apart))
+            {
+                corners.Add(i);
+                if (corners.Count == sides)
+                {
+                    break;
+                }
+            }
+        }
+
+        // Fewer corners than the ring has means the stroke never went near one of its sides, so what
+        // was drawn is not a ring of this many corners.
+        if (corners.Count < sides)
+        {
+            return false;
+        }
+
+        // The corners in the order the stroke runs through them, which is the order the sides are
+        // walked in below.
+        var from = angles[corners[0]];
+        corners.Sort((a, b) => Wrapped(angles[a] - from).CompareTo(Wrapped(angles[b] - from)));
+
+        // A corner of a hand-drawn ring sits somewhere inside the run of points that belongs to it
+        // rather than exactly at the point furthest out, so every point is given to the corner it is
+        // nearest to around the middle, the furthest point of each of those groups is the corner again,
+        // and that is repeated until it settles.
+        var settled = corners.ToArray();
+
+        for (var round = 0; round < CornerRounds; round++)
+        {
+            var moved = new int[sides];
+            var furthest = new float[sides];
+
+            for (var corner = 0; corner < sides; corner++)
+            {
+                moved[corner] = -1;
+            }
+
+            for (var i = 0; i < angles.Length; i++)
+            {
+                var nearest = 0;
+                var closest = float.MaxValue;
+
+                for (var corner = 0; corner < sides; corner++)
+                {
+                    var gap = MathF.Abs(Shortest(angles[i], angles[settled[corner]]));
+                    if (gap < closest)
+                    {
+                        closest = gap;
+                        nearest = corner;
+                    }
+                }
+
+                if (moved[nearest] < 0 || radii[i] > furthest[nearest])
+                {
+                    furthest[nearest] = radii[i];
+                    moved[nearest] = i;
+                }
+            }
+
+            // A round that left a corner with no point of its own has nothing to say about where the
+            // corners are, so the round before it stands.
+            if (moved.Any(corner => corner < 0))
+            {
+                break;
+            }
+
+            settled = moved;
+        }
+
+        corners.Clear();
+        corners.AddRange(settled);
+
+        // Two corners on top of each other are one corner the stroke wandered around, not two.
+        for (var corner = 0; corner < sides; corner++)
+        {
+            var next = (corner + 1) % sides;
+            if (MathF.Abs(Shortest(angles[corners[next]], angles[corners[corner]])) < span * CornerSeparation)
+            {
+                return false;
+            }
+        }
+
+        var vertices = new InkPoint[sides];
+        for (var corner = 0; corner < sides; corner++)
+        {
+            vertices[corner] = points[corners[corner]];
+        }
+
+        // Every corner has to turn the same way round: a ring with a bite taken out of it turns one way
+        // at its own corners and the other way at the bite.
+        var turn = 0;
+        for (var corner = 0; corner < sides; corner++)
+        {
+            var a = vertices[corner];
+            var b = vertices[(corner + 1) % sides];
+            var c = vertices[(corner + 2) % sides];
+            var cross = ((b.X - a.X) * (c.Y - b.Y)) - ((b.Y - a.Y) * (c.X - b.X));
+
+            if (cross == 0f)
+            {
+                return false;
+            }
+
+            var way = cross > 0f ? 1 : -1;
+            if (turn == 0)
+            {
+                turn = way;
+            }
+            else if (turn != way)
+            {
+                return false;
+            }
+        }
+
+        // Every point of the stroke has to be near one of the sides. This is what rules out the shapes
+        // the corners alone would let through: a square read as a triangle has one corner standing in
+        // the middle of it, and a pentagon read as a hexagon has a corner no side comes near.
+        var tolerance = MathF.Min(box.Width, box.Height) * EdgeTolerance;
+        foreach (var point in points)
+        {
+            var nearest = float.MaxValue;
+            for (var corner = 0; corner < sides; corner++)
+            {
+                nearest = MathF.Min(
+                    nearest,
+                    DistanceToSegment(point.X, point.Y, vertices[corner], vertices[(corner + 1) % sides]));
+            }
+
+            if (nearest > tolerance)
+            {
+                return false;
+            }
+        }
+
+        // And every corner has to be a corner the stroke turns at, measured over the stroke itself
+        // rather than over the corners: the points a reach either side of it, and how far the corner
+        // stands out of the line between them.
+        var perimeter = 0f;
+        for (var corner = 0; corner < sides; corner++)
+        {
+            perimeter += Between(vertices[corner], vertices[(corner + 1) % sides]);
+        }
+
+        var reach = perimeter / sides * CornerReach;
+        for (var corner = 0; corner < sides; corner++)
+        {
+            var at = corners[corner];
+            var before = Reached(points, at, reach, -1);
+            var after = Reached(points, at, reach, 1);
+
+            if (before < 0 || after < 0)
+            {
+                return false;
+            }
+
+            if (DistanceToSegment(points[at].X, points[at].Y, points[before], points[after]) < reach * CornerSharpness)
+            {
+                return false;
+            }
+        }
+
+        // The corners and back to the first one, so the shape is a closed loop the way the stroke was -
+        // the same shape a rectangle is written as, see TryRectangle.
+        var pressure = AveragePressure(points);
+        var tick = points[0].TimestampMs;
+        var generated = new List<InkPoint>(sides + 1);
+
+        for (var corner = 0; corner < sides; corner++)
+        {
+            generated.Add(With(points[0], vertices[corner].X, vertices[corner].Y, pressure, tick + corner));
+        }
+
+        generated.Add(With(points[0], vertices[0].X, vertices[0].Y, pressure, tick + sides));
+
+        shape = new RecognizedShape(
+            sides switch
+            {
+                3 => InkShape.Triangle,
+                5 => InkShape.Pentagon,
+                _ => InkShape.Hexagon,
+            },
+            generated);
+
+        return true;
+    }
+
+    /// <summary>
+    /// The point a <paramref name="reach"/> along the stroke from <paramref name="from"/>, walking
+    /// towards its start or its end. The stroke is a closed shape, so the walk carries on from one end
+    /// of it to the other. <c>-1</c> when the walk came all the way back round to where it began, which
+    /// means the stroke is shorter than the reach asked for.
+    /// </summary>
+    private static int Reached(IReadOnlyList<InkPoint> points, int from, float reach, int step)
+    {
+        var walked = 0f;
+        var at = from;
+
+        for (var taken = 0; taken < points.Count; taken++)
+        {
+            var next = at + step;
+            if (next < 0)
+            {
+                next = points.Count - 1;
+            }
+            else if (next >= points.Count)
+            {
+                next = 0;
+            }
+
+            if (next == from)
+            {
+                return -1;
+            }
+
+            walked += Between(points[at], points[next]);
+            if (walked >= reach)
+            {
+                return next;
+            }
+
+            at = next;
+        }
+
+        return -1;
+    }
+
+    /// <summary>The distance between two points.</summary>
+    private static float Between(InkPoint from, InkPoint to)
+    {
+        var dx = to.X - from.X;
+        var dy = to.Y - from.Y;
+        return MathF.Sqrt((dx * dx) + (dy * dy));
+    }
+
+    /// <summary>The angle <paramref name="angle"/> turned back to sit within one whole turn of
+    /// <paramref name="from"/>, in [0, 2π).</summary>
+    private static float Wrapped(float angle, float from = 0f)
+    {
+        var turned = (angle - from) % (2f * MathF.PI);
+        return turned < 0f ? turned + (2f * MathF.PI) : turned;
+    }
+
+    /// <summary>The shortest way round from <paramref name="from"/> to <paramref name="angle"/>, in
+    /// (-π, π] - how far apart the two are, whichever way round they are nearer.</summary>
+    private static float Shortest(float angle, float from)
+    {
+        var turned = Wrapped(angle, from);
+        return turned > MathF.PI ? turned - (2f * MathF.PI) : turned;
     }
 
     /// <summary>
@@ -519,7 +932,7 @@ public static class ShapeRecognizer
     }
 
     /// <summary>The points turned about the origin by <paramref name="angle"/> radians.</summary>
-    private static List<InkPoint> Turned(IReadOnlyList<InkPoint> points, float angle)
+    internal static List<InkPoint> Turned(IReadOnlyList<InkPoint> points, float angle)
     {
         var sin = MathF.Sin(angle);
         var cos = MathF.Cos(angle);
@@ -572,7 +985,7 @@ public static class ShapeRecognizer
     /// the box of its corners. It may be flat in one direction - the shape of a line - which every
     /// caller below has to be able to live with.
     /// </summary>
-    private static InkBounds Box(IReadOnlyList<InkPoint> points)
+    internal static InkBounds Box(IReadOnlyList<InkPoint> points)
     {
         var minX = float.MaxValue;
         var minY = float.MaxValue;
@@ -621,7 +1034,7 @@ public static class ShapeRecognizer
     /// a leaning pen keeps the width a leaning pen gives it, so straightening a line does not make it
     /// thinner than the strokes around it.
     /// </summary>
-    private static InkPoint With(InkPoint reference, float x, float y, float pressure, long timestamp) => new()
+    internal static InkPoint With(InkPoint reference, float x, float y, float pressure, long timestamp) => new()
     {
         X = x,
         Y = y,

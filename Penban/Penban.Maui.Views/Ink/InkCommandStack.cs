@@ -111,6 +111,13 @@ public sealed class InkCommandStack
     /// <summary>
     /// Records strokes that have just been carried somewhere else. The strokes stay in the set, so
     /// only their points are written back on undo and redo.
+    /// <para>
+    /// A move of a stroke that is not in the set any more is dropped rather than recorded. It would
+    /// carry no points anywhere - undo would write the points of a stroke that is not on the note -
+    /// and it would still take a step of the history, which is a step the caller has nothing to show
+    /// for: one undo that appears to do nothing, and one more that winds back further than expected.
+    /// A move only ever means something for a stroke the note still holds.
+    /// </para>
     /// </summary>
     public void RecordMoved(IReadOnlyList<InkStrokeMove> moves)
     {
@@ -119,7 +126,13 @@ public sealed class InkCommandStack
             return;
         }
 
-        Push(new InkEdit(InkEditKind.Moved, [], moves.ToList()));
+        var carried = moves.Where(move => strokes.Contains(move.Stroke)).ToList();
+        if (carried.Count == 0)
+        {
+            return;
+        }
+
+        Push(new InkEdit(InkEditKind.Moved, [], carried));
     }
 
     /// <summary>
@@ -196,11 +209,18 @@ public sealed class InkCommandStack
     private void Apply(InkEdit edit, bool forward)
     {
         // A move leaves the set alone; only the points of the strokes that were carried change
-        // place, and which set of points that is depends on the direction.
+        // place, and which set of points that is depends on the direction. A stroke that is not in
+        // the set any more is passed over: it is not on the note to be given back its old points, and
+        // writing them into it would be a change nothing can be seen of and nothing can take back.
         if (edit.Kind == InkEditKind.Moved)
         {
             foreach (var move in edit.Moves)
             {
+                if (!strokes.Contains(move.Stroke))
+                {
+                    continue;
+                }
+
                 move.Stroke.Points = (forward ? move.After : move.Before).ToList();
             }
 

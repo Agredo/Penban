@@ -31,9 +31,9 @@ public sealed class WidgetSnapshot
     public DateTimeOffset UpdatedAtUtc { get; set; }
 
     /// <summary>
-    /// The board a widget placed from the overview should start on, as picked by holding down a board
-    /// card - null when none was picked. Part of the fingerprint: the widget has to be asked to draw
-    /// again when the wish changes, even though no board did.
+    /// The board a widget placed from the overview should start on - null when none was picked. Part
+    /// of the fingerprint: the widget has to be asked to draw again when the wish changes, even though
+    /// no board did. Nothing writes it any more, so it stays null; see <see cref="WidgetPreferredBoard"/>.
     /// </summary>
     public Guid? PreferredBoardId { get; set; }
 
