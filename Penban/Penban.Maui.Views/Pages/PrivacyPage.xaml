@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             x:Class="Penban.Maui.Views.Pages.PrivacyPage"
+             Title="{markup:Translate PrivacyTitle}"
+             Shell.NavBarIsVisible="False"
+             Style="{StaticResource AppPage}">
+    <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
+
+        <!-- Own header instead of the Shell nav bar, like every other page in the app. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+            <Button Grid.Column="0"
+                    Text="&#xf15c;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnBackClicked"
+                    SemanticProperties.Description="{markup:Translate PrivacyTitle}" />
+            <Label Grid.Column="1"
+                   Text="{markup:Translate PrivacyTitle}"
+                   Style="{StaticResource TitleLabel}"
+                   VerticalOptions="Center" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="12">
+
+                <Label Text="{markup:Translate PrivacyIntro}"
+                       Style="{StaticResource CaptionLabel}" />
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate PrivacyLocalTitle}"
+                               Style="{StaticResource SubtitleLabel}" />
+                        <Label Text="{markup:Translate PrivacyLocalBody}"
+                               Style="{StaticResource BodyLabel}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate PrivacyRecognitionTitle}"
+                               Style="{StaticResource SubtitleLabel}" />
+                        <Label Text="{markup:Translate PrivacyRecognitionBody}"
+                               Style="{StaticResource BodyLabel}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate PrivacyFeedbackTitle}"
+                               Style="{StaticResource SubtitleLabel}" />
+                        <Label Text="{markup:Translate PrivacyFeedbackBody}"
+                               Style="{StaticResource BodyLabel}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate PrivacyWidgetTitle}"
+                               Style="{StaticResource SubtitleLabel}" />
+                        <Label Text="{markup:Translate PrivacyWidgetBody}"
+                               Style="{StaticResource BodyLabel}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate PrivacyDeleteTitle}"
+                               Style="{StaticResource SubtitleLabel}" />
+                        <Label Text="{markup:Translate PrivacyDeleteBody}"
+                               Style="{StaticResource BodyLabel}" />
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

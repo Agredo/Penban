@@ -88,9 +88,6 @@
   <data name="Language" xml:space="preserve">
     <value>Sprache</value>
   </data>
-  <data name="InkRenderer" xml:space="preserve">
-    <value>Zeichen-Engine</value>
-  </data>
   <data name="Delete" xml:space="preserve">
     <value>Löschen</value>
   </data>
@@ -189,12 +186,6 @@
   </data>
   <data name="SettingsBoardSection" xml:space="preserve">
     <value>Board</value>
-  </data>
-  <data name="InkRendererSkia" xml:space="preserve">
-    <value>Skia (Stiftdruck)</value>
-  </data>
-  <data name="InkRendererToolkit" xml:space="preserve">
-    <value>DrawingView (einfach)</value>
   </data>
   <data name="AllowFingerDrawing" xml:space="preserve">
     <value>Mit dem Finger zeichnen</value>
@@ -519,5 +510,116 @@
   </data>
   <data name="RecognitionIndexDoneFormat" xml:space="preserve">
     <value>{0} Notizen sind jetzt durchsuchbar.</value>
+  </data>
+  <data name="HelpTitle" xml:space="preserve">
+    <value>Hilfe</value>
+  </data>
+  <data name="HelpSubtitle" xml:space="preserve">
+    <value>Das Wichtigste in Kürze.</value>
+  </data>
+  <data name="HelpDrawTitle" xml:space="preserve">
+    <value>Schreiben und zeichnen</value>
+  </data>
+  <data name="HelpDrawBody" xml:space="preserve">
+    <value>Mit Stift oder Finger direkt auf eine Karte schreiben. Die Leiste unten wechselt zwischen Stift und Textfeld und stellt Farbe, Stärke und Radierer ein.</value>
+  </data>
+  <data name="HelpLassoTitle" xml:space="preserve">
+    <value>Auswahl verschieben</value>
+  </data>
+  <data name="HelpLassoBody" xml:space="preserve">
+    <value>In der Leiste das Lasso einschalten und mit dem Stift eine Schleife um die Striche ziehen. Aufgenommen wird nur, was ganz innerhalb der Schleife liegt. Die Auswahl lässt sich ziehen; ein Tipp daneben legt sie ab, ohne einen Punkt zu malen. Auf Windows schaltet auch die Taste am Stift das Lasso ein, auf dem iPad ein Doppeltipp auf den Apple Pencil.</value>
+  </data>
+  <data name="HelpShapeTitle" xml:space="preserve">
+    <value>Formen</value>
+  </data>
+  <data name="HelpShapeBody" xml:space="preserve">
+    <value>Den Stift nach dem Zeichnen kurz still halten, dann wird der Strich zu einer geraden Linie, einem Rechteck, Dreieck, Kreis oder Pfeil.</value>
+  </data>
+  <data name="HelpTextTitle" xml:space="preserve">
+    <value>Tippen statt schreiben</value>
+  </data>
+  <data name="HelpTextBody" xml:space="preserve">
+    <value>In der Leiste auf das Textfeld wechseln. Getippte Notizen haben eine Überschrift und einen Text und werden von derselben Suche gefunden wie geschriebene.</value>
+  </data>
+  <data name="HelpSearchTitle" xml:space="preserve">
+    <value>Suchen</value>
+  </data>
+  <data name="HelpSearchBody" xml:space="preserve">
+    <value>Die Lupe in der Board-Übersicht findet Wörter in allen Notizen. Handschrift wird auf dem Gerät gelesen, ohne Netz und ohne Konto. Notizen von früher einmal unter Einstellungen, Suche, „Jetzt lesen“ einlesen lassen.</value>
+  </data>
+  <data name="HelpBoardsTitle" xml:space="preserve">
+    <value>Boards</value>
+  </data>
+  <data name="HelpBoardsBody" xml:space="preserve">
+    <value>Über das Plus ein neues Board anlegen. Ein Board lässt sich ziehen und so umsortieren; das Stiftsymbol darauf benennt es um.</value>
+  </data>
+  <data name="HelpBackupTitle" xml:space="preserve">
+    <value>Sichern</value>
+  </data>
+  <data name="HelpBackupBody" xml:space="preserve">
+    <value>Über Export / Import oben in der Board-Übersicht lässt sich alles in einer Datei sichern und später wieder einlesen.</value>
+  </data>
+  <data name="PrivacyTitle" xml:space="preserve">
+    <value>Datenschutz</value>
+  </data>
+  <data name="PrivacyIntro" xml:space="preserve">
+    <value>Penban sammelt nichts über dich: kein Konto, keine Analyse, keine Werbung.</value>
+  </data>
+  <data name="PrivacyLocalTitle" xml:space="preserve">
+    <value>Was auf dem Gerät bleibt</value>
+  </data>
+  <data name="PrivacyLocalBody" xml:space="preserve">
+    <value>Boards, Karten, Striche, getippte Notizen und erkannter Text liegen in einer Datenbank im App-Ordner des Geräts. Es gibt keinen Server, auf dem sie liegen könnten.</value>
+  </data>
+  <data name="PrivacyRecognitionTitle" xml:space="preserve">
+    <value>Texterkennung</value>
+  </data>
+  <data name="PrivacyRecognitionBody" xml:space="preserve">
+    <value>Handschrift wird vollständig auf dem Gerät gelesen. Die Striche und der erkannte Text verlassen das Gerät dabei nicht.</value>
+  </data>
+  <data name="PrivacyFeedbackTitle" xml:space="preserve">
+    <value>Feedback senden</value>
+  </data>
+  <data name="PrivacyFeedbackBody" xml:space="preserve">
+    <value>Nur das Feedback-Formular schickt etwas nach außen, und nur wenn du es abschickst: Kategorie, dein Text, eine freiwillige E-Mail-Adresse und die App-Version gehen an BugBear. Ohne Absenden passiert nichts.</value>
+  </data>
+  <data name="PrivacyWidgetTitle" xml:space="preserve">
+    <value>Widget (iOS)</value>
+  </data>
+  <data name="PrivacyWidgetBody" xml:space="preserve">
+    <value>Das Widget auf dem Home-Bildschirm zeigt eine Momentaufnahme der Board-Übersicht. Sie liegt im gemeinsamen Speicher von App und Widget auf dem Gerät.</value>
+  </data>
+  <data name="PrivacyDeleteTitle" xml:space="preserve">
+    <value>Löschen</value>
+  </data>
+  <data name="PrivacyDeleteBody" xml:space="preserve">
+    <value>Ein gelöschtes Board ist mit seinen Notizen weg. Beim Löschen der App werden alle Daten mit entfernt.</value>
+  </data>
+  <data name="AboutTitle" xml:space="preserve">
+    <value>Über Penban</value>
+  </data>
+  <data name="AboutVersionFormat" xml:space="preserve">
+    <value>Version {0} · Build {1}</value>
+  </data>
+  <data name="AboutLegalSection" xml:space="preserve">
+    <value>Rechtliches</value>
+  </data>
+  <data name="AboutCopyright" xml:space="preserve">
+    <value>© Penban. Alle Rechte vorbehalten.</value>
+  </data>
+  <data name="AboutLicenseNote" xml:space="preserve">
+    <value>Die App enthält die unten aufgeführten Komponenten von Drittanbietern. Für sie gelten die jeweils genannten Lizenzen.</value>
+  </data>
+  <data name="AboutLicensesSection" xml:space="preserve">
+    <value>Komponenten von Drittanbietern</value>
+  </data>
+  <data name="AboutLicenseSyncfusion" xml:space="preserve">
+    <value>Syncfusion Community License</value>
+  </data>
+  <data name="AboutContactSection" xml:space="preserve">
+    <value>Kontakt</value>
+  </data>
+  <data name="AboutContactBody" xml:space="preserve">
+    <value>Fragen, Ideen und Fehlerberichte sind willkommen. Am schnellsten gehen sie über das Feedback-Formular in den Einstellungen.</value>
   </data>
 </root>

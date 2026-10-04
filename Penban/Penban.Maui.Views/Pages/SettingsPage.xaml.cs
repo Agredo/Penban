@@ -1,3 +1,4 @@
+using Penban.Util;
 using Penban.ViewModels;
 
 namespace Penban.Maui.Views.Pages;
@@ -32,6 +33,10 @@ public partial class SettingsPage : ContentPage
 
         // Picks up changes made elsewhere, e.g. the inline finger-drawing toggle in the editor.
         viewModel.Refresh();
+
+        // A formatted string is not covered by the translate markup extension, so it is written here,
+        // where the language and the version are both known to be current.
+        VersionLabel.Text = string.Format(Strings.AboutVersionFormat, AppVersion.Display, AppVersion.Build);
     }
 
     private async void OnBackClicked(object? sender, EventArgs e)
@@ -45,10 +50,32 @@ public partial class SettingsPage : ContentPage
         await Navigation.PopAsync();
     }
 
+    private async void OnHelpClicked(object? sender, TappedEventArgs e)
+    {
+        await PushAsync(new HelpPage());
+    }
+
+    private async void OnPrivacyClicked(object? sender, TappedEventArgs e)
+    {
+        await PushAsync(new PrivacyPage());
+    }
+
+    private async void OnAboutClicked(object? sender, TappedEventArgs e)
+    {
+        await PushAsync(new AboutPage());
+    }
+
     private async void OnFeedbackClicked(object? sender, TappedEventArgs e)
     {
-        var page = new FeedbackPage(feedbackViewModel);
+        await PushAsync(new FeedbackPage(feedbackViewModel));
+    }
 
+    /// <summary>
+    /// Opens a page on top of this one, going through the modal stack while this page is modal: the
+    /// window's own stack refuses a push in that state.
+    /// </summary>
+    private async Task PushAsync(ContentPage page)
+    {
         if (IsModal)
         {
             await Navigation.PushModalAsync(page);

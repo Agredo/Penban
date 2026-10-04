@@ -1,8 +1,9 @@
-﻿using CommunityToolkit.Maui;
+using CommunityToolkit.Maui;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Penban.Data;
 using Penban.Maui.Services;
+using Penban.Maui.Views;
 using Penban.Maui.Views.Pages;
 #if IOS
 using System.Diagnostics;
@@ -112,7 +113,7 @@ public static class MauiProgram
         services.AddSingleton<WidgetBoardLink>();
 
         // The version travels with every piece of feedback, so the report can be matched to a build.
-        services.AddSingleton<IFeedbackService>(_ => new FeedbackService(GetDisplayVersion()));
+        services.AddSingleton<IFeedbackService>(_ => new FeedbackService(AppVersion.Display));
     }
 
     private static void RegisterPages(IServiceCollection services)
@@ -171,20 +172,4 @@ public static class MauiProgram
         }
     }
 #endif
-
-    /// <summary>
-    /// The version as shown to the user. The package version carries trailing zeros nobody set
-    /// ("1.0.0.0"), so those are dropped; the first part always stays.
-    /// </summary>
-    private static string GetDisplayVersion()
-    {
-        var parts = AppInfo.Current.VersionString.Split('.');
-        var last = parts.Length - 1;
-        while (last > 0 && parts[last] == "0")
-        {
-            last--;
-        }
-
-        return string.Join('.', parts, 0, last + 1);
-    }
 }

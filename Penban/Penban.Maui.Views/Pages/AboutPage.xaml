@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             x:Class="Penban.Maui.Views.Pages.AboutPage"
+             Title="{markup:Translate AboutTitle}"
+             Shell.NavBarIsVisible="False"
+             Style="{StaticResource AppPage}">
+    <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
+
+        <!-- Own header instead of the Shell nav bar, like every other page in the app. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+            <Button Grid.Column="0"
+                    Text="&#xf15c;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnBackClicked"
+                    SemanticProperties.Description="{markup:Translate AboutTitle}" />
+            <Label Grid.Column="1"
+                   Text="{markup:Translate AboutTitle}"
+                   Style="{StaticResource TitleLabel}"
+                   VerticalOptions="Center" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="12">
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                        <Image Source="penban_logo.png"
+                               HeightRequest="64"
+                               HorizontalOptions="Center" />
+                        <Label Text="Penban"
+                               Style="{StaticResource TitleLabel}"
+                               HorizontalOptions="Center" />
+                        <!-- Filled in from AppVersion in OnAppearing, which is where the page picks up
+                             the current language as well. -->
+                        <Label x:Name="VersionLabel"
+                               Style="{StaticResource CaptionLabel}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="{markup:Translate AboutLegalSection}"
+                       Style="{StaticResource CaptionLabel}"
+                       Margin="0,6,0,0" />
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate AboutCopyright}"
+                               Style="{StaticResource BodyLabel}" />
+                        <Label Text="{markup:Translate AboutLicenseNote}"
+                               Style="{StaticResource CaptionLabel}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="{markup:Translate AboutLicensesSection}"
+                       Style="{StaticResource CaptionLabel}"
+                       Margin="0,6,0,0" />
+
+                <!-- Component and licence names are the same in every language, so this list is not
+                     localized; only the one licence that needs a word of its own goes through resx. -->
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <Grid ColumnDefinitions="*,Auto"
+                          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                          ColumnSpacing="12"
+                          RowSpacing="10">
+
+                        <Label Grid.Row="0" Grid.Column="0" Text=".NET MAUI" Style="{StaticResource BodyLabel}" />
+                        <Label Grid.Row="0" Grid.Column="1" Text="MIT" Style="{StaticResource CaptionLabel}" VerticalOptions="Center" />
+
+                        <Label Grid.Row="1" Grid.Column="0" Text="CommunityToolkit.Maui" Style="{StaticResource BodyLabel}" />
+                        <Label Grid.Row="1" Grid.Column="1" Text="MIT" Style="{StaticResource CaptionLabel}" VerticalOptions="Center" />
+
+                        <Label Grid.Row="2" Grid.Column="0" Text="CommunityToolkit.Mvvm" Style="{StaticResource BodyLabel}" />
+                        <Label Grid.Row="2" Grid.Column="1" Text="MIT" Style="{StaticResource CaptionLabel}" VerticalOptions="Center" />
+
+                        <Label Grid.Row="3" Grid.Column="0" Text="SkiaSharp" Style="{StaticResource BodyLabel}" />
+                        <Label Grid.Row="3" Grid.Column="1" Text="MIT" Style="{StaticResource CaptionLabel}" VerticalOptions="Center" />
+
+                        <Label Grid.Row="4" Grid.Column="0" Text="LiteDB" Style="{StaticResource BodyLabel}" />
+                        <Label Grid.Row="4" Grid.Column="1" Text="MIT" Style="{StaticResource CaptionLabel}" VerticalOptions="Center" />
+
+                        <Label Grid.Row="5" Grid.Column="0" Text="ONNX Runtime" Style="{StaticResource BodyLabel}" />
+                        <Label Grid.Row="5" Grid.Column="1" Text="MIT" Style="{StaticResource CaptionLabel}" VerticalOptions="Center" />
+
+                        <Label Grid.Row="6" Grid.Column="0" Text="PP-OCRv6" Style="{StaticResource BodyLabel}" />
+                        <Label Grid.Row="6" Grid.Column="1" Text="Apache-2.0" Style="{StaticResource CaptionLabel}" VerticalOptions="Center" />
+
+                        <Label Grid.Row="7" Grid.Column="0" Text="Syncfusion&#174; Essential Studio&#174;" Style="{StaticResource BodyLabel}" />
+                        <Label Grid.Row="7" Grid.Column="1" Text="{markup:Translate AboutLicenseSyncfusion}" Style="{StaticResource CaptionLabel}" VerticalOptions="Center" />
+
+                    </Grid>
+                </Border>
+
+                <Label Text="{markup:Translate AboutContactSection}"
+                       Style="{StaticResource CaptionLabel}"
+                       Margin="0,6,0,0" />
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate AboutContactBody}"
+                               Style="{StaticResource BodyLabel}" />
+                        <Label Text="bug-bear.com"
+                               Style="{StaticResource CaptionLabel}"
+                               TextColor="{AppThemeBinding Light={StaticResource AccentLight}, Dark={StaticResource AccentDark}}"
+                               TextDecorations="Underline">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnBugBearLinkTapped" />
+                            </Label.GestureRecognizers>
+                        </Label>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

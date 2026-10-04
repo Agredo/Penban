@@ -4,10 +4,12 @@ namespace Penban.Services;
 
 /// <summary>
 /// Body of a feedback request. The property names are the ones the BugBear endpoint expects, which
-/// is why they are spelled out instead of being derived from a naming policy.
+/// is why they are spelled out instead of being derived from a naming policy. The wire name
+/// <c>productApiKey</c> is BugBear's own and is kept as it is even though the value is a public
+/// feedback key, not an API credential.
 /// </summary>
 internal sealed record FeedbackRequest(
-    [property: JsonPropertyName("productApiKey")] string ProductApiKey,
+    [property: JsonPropertyName("productApiKey")] string ProductFeedbackKey,
     [property: JsonPropertyName("categoryId")] string CategoryId,
     [property: JsonPropertyName("description")] string Description,
     [property: JsonPropertyName("submitterEmail")] string? SubmitterEmail,

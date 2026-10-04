@@ -88,9 +88,6 @@
   <data name="Language" xml:space="preserve">
     <value>Language</value>
   </data>
-  <data name="InkRenderer" xml:space="preserve">
-    <value>Ink renderer</value>
-  </data>
   <data name="Delete" xml:space="preserve">
     <value>Delete</value>
   </data>
@@ -189,12 +186,6 @@
   </data>
   <data name="SettingsBoardSection" xml:space="preserve">
     <value>Board</value>
-  </data>
-  <data name="InkRendererSkia" xml:space="preserve">
-    <value>Skia (stylus pressure)</value>
-  </data>
-  <data name="InkRendererToolkit" xml:space="preserve">
-    <value>DrawingView (simple)</value>
   </data>
   <data name="AllowFingerDrawing" xml:space="preserve">
     <value>Draw with a finger</value>
@@ -519,5 +510,116 @@
   </data>
   <data name="RecognitionIndexDoneFormat" xml:space="preserve">
     <value>{0} notes are now searchable.</value>
+  </data>
+  <data name="HelpTitle" xml:space="preserve">
+    <value>Help</value>
+  </data>
+  <data name="HelpSubtitle" xml:space="preserve">
+    <value>The essentials at a glance.</value>
+  </data>
+  <data name="HelpDrawTitle" xml:space="preserve">
+    <value>Writing and drawing</value>
+  </data>
+  <data name="HelpDrawBody" xml:space="preserve">
+    <value>Write straight onto a card with the pen or your finger. The bar at the bottom switches between pen and text field and sets colour, width and eraser.</value>
+  </data>
+  <data name="HelpLassoTitle" xml:space="preserve">
+    <value>Moving a selection</value>
+  </data>
+  <data name="HelpLassoBody" xml:space="preserve">
+    <value>Turn the lasso on in the bar, then draw a loop around the strokes with the pen. Only what lies entirely inside the loop is picked up. The selection can be dragged; a tap next to it puts it down without drawing a dot. On Windows the button on the pen switches the lasso on as well, on iPad a double-tap on the Apple Pencil.</value>
+  </data>
+  <data name="HelpShapeTitle" xml:space="preserve">
+    <value>Shapes</value>
+  </data>
+  <data name="HelpShapeBody" xml:space="preserve">
+    <value>Hold the pen still for a moment after drawing, and the stroke becomes a straight line, a rectangle, a triangle, a circle or an arrow.</value>
+  </data>
+  <data name="HelpTextTitle" xml:space="preserve">
+    <value>Typing instead of writing</value>
+  </data>
+  <data name="HelpTextBody" xml:space="preserve">
+    <value>Switch to the text field in the bar. Typed notes have a heading and a body and are found by the same search as written ones.</value>
+  </data>
+  <data name="HelpSearchTitle" xml:space="preserve">
+    <value>Searching</value>
+  </data>
+  <data name="HelpSearchBody" xml:space="preserve">
+    <value>The magnifier in the board overview finds words in every note. Handwriting is read on the device, with no network and no account. To make notes from before findable, read them in once under Settings, Search, "Read now".</value>
+  </data>
+  <data name="HelpBoardsTitle" xml:space="preserve">
+    <value>Boards</value>
+  </data>
+  <data name="HelpBoardsBody" xml:space="preserve">
+    <value>Use the plus to create a board. A board can be dragged to reorder it; the pencil symbol on it renames it.</value>
+  </data>
+  <data name="HelpBackupTitle" xml:space="preserve">
+    <value>Backing up</value>
+  </data>
+  <data name="HelpBackupBody" xml:space="preserve">
+    <value>Export / Import at the top of the board overview writes everything into a single file and reads it back in later.</value>
+  </data>
+  <data name="PrivacyTitle" xml:space="preserve">
+    <value>Privacy</value>
+  </data>
+  <data name="PrivacyIntro" xml:space="preserve">
+    <value>Penban collects nothing about you: no account, no analytics, no ads.</value>
+  </data>
+  <data name="PrivacyLocalTitle" xml:space="preserve">
+    <value>What stays on the device</value>
+  </data>
+  <data name="PrivacyLocalBody" xml:space="preserve">
+    <value>Boards, cards, strokes, typed notes and recognised text live in a database in the app's folder on the device. There is no server they could live on.</value>
+  </data>
+  <data name="PrivacyRecognitionTitle" xml:space="preserve">
+    <value>Text recognition</value>
+  </data>
+  <data name="PrivacyRecognitionBody" xml:space="preserve">
+    <value>Handwriting is read entirely on the device. Neither the strokes nor the recognised text leave it while that happens.</value>
+  </data>
+  <data name="PrivacyFeedbackTitle" xml:space="preserve">
+    <value>Sending feedback</value>
+  </data>
+  <data name="PrivacyFeedbackBody" xml:space="preserve">
+    <value>Only the feedback form sends anything out, and only when you submit it: category, your text, an optional email address and the app version go to BugBear. Nothing happens without a submit.</value>
+  </data>
+  <data name="PrivacyWidgetTitle" xml:space="preserve">
+    <value>Widget (iOS)</value>
+  </data>
+  <data name="PrivacyWidgetBody" xml:space="preserve">
+    <value>The home screen widget shows a snapshot of the board overview. It sits in the shared storage of app and widget on the device.</value>
+  </data>
+  <data name="PrivacyDeleteTitle" xml:space="preserve">
+    <value>Deleting</value>
+  </data>
+  <data name="PrivacyDeleteBody" xml:space="preserve">
+    <value>A deleted board is gone along with its notes. Deleting the app removes all of the data with it.</value>
+  </data>
+  <data name="AboutTitle" xml:space="preserve">
+    <value>About Penban</value>
+  </data>
+  <data name="AboutVersionFormat" xml:space="preserve">
+    <value>Version {0} · Build {1}</value>
+  </data>
+  <data name="AboutLegalSection" xml:space="preserve">
+    <value>Legal</value>
+  </data>
+  <data name="AboutCopyright" xml:space="preserve">
+    <value>© Penban. All rights reserved.</value>
+  </data>
+  <data name="AboutLicenseNote" xml:space="preserve">
+    <value>The app contains the third-party components listed below. Their respective licences apply to them.</value>
+  </data>
+  <data name="AboutLicensesSection" xml:space="preserve">
+    <value>Third-party components</value>
+  </data>
+  <data name="AboutLicenseSyncfusion" xml:space="preserve">
+    <value>Syncfusion Community License</value>
+  </data>
+  <data name="AboutContactSection" xml:space="preserve">
+    <value>Contact</value>
+  </data>
+  <data name="AboutContactBody" xml:space="preserve">
+    <value>Questions, ideas and bug reports are welcome. The quickest way is the feedback form in Settings.</value>
   </data>
 </root>
