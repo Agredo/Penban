@@ -22,6 +22,13 @@ typing. Both kinds of text are searchable in the same search — typed text need
 findable the moment it is saved. All of it is written out in German in
 [docs/textfeld-notizen.md](docs/textfeld-notizen.md).
 
+0.5.6 clears four entries off the bug list: the pressure a stroke was written with is read on the
+board as well, so a lightly written line stays light there instead of coming out at full width; the
+row of colours used last fills up with the colours a note was actually **written** in rather than the
+ones the picker was dragged across on the way; a recognised shape can be rubbed out along its sides
+and not only at its corners; and a frame that was picked up is put down by the eraser button and by a
+tap on the group itself, so it no longer takes hold of what is drawn or rubbed out inside it.
+
 ## Bugs
 
 - [x] The undo stack and a picked-up group got out of step: erasing a picked-up stroke left the blue
@@ -30,9 +37,18 @@ findable the moment it is saved. All of it is written out in German in
   back strokes erased long before. A selection is now pruned whenever a stroke leaves the note, and a
   carried group only ever records the strokes that are really in it (0.5.4).
 - [ ] Swipe down on a card only works in the bottom half of the card, and when swiping horizontally in the middle of it.
-- [ ] Lines drawn with pen pressure always render at maximum width on the board, which makes them hard to read.
+- [x] Lines drawn with pen pressure always render at maximum width on the board, which makes them hard to read. The board now reads the pressure off the stroke and draws it with the mean width the editor would give its segments, so light and hard lines can be told apart there too (0.5.6).
 - [~] Editing the title card sometimes changes its background colour when exiting to the menu. The stored colour is no longer wiped; the root cause is not reproduced yet.
 - [x] Strokes change appearance when switching pen pressure on/off (the flag is now stored per stroke).
+- [x] A recognised shape could only be rubbed out at its corners: the hit test looked at the points a
+  stroke was written with, and a shape keeps nothing but its corners, since its edges are drawn
+  between them. The eraser now measures the distances to those edges as well (0.5.6).
+- [x] The frame of a picked-up group stayed where it was, over the note, and kept the drawing under it:
+  a contact inside the frame was taken as carrying the group, so pressing there moved the group instead
+  of drawing or rubbing out. The eraser button and a tap on the group now put it down (0.5.6).
+- [x] The row of pen colours used last filled up with the colours the picker was dragged across rather
+  than the ones that were used: it is written once a stroke has been drawn, and colours that cannot be
+  told apart are folded into one (0.5.6).
 
 ## Important features
 

@@ -7,7 +7,9 @@ namespace Penban.Maui.Views.Controls;
 /// away from the editor.
 /// <para>
 /// This is a reduced rendering on purpose - it uses one width per stroke rather than following the
-/// pressure along it, and it ignores pen tilt. The note editor shows the real thing.
+/// pressure along it, and it ignores pen tilt. The one width is measured off the pressures the stroke
+/// was written with, so a note reads at the same weight here as it does in the editor - see
+/// <see cref="WidthShareOf"/>. The note editor shows the real thing, down to the last segment.
 /// </para>
 /// </summary>
 public static class InkRenderer
@@ -15,6 +17,12 @@ public static class InkRenderer
     /// <summary>A preview stroke never renders thinner than this many device-independent units,
     /// so a much-reduced note still shows its pen marks.</summary>
     private const float MinimumStrokeSize = 1f;
+
+    /// <summary>
+    /// The share of its width a stroke keeps when the pen pressed no harder than nothing at all - the
+    /// same share the editor draws its segments with, so the two agree on how thin a light line is.
+    /// </summary>
+    private const float MinPressureWidthShare = 0.4f;
 
     /// <summary>
     /// Maps the part of the document given by <paramref name="source"/> - the whole document by
@@ -60,7 +68,7 @@ public static class InkRenderer
                 continue;
             }
 
-            var thickness = Math.Max(stroke.Thickness, minimumInkStroke);
+            var thickness = Math.Max(stroke.Thickness * WidthShareOf(stroke), minimumInkStroke);
 
             canvas.StrokeColor = Color.FromArgb(stroke.Color);
             canvas.StrokeSize = thickness;
@@ -88,5 +96,49 @@ public static class InkRenderer
         }
 
         canvas.RestoreState();
+    }
+
+    /// <summary>
+    /// How much of the pen's width the stroke was written with, as a share of it.
+    /// <para>
+    /// The editor follows the pressure from point to point; here a single width has to stand for the
+    /// whole stroke, so it is read as the mean of the shares the editor would draw its segments with -
+    /// including the rule that a segment whose two ends together report no pressure at all is read as
+    /// full pressure, which is what a finger or a mouse reports. A line written with a hard press
+    /// therefore comes out as thick on the board as it does in the note, and a light one as thin, which
+    /// is what was missing while this took the pen's width and nothing else: the editor had already
+    /// narrowed the stroke, so every touched-down line looked thicker here than the one that was
+    /// written with no pressure at all.
+    /// </para>
+    /// <para>
+    /// A stroke drawn with the pressure setting turned off says so and keeps the full width of its pen.
+    /// One from before the stroke carried that setting says nothing about it and is read the way the
+    /// editor reads it, as one that follows the pressure - which is also the way the setting starts.
+    /// </para>
+    /// </summary>
+    private static float WidthShareOf(InkStroke stroke)
+    {
+        if (stroke.PressureSensitiveWidth is false)
+        {
+            return 1f;
+        }
+
+        var points = stroke.Points;
+
+        // A single point is drawn as a dot, and the editor draws a dot at the width of the pen.
+        if (points.Count < 2)
+        {
+            return 1f;
+        }
+
+        var shares = 0f;
+        for (var i = 1; i < points.Count; i++)
+        {
+            var pressure = (points[i - 1].Pressure + points[i].Pressure) / 2f;
+            pressure = pressure > 0f ? Math.Clamp(pressure, 0f, 1f) : 1f;
+            shares += MinPressureWidthShare + ((1f - MinPressureWidthShare) * pressure);
+        }
+
+        return shares / (points.Count - 1);
     }
 }

@@ -57,6 +57,8 @@ public class ToolkitInkCanvasView : ContentView, IInkCanvasView
 
     public event EventHandler? StrokeCompleted;
 
+    public event EventHandler<InkStroke>? StrokeDrawn;
+
     public event EventHandler? ToolChanged;
 
     /// <summary>
@@ -243,6 +245,7 @@ public class ToolkitInkCanvasView : ContentView, IInkCanvasView
         // A new stroke makes the undone branch unreachable.
         redoable.Clear();
         Strokes.Add(stroke);
+        StrokeDrawn?.Invoke(this, stroke);
         StrokeCompleted?.Invoke(this, EventArgs.Empty);
     }
 

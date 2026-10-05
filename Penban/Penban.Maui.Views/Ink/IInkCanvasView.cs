@@ -15,6 +15,15 @@ public interface IInkCanvasView
 
     event EventHandler? StrokeCompleted;
 
+    /// <summary>
+    /// Raised once a stroke that was drawn is on the note, with that stroke. Unlike
+    /// <see cref="StrokeCompleted"/> this is not about the note having changed but about something
+    /// having been written: rubbing out, carrying a group and taking an edit back all raise the former
+    /// and none of them raise this. What it carries is the stroke itself, so the colour it was drawn in
+    /// is read off the stroke rather than guessed from the pen that happens to be in hand.
+    /// </summary>
+    event EventHandler<InkStroke>? StrokeDrawn;
+
     void Clear();
 
     void LoadStrokes(IEnumerable<InkStroke> strokes);

@@ -285,6 +285,7 @@ public partial class CardInkEditorPage : ContentPage
         InkHost.Preferences = preferences;
         InkHost.LoadStrokes(noteTarget.InkCanvas.Strokes);
         InkHost.StrokeCompleted += OnStrokeCompleted;
+        InkHost.StrokeDrawn += OnStrokeDrawn;
 
         // One event for the tool, whichever way it was changed: a button, a pen button, a pencil tap.
         // Whether the lasso holds anything is its own question - the offer to throw it away comes and
@@ -828,6 +829,22 @@ public partial class CardInkEditorPage : ContentPage
     /// Gives the pen in hand a colour. The pen in the other slot keeps its own and strokes already
     /// drawn keep the colour they were drawn with - it is the pen that is edited, not the ink. A code
     /// that cannot be read leaves the pen as it is.
+    /// <para>
+    /// Choosing a colour is not the same as having used it, so nothing goes into the row of the colours
+    /// used last from here: a colour is put there once a stroke has been drawn with it - see
+    /// <see cref="OnStrokeDrawn"/>. Opening the flyout and running a finger along the hue bar therefore
+    /// leaves the row as it was, and the row holds the colours the note was written in rather than the
+    /// ones the finger crossed on its way to them.
+    /// </para>
+    /// <para>
+    /// Choosing a colour is the pen being taken up again, so it takes the eraser - and the lasso with it -
+    /// out of the hand: whichever way the colour was picked - palette, ring, hue strip, square or code -
+    /// the next stroke is meant to be drawn in it, not rubbed out with it and not picked up by it.
+    /// Setting the tool is enough, the change is what puts the buttons in the toolbar back in step. What
+    /// the lasso had picked up goes with it: a frame left standing over the note would take hold of the
+    /// next stroke that lands in it, which is a colour the pen was given being carried somewhere instead
+    /// of drawn.
+    /// </para>
     /// </summary>
     private void SetPenColor(string hex, bool fromFlyout = false)
     {
@@ -837,20 +854,33 @@ public partial class CardInkEditorPage : ContentPage
         }
 
         penSlots[activePenSlot] = penSlots[activePenSlot] with { ColorHex = normalized };
-        recentColors = PenColorHistory.Add(recentColors, normalized);
-        preferences.Set(PreferenceKeys.PenRecentColors, PenColorHistory.Format(recentColors));
 
-        // Choosing a colour is the pen being taken up again, so it takes the eraser - and the lasso
-        // with it - out of the hand: whichever way the colour was picked - palette, ring, hue strip or
-        // code - the next stroke is meant to be drawn in it, not rubbed out with it and not picked up
-        // by it. Setting the tool is enough, the change is what puts the buttons in the toolbar back
-        // in step.
+        InkHost.ClearSelection();
         InkHost.Tool = InkTool.Pen;
 
         ApplyPenSlot();
         UpdatePenSlots();
-        UpdateRecentColors();
         UpdatePenFlyout(fromFlyout);
+    }
+
+    /// <summary>
+    /// A stroke has been drawn: the colour it was drawn in is a colour the pen has been used with, so it
+    /// goes to the head of the row of the colours used last.
+    /// <para>
+    /// The colour is read off the stroke that was written rather than off the pen that is in hand, so a
+    /// stroke drawn before the pen was given another colour still counts as the one it was drawn in. The
+    /// row folds colours that cannot be told apart, so drawing the same shade twice moves it up instead
+    /// of filling the row with it - see <see cref="PenColorHistory.Add"/>.
+    /// </para>
+    /// </summary>
+    private void OnStrokeDrawn(object? sender, InkStroke stroke) => RememberPenColor(stroke.Color);
+
+    /// <summary>Puts a colour at the head of the colours used last and stores the row.</summary>
+    private void RememberPenColor(string hex)
+    {
+        recentColors = PenColorHistory.Add(recentColors, hex);
+        preferences.Set(PreferenceKeys.PenRecentColors, PenColorHistory.Format(recentColors));
+        UpdateRecentColors();
     }
 
     /// <summary>
@@ -1120,7 +1150,8 @@ public partial class CardInkEditorPage : ContentPage
     /// <summary>
     /// The hue of the bar being dragged. The square beside it is put onto that hue - it is the hue and
     /// the square together that make a colour - and the colour the two of them make is what the pen
-    /// takes, so the pen follows the finger across the bar.
+    /// takes, so the pen follows the finger across the bar. The row of the colours used last is not
+    /// touched: what is crossed on the way is not what the pen was used with.
     /// </summary>
     private void OnHueChanged(object? sender, float hue)
     {
@@ -1304,9 +1335,21 @@ public partial class CardInkEditorPage : ContentPage
     /// The eraser on or off again. Off is the way back to drawing - with the finger or without it,
     /// whichever of the two the button beside it holds - so the mode the eraser took the place of is
     /// always one press away.
+    /// <para>
+    /// What the lasso had picked up is put down here, the same way the lasso's own button puts it down:
+    /// the frame would otherwise stand over the note and take hold of the first contact that lands in
+    /// it, so the eraser would carry the group instead of rubbing anything out where the group is. This
+    /// is the button in the row being taken up by hand; a group is still carried by the pen across the
+    /// tool changing on its own, which is what the pen's own button makes happen - see
+    /// <see cref="Ink.SkiaInkCanvasView"/> on HandlePickedUpTouch.
+    /// </para>
     /// </summary>
-    private void OnEraserClicked(object? sender, EventArgs e) =>
+    private void OnEraserClicked(object? sender, EventArgs e)
+    {
+        InkHost.ClearSelection();
+
         InkHost.Tool = InkHost.Tool == InkTool.Eraser ? InkTool.Pen : InkTool.Eraser;
+    }
 
     /// <summary>
     /// The lasso on or off again, the same way the eraser is. Nothing is picked up by choosing it: the

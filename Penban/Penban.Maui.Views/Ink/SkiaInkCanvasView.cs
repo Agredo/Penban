@@ -294,6 +294,8 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
     public event EventHandler? StrokeCompleted;
 
+    public event EventHandler<InkStroke>? StrokeDrawn;
+
     /// <summary>
     /// Raised while a finger drags the card down, with where that finger is on the note - see
     /// <see cref="CloseSwipeMove"/>. The surface does not decide what that means: how far the finger
@@ -436,6 +438,11 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         }
 
         selection.Clear();
+
+        // The frame is drawn over the note rather than written into it, so the note has to be drawn
+        // again for the mark to be gone from what is seen: nothing else about the note changed, and
+        // without this the surface keeps showing the frame until something else redraws it.
+        canvasView.InvalidateSurface();
         SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -1184,6 +1191,12 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
                     // drew it is still on it - see StartShapeHold.
                     CancelShapeHold();
                     canvasView.InvalidateSurface();
+
+                    // Reached only by a stroke that was drawn: the eraser, the lasso and a contact that
+                    // carries a picked-up group all leave this loop before a stroke is started, and a
+                    // contact that turns out to be a gesture has its stroke thrown away instead - see
+                    // DropCurrentStroke. What is on the note from here on is a stroke the pen wrote.
+                    StrokeDrawn?.Invoke(this, finished);
                     StrokeCompleted?.Invoke(this, EventArgs.Empty);
                 }
 
@@ -1753,7 +1766,7 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         for (var i = Strokes.Count - 1; i >= 0; i--)
         {
             var stroke = Strokes[i];
-            if (!stroke.Points.Any(p => Distance(p.X, p.Y, x, y) <= EraseRadius))
+            if (!StrokeMeets(stroke, x, y))
             {
                 continue;
             }
@@ -1814,6 +1827,58 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         var dx = x1 - x2;
         var dy = y1 - y2;
         return MathF.Sqrt((dx * dx) + (dy * dy));
+    }
+
+    /// <summary>
+    /// Whether a stroke comes within <see cref="EraseRadius"/> of the point: near one of the points it
+    /// was written with, or near one of the lines drawn between two of them.
+    /// <para>
+    /// The lines have to be measured as well, because a stroke that was read as a shape keeps nothing
+    /// but the corners of that shape: the straight edges the shape is drawn with are not written down
+    /// anywhere, only the points they start and end at. A hit test that only looked at the points could
+    /// therefore only ever rub such a stroke out where its corners are, and not along the sides that
+    /// are what is seen of it.
+    /// </para>
+    /// </summary>
+    private static bool StrokeMeets(InkStroke stroke, float x, float y)
+    {
+        var points = stroke.Points;
+
+        if (points.Count == 0)
+        {
+            return false;
+        }
+
+        for (var i = 1; i < points.Count; i++)
+        {
+            if (DistanceToLineSegment(points[i - 1], points[i], x, y) <= EraseRadius)
+            {
+                return true;
+            }
+        }
+
+        // A stroke of one point - a dot - has no line to be near, so its point is looked at on its own.
+        return Distance(points[0].X, points[0].Y, x, y) <= EraseRadius;
+    }
+
+    /// <summary>
+    /// How far the point lies from the line between two points of a stroke, measured to the nearer end
+    /// of that line once the point is past it, so a stroke is not met from beyond its own ends.
+    /// </summary>
+    private static float DistanceToLineSegment(InkPoint from, InkPoint to, float x, float y)
+    {
+        var dx = to.X - from.X;
+        var dy = to.Y - from.Y;
+        var lengthSquared = (dx * dx) + (dy * dy);
+
+        if (lengthSquared <= 0f)
+        {
+            // Both ends in the same place: the line is that place.
+            return Distance(from.X, from.Y, x, y);
+        }
+
+        var share = Math.Clamp((((x - from.X) * dx) + ((y - from.Y) * dy)) / lengthSquared, 0f, 1f);
+        return Distance(from.X + (share * dx), from.Y + (share * dy), x, y);
     }
 
     /// <summary>
@@ -2219,7 +2284,8 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// <summary>
     /// Ends a drag: the group is where it was carried to, and the move goes into the history as one
     /// edit, however far it went and however many strokes it carried. A contact that carried the group
-    /// nowhere but touched down on it is not a move at all and leaves no entry behind.
+    /// nowhere but touched down on it is not a move at all: it leaves no entry behind and puts the
+    /// group down, because a group that stays picked up would swallow the next touch on it.
     /// </summary>
     private void EndSelectionDrag()
     {
@@ -2232,6 +2298,13 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
 
         if (!drag.Moved)
         {
+            // A contact that went down on the group and up again without carrying it anywhere said no
+            // more than "this group is done with", the same as one that landed beside it - see
+            // DropPutDownTap. It is put down there and then. Left picked up, the frame would be drawn
+            // around the strokes and take hold of the next contact that lands inside it: what is drawn
+            // there would be moved instead of written, and what is rubbed out there would be moved
+            // instead of erased, which is a frame that clings to its strokes.
+            ClearSelection();
             return;
         }
 

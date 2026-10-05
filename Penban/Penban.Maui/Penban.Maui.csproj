@@ -18,8 +18,8 @@
 
     <ApplicationTitle>Penban</ApplicationTitle>
     <ApplicationId>com.agredoapplication.panban</ApplicationId>
-    <ApplicationDisplayVersion>0.5.5</ApplicationDisplayVersion>
-    <ApplicationVersion>19</ApplicationVersion>
+    <ApplicationDisplayVersion>0.5.6</ApplicationDisplayVersion>
+    <ApplicationVersion>20</ApplicationVersion>
     <!-- The platform SDKs derive Version/PackageVersion from ApplicationDisplayVersion inside each
          target framework, but the outer cross-targeting build keeps the 1.0.0 default. NuGet's
          Visual Studio restore reads both and fails with NU1105 ("PackageVersion should have a single
@@ -296,6 +296,22 @@
           Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And !Exists('$(WidgetExtensionPath)')">
     <Warning Text="No widget extension at Penban.Widget.iOS/build/$(WidgetExtensionOutput)/PenbanWidget.appex - this build has no home screen widget. Build the extension with scripts/ios-widget.sh build." />
   </Target>
+  <!-- The app bundle for a given configuration and platform keeps one output folder, and a Release
+       build for the device lands in the same one as the Release build that goes to TestFlight. The
+       .appex of such an upload stays in that bundle, and because the ItemGroup above only adds an
+       extension that exists for the *chosen* WidgetExtensionOutput, a device build that deliberately
+       leaves the App Store extension out (Debug-iphoneos) gets an app bundle with the old .appex
+       still inside it. Installing that on a device fails: the Beta profile the extension carries is
+       rejected (0xe800801f) and the whole app is refused, even though the app itself is signed with
+       a development profile. So the extension is removed again whenever it is not being embedded -
+       before the bundle is signed, or the signature would seal a file that is no longer there. -->
+  <Target Name="RemoveUnexpectedWidgetExtension"
+          Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And !Exists('$(WidgetExtensionPath)')"
+          DependsOnTargets="_GenerateBundleName"
+          BeforeTargets="_CodesignAppBundle">
+    <RemoveDir Directories="$(AppBundleDir)/PlugIns/PenbanWidget.appex" />
+  </Target>
+
   <!-- A widget extension whose version differs from the app's is rejected by App Store Connect
        (90473), and on the device the widget is simply not offered. scripts/ios-widget.sh takes the
        version from this project, but the .appex in build/ can still be a leftover from an earlier
