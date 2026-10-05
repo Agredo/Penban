@@ -143,6 +143,19 @@ public partial class BoardPage : ContentPage
     /// </summary>
     private Guid? draggedCardId;
 
+    /// <summary>Whether the first move of the drag in the air has been written to the device log.</summary>
+    private bool loggedDragOver;
+
+#if IOS
+    /// <summary>
+    /// The board's watcher of the touches on the board, see <see cref="OnBoardTouchDown"/>.
+    /// </summary>
+    private BoardTouchObserver? touchObserver;
+
+    /// <summary>The view <see cref="touchObserver"/> hangs on, so that it is hung once per view.</summary>
+    private UIKit.UIView? touchObserverView;
+#endif
+
     /// <summary>
     /// Whether the bin is filled, i.e. whether a note is being held over it. Its colour is the only
     /// thing that says so, and the fill has to be taken off again when the note is carried away.
@@ -176,8 +189,16 @@ public partial class BoardPage : ContentPage
         BindingContext = this.viewModel = viewModel;
         BoardKanban.ItemsSource = kanbanCards;
         BoardKanban.DragStart += OnKanbanDragStart;
+        BoardKanban.DragOver += OnKanbanDragOver;
         BoardKanban.DragEnd += OnKanbanDragEnd;
         BoardKanban.SizeChanged += OnBoardKanbanSizeChanged;
+
+#if IOS
+        // The view the touch watcher hangs on only exists once the platform has built the page - and
+        // it is built again every time the page comes back into view - so the watcher is put on with
+        // the first handler and then again on every appearance, see AttachTouchObserver.
+        Loaded += (_, _) => AttachTouchObserver();
+#endif
     }
 
     /// <summary>
@@ -285,9 +306,45 @@ public partial class BoardPage : ContentPage
         PaintBin();
     }
 
+#if IOS
+    /// <summary>
+    /// Puts the board's touch watcher on the page's own view, from where every touch on the board is
+    /// seen before any handler of the page gets it. Called again on every appearance and on every
+    /// build of the page, and does nothing when the watcher is already on the view that is there.
+    /// </summary>
+    private void AttachTouchObserver()
+    {
+        if (Handler?.PlatformView is not UIKit.UIView pageView)
+        {
+            BinLog("touch observer: no page view");
+            return;
+        }
+
+        if (ReferenceEquals(touchObserverView, pageView))
+        {
+            return;
+        }
+
+        touchObserver ??= new BoardTouchObserver(OnBoardTouchDown, OnBoardTouchEnded);
+        if (touchObserverView is not null)
+        {
+            touchObserverView.RemoveGestureRecognizer(touchObserver);
+        }
+
+        pageView.AddGestureRecognizer(touchObserver);
+        touchObserverView = pageView;
+        BinLog($"touch observer attached to {pageView.GetType().Name}");
+    }
+#endif
+
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+
+#if IOS
+        AttachTouchObserver();
+#endif
+
         if (viewModel is null)
         {
             return;
@@ -845,35 +902,86 @@ public partial class BoardPage : ContentPage
         return changed;
     }
 
-    /// <summary>
-    /// Takes the note down while it is in the air and puts the bin up in the header's place. The bin
-    /// is what a note can be dropped on to be deleted; the header stays underneath it, so the board
-    /// below keeps its height and nothing the drag is aiming at moves.
-    /// </summary>
+    /// <summary>Takes the note down as the one in the air.</summary>
+    /// <remarks>
+    /// The bin does not go up here: a note that is only being held is not a note on its way to the
+    /// bin, so the bin waits for a move, see <see cref="OnKanbanDragOver"/>. What puts the header back
+    /// afterwards is the end of the drag, see <see cref="OnKanbanDragEnd"/> - and, for a drag whose end
+    /// the control swallows, the first contact anywhere on the board, see <see cref="OnBoardTouchDown"/>
+    /// and <see cref="OnCardTapped"/>.
+    /// </remarks>
     private void OnKanbanDragStart(object? sender, KanbanDragStartEventArgs e)
     {
         draggedCardId = TryGetDraggedCardId(e.Data, out var cardId) ? cardId : null;
-
-        // A drag the app was never told the end of leaves the bin filled; a drag that follows starts
-        // from the plain bin rather than from the last drag's colour.
+        loggedDragOver = false;
         SetBinHot(false);
-        TrashDropArea.IsVisible = draggedCardId is not null;
+        BinLog($"drag start, card {draggedCardId}");
     }
 
-    /// <summary>Puts the header back and forgets the note that was in the air.</summary>
+    /// <summary>
+    /// Puts the bin up with the first move of a drag. The bin takes the header's place and the header
+    /// stays underneath it, so the board keeps its height and nothing the drag is aiming at moves.
+    /// </summary>
+    /// <remarks>
+    /// This is the first report that says anything about a drag having moved: a note that is only held
+    /// down shakes under the finger without the control reporting a move of it, and the finger itself
+    /// is out of sight by now - the platform hands the drag's touch to nothing else of the app, so
+    /// neither the touches of a recognizer nor the note's own events say where it is. A hold therefore
+    /// gets no bin, which is what it deserves: nothing is on its way to the bin until the note moves.
+    /// </remarks>
+    private void OnKanbanDragOver(object? sender, KanbanDragOverEventArgs e)
+    {
+        if (!loggedDragOver)
+        {
+            loggedDragOver = true;
+            BinLog($"drag over (first), card {draggedCardId}, "
+                + $"{e.SourceColumn?.Title}#{e.SourceIndex} to {e.TargetColumn?.Title}#{e.TargetIndex}");
+        }
+
+        if (TrashDropArea.IsVisible)
+        {
+            return;
+        }
+
+        BinLog("bin up (move)");
+        TrashDropArea.IsVisible = true;
+    }
+
+    /// <summary>
+    /// Puts the header back. The note that was in the air is not forgotten here: the bin is a place
+    /// rather than a state - a drag that leaves it again has not lost its note - and a drop on it still
+    /// has to know which note it is catching.
+    /// </summary>
     private void HideBin()
     {
+        var wasVisible = TrashDropArea.IsVisible;
         SetBinHot(false);
         TrashDropArea.IsVisible = false;
-        draggedCardId = null;
+
+        if (wasVisible)
+        {
+            BinLog("hide bin");
+        }
     }
+
+    /// <summary>
+    /// Writes a line to the device log. The bin has been taken down more than once on a device alone -
+    /// a note that is held down is reported by the control as a moved one, and the end of a drag that
+    /// missed every column is not reported at all - so the few steps this area takes are written out.
+    /// </summary>
+    private static void BinLog(string message) =>
+        Console.WriteLine($"[BinDiag] {DateTime.Now:HH:mm:ss.fff} {message}");
 
     /// <summary>
     /// Fills the bin as soon as the note is over it, so that it is clear that letting go here is what
     /// deletes the note: the area is not much to look at from under a finger, and nothing else about
     /// the board changes until the note is actually let go.
     /// </summary>
-    private void OnTrashDragOver(object? sender, DragEventArgs e) => SetBinHot(true);
+    private void OnTrashDragOver(object? sender, DragEventArgs e)
+    {
+        BinLog("trash drag over");
+        SetBinHot(true);
+    }
 
     /// <summary>Drains the bin again when the note is carried away from it.</summary>
     private void OnTrashDragLeave(object? sender, DragEventArgs e) => SetBinHot(false);
@@ -917,6 +1025,7 @@ public partial class BoardPage : ContentPage
     private void OnTrashDrop(object? sender, DropEventArgs e)
     {
         e.Handled = true;
+        BinLog($"trash drop, card {draggedCardId}");
 
         if (draggedCardId is not { } cardId)
         {
@@ -938,7 +1047,11 @@ public partial class BoardPage : ContentPage
     /// called off, or one that ended while the app was in the background. Without this the bin would
     /// be left where the header belongs.
     /// </summary>
-    private void OnTrashTapped(object? sender, TappedEventArgs e) => HideBin();
+    private void OnTrashTapped(object? sender, TappedEventArgs e)
+    {
+        BinLog("trash tapped");
+        HideBin();
+    }
 
     /// <summary>
     /// Deletes the given notes on one question. Returns whether they are gone: a question the user
@@ -1068,6 +1181,12 @@ public partial class BoardPage : ContentPage
 
     private async void OnKanbanDragEnd(object? sender, KanbanDragEndEventArgs e)
     {
+        BinLog($"drag end (control), card {(TryGetDraggedCardId(e.Data, out var endedCardId) ? endedCardId : null)}");
+
+        // The drag is over, so the note that was in the air is forgotten - a later touch must not be
+        // mistaken for the end of this drag.
+        this.draggedCardId = null;
+
         // Whatever the drag did, the note is no longer in the air - so the bin goes away with it.
         // The control fires no end event at all for a drop that missed its columns, which is why the
         // bin also puts the header back when it is tapped.
@@ -1226,6 +1345,16 @@ public partial class BoardPage : ContentPage
             return;
         }
 
+        // A tap anywhere ends a drag the platform finished without saying so: the bin standing in the
+        // header belongs to nobody by then, and the tap is aimed at the note under it - not at a note
+        // that is in the air, whose editor is not to be opened over it either.
+        if (TrashDropArea.IsVisible)
+        {
+            BinLog("card tapped, bin was up");
+            HideBin();
+            return;
+        }
+
         // While notes are being picked, a tap is what picks one: opening the editor instead would
         // take the board away under the very thing the picking is for.
         if (isSelecting)
@@ -1302,6 +1431,79 @@ public partial class BoardPage : ContentPage
                 return false;
         }
     }
+
+#if IOS
+    /// <summary>Follows the touches made on the board, whatever they turn into.</summary>
+    /// <remarks>
+    /// Touches are followed instead of gestures, because a touch that turns into a drag is taken away
+    /// from every handler of the app: what is wanted here is the one thing the control never reports -
+    /// that a finger came down on the board, which is the first moment a bin left over from a drag can
+    /// be known to be a leftover and be taken down.
+    /// </remarks>
+    private sealed class BoardTouchObserver : UIKit.UIGestureRecognizer
+    {
+        private readonly Action touchDown;
+        private readonly Action touchEnded;
+
+        public BoardTouchObserver(Action touchDown, Action touchEnded)
+        {
+            this.touchDown = touchDown;
+            this.touchEnded = touchEnded;
+
+            // Nothing about the board may change because this recognizer is here: it takes no touch
+            // away from the views underneath it, and it holds no touch back from them either.
+            CancelsTouchesInView = false;
+            DelaysTouchesBegan = false;
+            DelaysTouchesEnded = false;
+        }
+
+        public override void TouchesBegan(Foundation.NSSet touches, UIKit.UIEvent evt) => touchDown();
+
+        public override void TouchesEnded(Foundation.NSSet touches, UIKit.UIEvent evt) => touchEnded();
+
+        public override void TouchesCancelled(Foundation.NSSet touches, UIKit.UIEvent evt) => touchEnded();
+    }
+
+    /// <summary>
+    /// A new touch on the board. A bin that is up here is one left over from a drag the platform ended
+    /// without telling the app, which is exactly the case of a note that was held down and never moved:
+    /// the contact with the board is what puts the header back.
+    /// </summary>
+    private void OnBoardTouchDown()
+    {
+        if (touchObserverView is not null && !ReferenceEquals(touchObserverView, Handler?.PlatformView))
+        {
+            // The page was built again under the watcher; it is put back where it belongs, see
+            // AttachTouchObserver.
+            AttachTouchObserver();
+        }
+
+        // A drag that is in the air holds the board's touches, so a touch that comes down here cannot
+        // belong to one: whatever the bin is standing in for is over, and the header goes back.
+        if (!TrashDropArea.IsVisible)
+        {
+            return;
+        }
+
+        BinLog($"touch down, bin was up, card {draggedCardId}");
+        HideBin();
+    }
+
+    /// <summary>
+    /// The finger left the screen. A drag that is let go off any column can end right here - the note
+    /// stays where it was and the control says nothing about it - so the bin goes back with it. The
+    /// hand-over to the platform is allowed to run first, so the bin is taken down through the queue.
+    /// </summary>
+    private void OnBoardTouchEnded()
+    {
+        if (draggedCardId is null || isBinHot)
+        {
+            return;
+        }
+
+        Dispatcher.Dispatch(HideBin);
+    }
+#endif
 
     public sealed class BoardKanbanCard : INotifyPropertyChanged
     {
