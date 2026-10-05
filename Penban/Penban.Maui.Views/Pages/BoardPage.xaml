@@ -140,7 +140,7 @@
                         Clicked="OnDoneSelectingClicked"
                         SemanticProperties.Description="{markup:Translate Done}" />
             </Grid>
-            <!-- The bin, over the header while a note is in the air. The header stays under it and
+            <!-- The bin, over the header while a note is being carried. The header stays under it and
                  keeps the height of the row, so the board below does not move by a pixel while a
                  note is being dragged - a board that shifts under the note would take the columns
                  out from under it.

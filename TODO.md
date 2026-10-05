@@ -22,12 +22,14 @@ typing. Both kinds of text are searchable in the same search — typed text need
 findable the moment it is saved. All of it is written out in German in
 [docs/textfeld-notizen.md](docs/textfeld-notizen.md).
 
-0.5.6 clears four entries off the bug list: the pressure a stroke was written with is read on the
+0.5.6 clears five entries off the bug list: the pressure a stroke was written with is read on the
 board as well, so a lightly written line stays light there instead of coming out at full width; the
 row of colours used last fills up with the colours a note was actually **written** in rather than the
 ones the picker was dragged across on the way; a recognised shape can be rubbed out along its sides
-and not only at its corners; and a frame that was picked up is put down by the eraser button and by a
-tap on the group itself, so it no longer takes hold of what is drawn or rubbed out inside it.
+and not only at its corners; a frame that was picked up is put down by the eraser button and by a
+tap on the group itself, so it no longer takes hold of what is drawn or rubbed out inside it; and the
+red drop area of the board keeps to the drag it belongs to, so holding a note down without carrying it
+anywhere no longer leaves it standing over the board.
 
 ## Bugs
 
@@ -49,6 +51,12 @@ tap on the group itself, so it no longer takes hold of what is drawn or rubbed o
 - [x] The row of pen colours used last filled up with the colours the picker was dragged across rather
   than the ones that were used: it is written once a stroke has been drawn, and colours that cannot be
   told apart are folded into one (0.5.6).
+- [x] Holding a note down without carrying it anywhere left the red drop area standing over the board,
+  and it only went away once another note was dragged. The control reports the end of a drag that
+  missed every column to nobody, so the note is now taken down as the one in the air when the drag
+  starts, and what puts the drop area back is the first move the control reports — a note that is only
+  held stays where it is without anything on the board changing — the end of the drag, the first touch
+  anywhere on the board, and a tap on the note the drop area is covering (0.5.6).
 
 ## Important features
 
