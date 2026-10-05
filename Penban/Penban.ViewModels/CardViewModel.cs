@@ -52,6 +52,9 @@ public partial class CardViewModel : ObservableObject, INoteEditorTarget, ITextN
         }
     }
 
+    /// <summary>The picked colour, see <see cref="INoteEditorTarget.StoredNoteColorIndex"/>.</summary>
+    public int? StoredNoteColorIndex => card.NoteColorIndex;
+
     public bool SupportsTags => true;
 
     public IReadOnlyList<string> Tags => card.Tags;

@@ -150,6 +150,15 @@ public partial class BoardViewModel : ObservableObject
         LastEditedUtc = board.UpdatedAtUtc;
         SortOrder = board.SortOrder;
 
+        // The paper colour, the tilt and whether the board carries a note of its own have no field of
+        // their own to report from - they are read off the board this row holds - and the date beside
+        // them is written without saying so. The row stays on screen while the boards are re-read
+        // (see BoardsViewModel.MergeRows), so all four are announced here.
+        OnPropertyChanged(nameof(NoteColorIndex));
+        OnPropertyChanged(nameof(NoteTilt));
+        OnPropertyChanged(nameof(HasNote));
+        OnPropertyChanged(nameof(LastEditedUtc));
+
         var columns = board.Columns
             .OrderBy(c => c.SortOrder)
             .Select(ToColumnViewModel)
@@ -221,7 +230,13 @@ public partial class BoardViewModel : ObservableObject
 
         var previews = await PickPreviewsAsync(candidates, cardLimit);
 
-        LastEditedUtc = lastEdited;
+        // The date starts at the board and moves to the note written last of all, so the row may end
+        // up on another day than the one RefreshAsync put there.
+        if (LastEditedUtc != lastEdited)
+        {
+            LastEditedUtc = lastEdited;
+            OnPropertyChanged(nameof(LastEditedUtc));
+        }
 
         if (previews.Count == 0 && !hasNote)
         {

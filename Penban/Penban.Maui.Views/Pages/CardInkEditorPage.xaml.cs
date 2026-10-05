@@ -484,7 +484,10 @@ public partial class CardInkEditorPage : ContentPage
         // card already happened to have it.
         preferences.Set(PreferenceKeys.NoteLastColorIndex, index.ToString());
 
-        if (noteTarget.NoteColorIndex == index)
+        // What the user picked decides whether there is anything to do, not the colour on screen:
+        // a note that was never coloured shows the one derived from its id, and picking exactly that
+        // colour is a choice as well and has to be written down like any other.
+        if (noteTarget.StoredNoteColorIndex == index)
         {
             return;
         }
