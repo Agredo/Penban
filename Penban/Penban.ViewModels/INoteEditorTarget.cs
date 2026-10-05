@@ -20,6 +20,13 @@ public interface INoteEditorTarget
     /// </summary>
     int NoteColorIndex { get; set; }
 
+    /// <summary>
+    /// The colour the user picked, or <c>null</c> while the note still shows the one derived from its
+    /// id. The editor tells the choice apart from the derived colour, so that picking exactly the
+    /// derived one is still a choice and gets written down like any other.
+    /// </summary>
+    int? StoredNoteColorIndex { get; }
+
     /// <summary>True when the note can carry tags; the board's own note cannot.</summary>
     bool SupportsTags { get; }
 

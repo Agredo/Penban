@@ -40,7 +40,12 @@ anywhere no longer leaves it standing over the board.
   carried group only ever records the strokes that are really in it (0.5.4).
 - [ ] Swipe down on a card only works in the bottom half of the card, and when swiping horizontally in the middle of it.
 - [x] Lines drawn with pen pressure always render at maximum width on the board, which makes them hard to read. The board now reads the pressure off the stroke and draws it with the mean width the editor would give its segments, so light and hard lines can be told apart there too (0.5.6).
-- [~] Editing the title card sometimes changes its background colour when exiting to the menu. The stored colour is no longer wiped; the root cause is not reproduced yet.
+- [x] Editing the title card sometimes changes its background colour when exiting to the menu. The stored
+  colour is no longer wiped, but the editor compared the swatch the user tapped with the colour the note
+  *showed*, and a note that was never coloured shows the shade its id derives: tapping exactly that shade
+  was taken as "nothing changed" and never written down, so the note fell back to the derived one. The
+  picked colour is now told apart from the derived one, and the row is told when the colour of a board it
+  already shows has moved (0.5.6).
 - [x] Strokes change appearance when switching pen pressure on/off (the flag is now stored per stroke).
 - [x] A recognised shape could only be rubbed out at its corners: the hit test looked at the points a
   stroke was written with, and a shape keeps nothing but its corners, since its edges are drawn

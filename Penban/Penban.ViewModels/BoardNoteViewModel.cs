@@ -51,6 +51,9 @@ public partial class BoardNoteViewModel : ObservableObject, INoteEditorTarget
         }
     }
 
+    /// <summary>The picked colour, see <see cref="INoteEditorTarget.StoredNoteColorIndex"/>.</summary>
+    public int? StoredNoteColorIndex => board.NoteColorIndex;
+
     public bool SupportsTags => false;
 
     public IReadOnlyList<string> Tags => [];
