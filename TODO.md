@@ -29,7 +29,10 @@ ones the picker was dragged across on the way; a recognised shape can be rubbed 
 and not only at its corners; a frame that was picked up is put down by the eraser button and by a
 tap on the group itself, so it no longer takes hold of what is drawn or rubbed out inside it; and the
 red drop area of the board keeps to the drag it belongs to, so holding a note down without carrying it
-anywhere no longer leaves it standing over the board.
+anywhere no longer leaves it standing over the board. The paper palette also trades its second shade of
+orange for a purple, and the picker lays its swatches out in hue order (orange, yellow, green, blue,
+purple, pink) instead of in the order a note stores them, so no two neighbours in the row are the same
+colour twice; the stored order itself is untouched, which keeps every note in the colour it was given.
 
 ## Bugs
 
