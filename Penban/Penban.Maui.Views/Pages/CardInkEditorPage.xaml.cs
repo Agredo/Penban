@@ -406,11 +406,12 @@ public partial class CardInkEditorPage : ContentPage
 
     /// <summary>
     /// Fills the picker with one small note per paper colour, so choosing a colour looks like
-    /// picking a note off the pad instead of operating a control.
+    /// picking a note off the pad instead of operating a control. The colours are laid out in
+    /// <see cref="StickyNoteBorder.PickerOrder"/> rather than in the order a note stores them.
     /// </summary>
     private void BuildColorPicker()
     {
-        for (var index = 0; index < StickyNoteBorder.NoteColors.Count; index++)
+        foreach (var index in StickyNoteBorder.PickerOrder)
         {
             var swatch = new StickyNoteBorder
             {
@@ -504,12 +505,14 @@ public partial class CardInkEditorPage : ContentPage
     private void UpdateColorPicker()
     {
         var chosen = noteTarget.NoteColorIndex;
-        for (var index = 0; index < swatches.Count; index++)
+        foreach (var swatch in swatches)
         {
-            var isChosen = index == chosen;
-            swatches[index].Stroke = isChosen ? new SolidColorBrush(Color.FromArgb("#1E2230")) : null;
-            swatches[index].StrokeThickness = isChosen ? 3 : 0;
-            swatches[index].Scale = isChosen ? 1.12 : 1;
+            // The swatch carries the colour it stands for, and the row is in hue order rather than in
+            // the order a note stores them, so its place in the row says nothing.
+            var isChosen = swatch.NoteColorIndex == chosen;
+            swatch.Stroke = isChosen ? new SolidColorBrush(Color.FromArgb("#1E2230")) : null;
+            swatch.StrokeThickness = isChosen ? 3 : 0;
+            swatch.Scale = isChosen ? 1.12 : 1;
         }
     }
 
