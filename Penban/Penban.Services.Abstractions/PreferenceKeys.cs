@@ -41,7 +41,7 @@ public static class PreferenceKeys
     /// <summary>
     /// The colours used last, newest first, written by <c>PenColorHistory.Format</c>: the row of
     /// swatches at the head of the pen flyout, so a colour that was mixed once can be picked again
-    /// without mixing it a second time.
+    /// without mixing it a second time. A colour is kept once a stroke has been drawn in it.
     /// </summary>
     public const string PenRecentColors = "Draw.PenRecentColors";
 

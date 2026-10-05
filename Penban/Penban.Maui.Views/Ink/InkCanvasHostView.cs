@@ -78,6 +78,12 @@ public class InkCanvasHostView : ContentView
         remove => activeRenderer.StrokeCompleted -= value;
     }
 
+    public event EventHandler<InkStroke>? StrokeDrawn
+    {
+        add => activeRenderer.StrokeDrawn += value;
+        remove => activeRenderer.StrokeDrawn -= value;
+    }
+
     /// <summary>
     /// Raised while a finger drags the card down, with where that finger is on the note - see
     /// <see cref="CloseSwipeMove"/>. Raised by the Skia renderer only: the toolkit renderer has no

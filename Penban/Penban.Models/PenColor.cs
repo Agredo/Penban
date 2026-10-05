@@ -106,6 +106,37 @@ public static class PenColor
         return ToHex(red + match, green + match, blue + match);
     }
 
+    /// <summary>
+    /// How far apart two colours stand in any one of their three channels before they count as two
+    /// colours to the pen, at 24 of 255. Two colours that lie closer together than this are the same
+    /// colour where they are seen - in the row of swatches and on the note.
+    /// </summary>
+    private const int NearChannelDistance = 24;
+
+    /// <summary>
+    /// Whether two colours are close enough together to be one colour in practice. A drag along the
+    /// picker hands over a colour for every hair's width of the way, and every one of them is a colour
+    /// the pen was shown; only the ones this tells apart are colours it can be said to have been given.
+    /// Text that is not a colour is not near anything, not even itself.
+    /// </summary>
+    public static bool AreNear(string? first, string? second)
+    {
+        if (!TryNormalize(first ?? string.Empty, out var left) || !TryNormalize(second ?? string.Empty, out var right))
+        {
+            return false;
+        }
+
+        for (var channel = 1; channel < LongDigits; channel += 2)
+        {
+            if (Math.Abs(ChannelOf(left.AsSpan(channel, 2)) - ChannelOf(right.AsSpan(channel, 2))) >= NearChannelDistance)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /// <summary>Red, green and blue of a colour written as <c>#RRGGBB</c>, each 0-1.</summary>
     private static (float Red, float Green, float Blue) ToComponents(string hex)
     {
