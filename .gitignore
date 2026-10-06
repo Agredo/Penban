@@ -4,6 +4,9 @@ obj/
 out/
 publish/
 
+# Android signing key (nur lokal, wie nexile.keystore/finanzio.keystore/unitracks.keystore)
+*.keystore
+
 # MSIX / Windows packaging output
 AppPackages/
 BundleArtifacts/

@@ -126,6 +126,26 @@
     <UseInterpreter>true</UseInterpreter>
   </PropertyGroup>
 
+  <!-- Android Release builds a signed, sideloadable APK. The keystore sits next to this project as
+       penban.keystore and is gitignored (*.keystore) - like nexile.keystore, finanzio.keystore and
+       unitracks.keystore it only exists locally and has to be backed up separately, because Android
+       refuses to update an installed app whose signing key changed.
+
+         dotnet publish Penban.Maui\Penban.Maui.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk
+       -> bin\Release\net10.0-android\publish\com.agredoapplication.panban-Signed.apk
+
+       Debug stays on the debug keystore on purpose: Debug is installed with FastDev over adb, which
+       pushes the assemblies into the app's files directory instead of the APK, and the Release APK
+       must not depend on that. -->
+  <PropertyGroup Condition="$(TargetFramework.Contains('-android')) And '$(Configuration)' == 'Release'">
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <AndroidKeyStore>True</AndroidKeyStore>
+    <AndroidSigningKeyStore>penban.keystore</AndroidSigningKeyStore>
+    <AndroidSigningKeyAlias>penban</AndroidSigningKeyAlias>
+    <AndroidSigningStorePass>Agredo10Castillo</AndroidSigningStorePass>
+    <AndroidSigningKeyPass>Agredo10Castillo</AndroidSigningKeyPass>
+  </PropertyGroup>
+
   <!-- Compiles Platforms/iOS/PenbanWidgetReloader.swift into the app executable.
        WidgetKit is a Swift-only framework, so "draw the widget again" - the call that makes a change
        show up on the home screen without waiting for the widget's own next refresh - cannot be made
