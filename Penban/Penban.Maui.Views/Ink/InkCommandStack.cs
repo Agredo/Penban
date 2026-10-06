@@ -25,11 +25,12 @@ public readonly record struct InkStrokePlacement(int Index, InkStroke Stroke);
 /// object in both: it never leaves the set, only its points are written over, which is what makes a
 /// move something other than an erase followed by a write.
 /// </summary>
-/// <param name="Stroke">The stroke that was carried, as it stands in the set.</param>
-/// <param name="Before">Its points as they were before the move began.</param>
-/// <param name="After">Its points as they are once the move is over.</param>
 public sealed class InkStrokeMove
 {
+    /// <summary>Remembers one stroke's points as they stood before a move and as they are after it.</summary>
+    /// <param name="stroke">The stroke that was carried, as it stands in the set.</param>
+    /// <param name="before">Its points as they were before the move began.</param>
+    /// <param name="after">Its points as they are once the move is over.</param>
     public InkStrokeMove(InkStroke stroke, IReadOnlyList<InkPoint> before, IReadOnlyList<InkPoint> after)
     {
         Stroke = stroke;

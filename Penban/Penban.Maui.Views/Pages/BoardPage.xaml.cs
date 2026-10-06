@@ -907,7 +907,7 @@ public partial class BoardPage : ContentPage
     /// The bin does not go up here: a note that is only being held is not a note on its way to the
     /// bin, so the bin waits for a move, see <see cref="OnKanbanDragOver"/>. What puts the header back
     /// afterwards is the end of the drag, see <see cref="OnKanbanDragEnd"/> - and, for a drag whose end
-    /// the control swallows, the first contact anywhere on the board, see <see cref="OnBoardTouchDown"/>
+    /// the control swallows, the first contact anywhere on the board, see <c>OnBoardTouchDown</c>
     /// and <see cref="OnCardTapped"/>.
     /// </remarks>
     private void OnKanbanDragStart(object? sender, KanbanDragStartEventArgs e)
