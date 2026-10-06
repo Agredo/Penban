@@ -66,6 +66,26 @@ public partial class BoardPage : ContentPage
     /// </summary>
     private const double NoteCellPadding = 10;
 
+#if ANDROID
+    /// <summary>
+    /// Room a tap is given around the note it lands on before it counts as a tap on the board.
+    /// </summary>
+    /// <remarks>
+    /// A note is drawn tilted, see StickyNoteBorder.NoteTilt, and the place a tap is reported in is
+    /// measured from the corner the note is laid out at rather than from the tilted note itself. The
+    /// tilt of a note moves that corner by up to about four units, so a tap is taken to be on the note
+    /// a little beyond its edge - otherwise the edge of a note would be a spot where nothing happens.
+    /// The room stays well under the space two notes keep between them, see NoteCellPadding, so a tap
+    /// that really does land on the board between two notes is still a tap on the board.
+    /// <para>
+    /// Only Android needs this: only there does the card answer the tap, and the card is a little wider
+    /// and taller than the note it carries, see BoardKanbanCard.CellWidth. Everywhere else the tap is
+    /// answered by the note itself, which cannot be tapped outside of itself.
+    /// </para>
+    /// </remarks>
+    private const double NoteTapRoom = 4;
+#endif
+
     /// <summary>
     /// Height of one line of a note's writing, as a multiple of its size. What the board counts with
     /// when it works out how many lines of a body fit on a note - the platform's own line spacing is
@@ -162,6 +182,11 @@ public partial class BoardPage : ContentPage
     /// </summary>
     private bool isBinHot;
 
+    /// <summary>
+    /// Whether the bin is standing in for the header at this moment, see <see cref="SetBinShown"/>.
+    /// </summary>
+    private bool isBinShown;
+
     /// <summary>Carries the owning <see cref="ColumnViewModel"/> on each <see cref="KanbanColumn"/>
     /// so header-template buttons (whose BindingContext is the Syncfusion column) can reach it.</summary>
     private static readonly BindableProperty ColumnViewModelProperty =
@@ -192,6 +217,10 @@ public partial class BoardPage : ContentPage
         BoardKanban.DragOver += OnKanbanDragOver;
         BoardKanban.DragEnd += OnKanbanDragEnd;
         BoardKanban.SizeChanged += OnBoardKanbanSizeChanged;
+
+        // The bin starts where the header belongs, but it is laid out rather than taken out of the
+        // layout, see SetBinShown.
+        SetBinShown(false);
 
 #if IOS
         // The view the touch watcher hangs on only exists once the platform has built the page - and
@@ -938,13 +967,13 @@ public partial class BoardPage : ContentPage
                 + $"{e.SourceColumn?.Title}#{e.SourceIndex} to {e.TargetColumn?.Title}#{e.TargetIndex}");
         }
 
-        if (TrashDropArea.IsVisible)
+        if (isBinShown)
         {
             return;
         }
 
         BinLog("bin up (move)");
-        TrashDropArea.IsVisible = true;
+        SetBinShown(true);
     }
 
     /// <summary>
@@ -954,9 +983,9 @@ public partial class BoardPage : ContentPage
     /// </summary>
     private void HideBin()
     {
-        var wasVisible = TrashDropArea.IsVisible;
+        var wasVisible = isBinShown;
         SetBinHot(false);
-        TrashDropArea.IsVisible = false;
+        SetBinShown(false);
 
         if (wasVisible)
         {
@@ -971,6 +1000,30 @@ public partial class BoardPage : ContentPage
     /// </summary>
     private static void BinLog(string message) =>
         Console.WriteLine($"[BinDiag] {DateTime.Now:HH:mm:ss.fff} {message}");
+
+    /// <summary>
+    /// Puts the bin over the header, or takes it back down.
+    /// </summary>
+    /// <remarks>
+    /// On Android the bin is hidden rather than taken out of the layout, and the reason is the
+    /// platform's drag: Android settles which views a drag may reach once, when the drag begins, and
+    /// every view that is not laid out at that moment is passed over for the rest of the drag - a bin
+    /// that only appears when the note reaches it never hears about the note over it, so the drop
+    /// would fall through to nothing. A bin that is merely invisible keeps its place and is asked. It
+    /// takes no touch while it is down either, so the header under it stays usable.
+    /// </remarks>
+    private void SetBinShown(bool shown)
+    {
+        isBinShown = shown;
+
+#if ANDROID
+        TrashDropArea.IsVisible = true;
+        TrashDropArea.Opacity = shown ? 1 : 0;
+        TrashDropArea.InputTransparent = !shown;
+#else
+        TrashDropArea.IsVisible = shown;
+#endif
+    }
 
     /// <summary>
     /// Fills the bin as soon as the note is over it, so that it is clear that letting go here is what
@@ -1039,7 +1092,7 @@ public partial class BoardPage : ContentPage
         // the note and is about to put it back where it came from. Deleting it here would take the
         // note out of the collection while that pipeline is working on it, so the deletion waits
         // until the pipeline has let go.
-        Dispatcher.Dispatch(() => _ = DeleteCardsAsync([cardId]));
+        Dispatcher.Dispatch(() => _ = DeleteDroppedCardAsync(cardId));
     }
 
     /// <summary>
@@ -1057,6 +1110,16 @@ public partial class BoardPage : ContentPage
     /// Deletes the given notes on one question. Returns whether they are gone: a question the user
     /// turned down leaves the board as it was.
     /// </summary>
+    /// <summary>
+    /// Deletes the note that was let go over the bin.
+    /// </summary>
+    private Task<bool> DeleteDroppedCardAsync(Guid cardId) => DeleteCardsAsync([cardId]);
+
+    /// <summary>
+    /// Deletes the given notes and takes them off the board. The command only marks the notes as
+    /// deleted; taking them out of their columns is the board's job, so a board that is on screen
+    /// rebuilds itself once instead of once per note.
+    /// </summary>
     private async Task<bool> DeleteCardsAsync(IReadOnlyList<Guid> cardIds)
     {
         if (viewModel is null || cardIds.Count == 0)
@@ -1066,8 +1129,6 @@ public partial class BoardPage : ContentPage
 
         await viewModel.DeleteCardsCommand.ExecuteAsync(cardIds);
 
-        // The command only marks the notes as deleted; taking them out of their columns is the
-        // board's job, so a board that is on screen rebuilds itself once instead of once per note.
         var removed = RemoveDeletedCards();
         if (removed)
         {
@@ -1338,9 +1399,94 @@ public partial class BoardPage : ContentPage
         BoardNoteButton.Style = (Style)resources[hasNote ? "AccentIconButton" : "GhostIconButton"];
     }
 
+    /// <summary>
+    /// Hands the note's tap over to the card the note is carried in, once the note is on screen.
+    /// </summary>
+    /// <remarks>
+    /// An Android affair only: everywhere else the note answers its own tap, see the note template, and
+    /// there is nothing to do here. On Android the tap cannot be left to the control, whose own report
+    /// of it (<c>SfKanban.CardTapped</c>) does not arrive there, and it cannot be answered by the note
+    /// either: a recognizer on the note takes the whole touch away from the card, which is the view the
+    /// control drags a note by, so a note that answered its own tap could no longer be moved. The card
+    /// is where both live at once - it already carries the drag the control works with, and a tap of
+    /// its own is reported by the same platform gesture detector. So the note's own tap is taken back
+    /// here and the card's is hung up in its place, and what the note keeps is the duty to let the
+    /// touch through, see the note template. The note itself is what the tap is about, so it rides
+    /// along as the recognizer's parameter.
+    /// <para>
+    /// A card outlives the note it carries - the control fills its cards again while the board is
+    /// scrolled - so the tap of the note that was there before is taken back rather than left to
+    /// answer for a note that is gone.
+    /// </para>
+    /// </remarks>
+    private void OnNoteLoaded(object? sender, EventArgs e)
+    {
+#if ANDROID
+        if (sender is not View note || FindCardOf(note) is not { } card)
+        {
+            return;
+        }
+
+        // The note's own tap goes first: it is the one that would stand between the card and every
+        // touch, and the card's tap is hung up below in its place.
+        foreach (var own in note.GestureRecognizers.OfType<TapGestureRecognizer>().ToList())
+        {
+            note.GestureRecognizers.Remove(own);
+        }
+
+        // A card outlives the note it carries - the control fills its cards again while the board is
+        // scrolled - so the taps of notes that are gone are taken back before this note's own is hung
+        // up: a card that answered for two notes would open the wrong one. A tap of this kind carries
+        // the note it is about, which is what tells it from any other tap that may be on the card.
+        foreach (var stale in card.GestureRecognizers
+                     .OfType<TapGestureRecognizer>()
+                     .Where(tap => tap.CommandParameter is View)
+                     .ToList())
+        {
+            card.GestureRecognizers.Remove(stale);
+        }
+
+        var tap = new TapGestureRecognizer { CommandParameter = note };
+        tap.Tapped += OnCardTapped;
+        card.GestureRecognizers.Add(tap);
+#endif
+    }
+
+#if ANDROID
+    /// <summary>
+    /// Finds the card a note is carried in: the view above it that the control drags.
+    /// </summary>
+    /// <remarks>
+    /// The card is not named here - it is the control's own, and internal to it - so it is recognised
+    /// by what makes it a card: it is the nearest view above the note that is dragged.
+    /// </remarks>
+    private static View? FindCardOf(View note)
+    {
+        for (var parent = note.Parent; parent is not null; parent = parent.Parent)
+        {
+            if (parent is View view && view.GestureRecognizers.OfType<DragGestureRecognizer>().Any())
+            {
+                return view;
+            }
+        }
+
+        return null;
+    }
+#endif
+
+    /// <summary>
+    /// Opens the note that was tapped, or picks it while notes are being picked.
+    /// </summary>
+    /// <remarks>
+    /// On Android the card reports the tap and the note it is about rides along as the parameter, see
+    /// <see cref="OnNoteLoaded"/>; on every other platform the note answers its own tap and is what
+    /// the tap arrives from, see the note template. A tap that lands while the bin is up is what puts
+    /// the header back, see <c>OnBoardTouchDown</c>.
+    /// </remarks>
     private async void OnCardTapped(object? sender, TappedEventArgs e)
     {
-        if ((sender as BindableObject)?.BindingContext is not BoardKanbanCard card)
+        if ((e.Parameter as View ?? sender as View) is not { } note
+            || note.BindingContext is not BoardKanbanCard card)
         {
             return;
         }
@@ -1348,12 +1494,25 @@ public partial class BoardPage : ContentPage
         // A tap anywhere ends a drag the platform finished without saying so: the bin standing in the
         // header belongs to nobody by then, and the tap is aimed at the note under it - not at a note
         // that is in the air, whose editor is not to be opened over it either.
-        if (TrashDropArea.IsVisible)
+        if (isBinShown)
         {
             BinLog("card tapped, bin was up");
             HideBin();
             return;
         }
+
+#if ANDROID
+        // The card is wider and taller than the note it carries, see BoardKanbanCard.CellWidth: a tap
+        // in the gap between two notes is a tap on the board, not on a note. A tap whose place the
+        // platform does not report is taken as one on the note. The other platforms have no gap to
+        // tell apart - the tap comes from the note itself.
+        if (e.GetPosition(note) is { } spot
+            && (spot.X < -NoteTapRoom || spot.Y < -NoteTapRoom
+                || spot.X > note.Width + NoteTapRoom || spot.Y > note.Height + NoteTapRoom))
+        {
+            return;
+        }
+#endif
 
         // While notes are being picked, a tap is what picks one: opening the editor instead would
         // take the board away under the very thing the picking is for.
@@ -1480,7 +1639,7 @@ public partial class BoardPage : ContentPage
 
         // A drag that is in the air holds the board's touches, so a touch that comes down here cannot
         // belong to one: whatever the bin is standing in for is over, and the header goes back.
-        if (!TrashDropArea.IsVisible)
+        if (!isBinShown)
         {
             return;
         }

@@ -149,7 +149,10 @@
                  into its column without the board ever hearing about it.
                  Tapping it puts the header back: a drag that ends in a way the app is never told
                  about (the app going to the background, a drop the platform calls off) must not leave
-                 the user without a header. -->
+                 the user without a header.
+                 BoardPage shows and hides it, see SetBinShown: on Android it is only made invisible
+                 while it is down rather than taken out of the layout, because the platform settles
+                 which views a drag may reach once, when that drag begins. -->
             <Border x:Name="TrashDropArea"
                     IsVisible="False"
                     HeightRequest="44"
@@ -266,7 +269,15 @@
                                                    HeightRequest="{Binding NoteHeight}"
                                                    WidthRequest="{Binding NoteWidth}"
                                                    HorizontalOptions="Center"
-                                                   VerticalOptions="Center">
+                                                   VerticalOptions="Center"
+                                                   Loaded="OnNoteLoaded">
+                            <!-- The tap is answered by the note itself, and on Android by the card the
+                                 note is carried in instead, see OnNoteLoaded: there a recognizer on the
+                                 note takes the touch away from the card, which is the view the control
+                                 drags a note by, so a note that answered its own tap could no longer
+                                 be moved. What the note has to do either way is let the touch through
+                                 to the card - everything inside it is transparent to input, see the
+                                 ink preview and the text stack below. -->
                             <controls:StickyNoteBorder.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnCardTapped" />
                             </controls:StickyNoteBorder.GestureRecognizers>
@@ -282,7 +293,8 @@
                                      colour, the size and the weight the editor last wrote it in,
                                      through the same conversion the ink is drawn through, so the
                                      note reads on the board as it does in the editor. Transparent to
-                                     input: what takes the touch is the note under it. -->
+                                     input: what takes the touch is the note, and on Android the card
+                                     the note is carried in. -->
                                 <VerticalStackLayout Margin="0,0,0,16"
                                                      Spacing="2"
                                                      VerticalOptions="Start"
@@ -310,7 +322,7 @@
                                 <!-- The pick box of the selection mode, in the corner the tags leave
                                      free. It is drawn on the note rather than beside it, so a picked
                                      note is still one note, not a row with a checkbox. Transparent to
-                                     input: the tap that turns it over is the one on the note itself.
+                                     input: the tap that turns it over is the one the card reports.
                                      Unticked = U+E2F7, ticked = U+F28E. -->
                                 <Grid IsVisible="{Binding ShowPicker}"
                                       Margin="2"
