@@ -70,7 +70,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>CFBundleURLName</key>
-			<string>com.agredoapplication.panban.board</string>
+			<string>com.agredoapplication.penban.board</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>penban</string>

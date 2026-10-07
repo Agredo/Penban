@@ -58,7 +58,7 @@ csproj_value() { sed -n "s/.*<$1>\(.*\)<\/$1>.*/\1/p" "$PROJ" | head -1 | tr -d 
 
 BUNDLE_ID="${BUNDLE_ID:-$(csproj_value ApplicationId)}"
 # Muss zu Penban.Widget.iOS/project.yml und Platforms/iOS/Entitlements.plist passen.
-APP_GROUP="${APP_GROUP:-group.com.agredoapplication.panban}"
+APP_GROUP="${APP_GROUP:-group.com.agredoapplication.penban}"
 VERSION="${VERSION:-$(csproj_value ApplicationDisplayVersion)}"
 BUILD="${BUILD:-$(csproj_value ApplicationVersion)}"
 

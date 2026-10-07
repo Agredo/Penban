@@ -11,7 +11,7 @@
 	     signing fails. Identifier mirrors WidgetSharedStorage.GroupId. -->
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.agredoapplication.panban</string>
+		<string>group.com.agredoapplication.penban</string>
 	</array>
 </dict>
 </plist>

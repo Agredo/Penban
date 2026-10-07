@@ -35,7 +35,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: PenbanWidget
-        PRODUCT_BUNDLE_IDENTIFIER: com.agredoapplication.panban.WidgetExtension
+        PRODUCT_BUNDLE_IDENTIFIER: com.agredoapplication.penban.WidgetExtension
         INFOPLIST_FILE: Resources/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Resources/PenbanWidget.entitlements

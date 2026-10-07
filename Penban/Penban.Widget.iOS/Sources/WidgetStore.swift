@@ -10,7 +10,7 @@ import UIKit
 enum WidgetStore {
     /// Identifier of the App Group, as registered in the Apple Developer Portal. Mirrors
     /// `WidgetSharedStorage.GroupId` in the app - the container is not handed out if the two differ.
-    static let appGroupIdentifier = "group.com.agredoapplication.panban"
+    static let appGroupIdentifier = "group.com.agredoapplication.penban"
 
     /// Root of the shared folder, or nil while the App Group is not set up on this device.
     static var containerURL: URL? {

@@ -4,6 +4,14 @@ Projekte sammeln Boards unter sich. Gebaut in den Schritten 0–6 unter „Reihe
 0.5.7 (Build 21), `main` = `806c091`. Die Entscheidungen stehen unten unter „Entschieden", das
 Gebaute und die Abweichungen vom Plan unter „Gebaut".
 
+In 0.5.8 (Build 22) nachgezogen: die Boards auf der Projektseite zeichnen **dieselbe Board-Karte wie
+die Board-Übersicht** — beide Breiten, mit dem Fächer der Notizen und den drei Schaltflächen
+(Teilen/Bearbeiten/Löschen) — statt der eigenen schlichten Zeile, die sie vorher hatten; die Zeile
+kannte weder den Notizfächer noch den Teilen-Knopf. Außerdem heißt die App-ID jetzt
+`com.agredoapplication.penban` statt `com.agredoapplication.panban` (siehe TODO.md, 0.5.8): eine
+installierte 0.5.7 wird von diesem Build **nicht** aktualisiert, weil Android und iOS eine App über
+ihre ID kennen — 0.5.8 steht daneben und bringt eigene Notizen mit.
+
 ## Was gebaut werden soll
 
 1. Ein **Projekt** sammelt Boards unter sich und bekommt eine **eigene Seite**.

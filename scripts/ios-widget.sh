@@ -37,8 +37,8 @@ SCHEME="PenbanWidget"
 
 # Muss zu Penban.Maui.csproj passen: AdditionalAppExtensions sucht genau dieses Bundle, und
 # ein Extension-Bundle muss die Bundle-ID der App als Präfix tragen.
-EXTENSION_BUNDLE_ID="com.agredoapplication.panban.WidgetExtension"
-APP_GROUP="group.com.agredoapplication.panban"
+EXTENSION_BUNDLE_ID="com.agredoapplication.penban.WidgetExtension"
+APP_GROUP="group.com.agredoapplication.penban"
 
 # Version und Build-Nummer dürfen von der App nicht abweichen – App Store Connect weist ein Paket
 # mit 90473 zurück. Gelesen wird deshalb die App: Penban.Maui.csproj nennt die Version an genau
