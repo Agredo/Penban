@@ -1,4 +1,5 @@
 using AgredoApplication.MVVM.Services.Abstractions.Navigation;
+using Penban.Maui.Views.Services;
 using Penban.Services.Abstractions;
 using Penban.ViewModels;
 
@@ -11,11 +12,13 @@ namespace Penban.Maui.Views.Pages;
 public partial class ProjectsPage : ContentPage
 {
     private readonly INavigationService navigation;
+    private readonly TransferCoordinator transferCoordinator;
 
-    public ProjectsPage(ProjectsViewModel viewModel, INavigationService navigation)
+    public ProjectsPage(ProjectsViewModel viewModel, INavigationService navigation, TransferCoordinator transferCoordinator)
     {
         InitializeComponent();
         this.navigation = navigation;
+        this.transferCoordinator = transferCoordinator;
         BindingContext = viewModel;
     }
 
@@ -133,9 +136,25 @@ public partial class ProjectsPage : ContentPage
         await viewModel.MoveProjectAsync(dragged.Id, target.Id);
     }
 
+    /// <summary>Opens the menu, which is the only way to the other two areas.</summary>
+    private void OnMenuClicked(object? sender, EventArgs e) => ShellMenu.Open();
+
     private async void OnSettingsClicked(object? sender, EventArgs e)
     {
         await navigation.ShellNavigationTo(AppRoutes.Settings);
+    }
+
+    /// <summary>
+    /// The whole-database export and import, the same menu the board overview offers. A backup
+    /// carries the projects as well, so an import can leave the list on this page different from how
+    /// it was - which is the one case it is read again for.
+    /// </summary>
+    private async void OnTransferClicked(object? sender, EventArgs e)
+    {
+        if (await transferCoordinator.ShowDatabaseMenuAsync() && BindingContext is ProjectsViewModel viewModel)
+        {
+            await viewModel.LoadProjectsCommand.ExecuteAsync(null);
+        }
     }
 
     /// <summary>

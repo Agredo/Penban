@@ -221,7 +221,7 @@ public class TransferCoordinator(
             var result = await transferService.ImportAsync(file, mode, targetColumnId);
             await dialogService.DisplayAlertAsync(
                 Strings.TransferImport,
-                string.Format(CultureInfo.CurrentCulture, Strings.ImportDoneFormat, result.BoardCount, result.CardCount),
+                string.Format(CultureInfo.CurrentCulture, Strings.ImportDoneFormat, result.BoardCount, result.CardCount, result.ProjectCount),
                 Strings.Done);
             return true;
         }

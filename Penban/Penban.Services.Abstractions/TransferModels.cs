@@ -3,7 +3,7 @@ namespace Penban.Services.Abstractions;
 /// <summary>What an export contains.</summary>
 public enum ExportScope
 {
-    /// <summary>Every board of the database - a full backup.</summary>
+    /// <summary>Every project and every board of the database - a full backup.</summary>
     Backup,
 
     /// <summary>A single board with its columns and its cards.</summary>
@@ -33,4 +33,4 @@ public sealed record ExportResult(string FilePath, ExportScope Scope, int BoardC
 public sealed record ImportFileInfo(ExportScope Scope, int BoardCount, int CardCount, string? SourceBoardTitle);
 
 /// <summary>What <see cref="IDataTransferService.ImportAsync"/> actually added.</summary>
-public sealed record ImportResult(int BoardCount, int CardCount);
+public sealed record ImportResult(int BoardCount, int CardCount, int ProjectCount);

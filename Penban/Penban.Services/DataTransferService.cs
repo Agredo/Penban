@@ -21,17 +21,20 @@ public class DataTransferService : IDataTransferService
 {
     private readonly IBoardRepository boardRepository;
     private readonly ICardRepository cardRepository;
+    private readonly IProjectRepository projectRepository;
     private readonly IFileShareService fileShareService;
     private readonly IRecognitionStore recognitionStore;
 
     public DataTransferService(
         IBoardRepository boardRepository,
         ICardRepository cardRepository,
+        IProjectRepository projectRepository,
         IFileShareService fileShareService,
         IRecognitionStore recognitionStore)
     {
         this.boardRepository = boardRepository;
         this.cardRepository = cardRepository;
+        this.projectRepository = projectRepository;
         this.fileShareService = fileShareService;
         this.recognitionStore = recognitionStore;
     }
@@ -41,7 +44,7 @@ public class DataTransferService : IDataTransferService
         var boards = await boardRepository.GetAllAsync();
         var exportedBoards = scope == ExportScope.Backup
             ? boards
-            : boards.Where(board => board.Id == boardId).ToList();
+            : boards.Where(board => board.Id == boardId).Select(Flatten).ToList();
 
         if (scope != ExportScope.Backup && exportedBoards.Count == 0)
         {
@@ -72,6 +75,9 @@ public class DataTransferService : IDataTransferService
             },
             ExportedAtUtc = DateTimeOffset.UtcNow,
             SourceBoardTitle = boardTitle,
+            // Only a backup carries the projects: a board file is handed to somebody else, and their
+            // database has no project of that id. Its boards leave the project behind, see Flatten.
+            Projects = scope == ExportScope.Backup ? await projectRepository.GetAllAsync() : new List<Project>(),
             // A card file leaves the structure behind on purpose: the cards are meant to land in
             // whichever column the user picks on the other side.
             Boards = scope == ExportScope.Cards ? new List<Board>() : exportedBoards,
@@ -114,10 +120,10 @@ public class DataTransferService : IDataTransferService
         return ScopeOf(document.Kind) switch
         {
             ExportScope.Cards => await AppendCardsAsync(document.Cards, targetColumnId),
-            ExportScope.Board => await AddAsNewBoardsAsync(document.Boards, document.Cards),
+            ExportScope.Board => await AddAsNewBoardsAsync(document.Projects, document.Boards, document.Cards),
             _ => mode == ImportMode.Replace
                 ? await ReplaceAllAsync(document)
-                : await AddAsNewBoardsAsync(document.Boards, document.Cards),
+                : await AddAsNewBoardsAsync(document.Projects, document.Boards, document.Cards),
         };
     }
 
@@ -129,20 +135,50 @@ public class DataTransferService : IDataTransferService
     {
         await boardRepository.ClearAsync();
         await cardRepository.ClearAsync();
+        await projectRepository.ClearAsync();
 
+        await projectRepository.SaveAllAsync(file.Projects);
         await boardRepository.SaveAllAsync(file.Boards);
         await cardRepository.SaveAllAsync(file.Cards);
         await IndexTypedTextAsync(file.Cards);
 
-        return new ImportResult(file.Boards.Count, file.Cards.Count);
+        return new ImportResult(file.Boards.Count, file.Cards.Count, file.Projects.Count);
     }
 
     /// <summary>
     /// Adds the file's boards as new boards. Every id is replaced, and the card and column
     /// references are rewritten to follow, so nothing that is already stored can be touched.
     /// </summary>
-    private async Task<ImportResult> AddAsNewBoardsAsync(IReadOnlyList<Board> sourceBoards, IReadOnlyList<Card> sourceCards)
+    private async Task<ImportResult> AddAsNewBoardsAsync(
+        IReadOnlyList<Project> sourceProjects,
+        IReadOnlyList<Board> sourceBoards,
+        IReadOnlyList<Card> sourceCards)
     {
+        // A project of the file becomes a project here as well, and the boards that sat in it follow
+        // their own copy. A board file brings no projects at all, so its board arrives without one -
+        // which is what exporting a single board is meant to produce.
+        var newProjectIds = new Dictionary<Guid, Guid>();
+        var projects = new List<Project>();
+
+        foreach (var source in sourceProjects)
+        {
+            var project = new Project
+            {
+                Id = Guid.NewGuid(),
+                Title = source.Title,
+                UpdatedAtUtc = source.UpdatedAtUtc,
+                SortOrder = source.SortOrder,
+                Tags = source.Tags ?? [],
+                StartDate = source.StartDate,
+                EndDate = source.EndDate,
+                NoteStrokes = source.NoteStrokes,
+                NoteColorIndex = source.NoteColorIndex,
+            };
+
+            newProjectIds[source.Id] = project.Id;
+            projects.Add(project);
+        }
+
         var newColumnIds = new Dictionary<Guid, Guid>();
         var boards = new List<Board>();
 
@@ -158,6 +194,19 @@ public class DataTransferService : IDataTransferService
                 // imported board would land at the end of the overview, behind everything already
                 // there, no matter where it sat on the other side.
                 SortOrder = source.SortOrder,
+
+                // A board follows the project its own file brought with it and nothing else. A board
+                // whose project is not in the file - a board file, or a hand-edited one - arrives
+                // without a project rather than pointing at an id this database does not have.
+                ProjectId = source.ProjectId is { } projectId && newProjectIds.TryGetValue(projectId, out var newProjectId)
+                    ? newProjectId
+                    : null,
+
+                // What the extended mode put on the board belongs to the board, so it travels with
+                // it, like the note below.
+                Tags = source.Tags ?? [],
+                StartDate = source.StartDate,
+                EndDate = source.EndDate,
 
                 // The note belongs to the board, so it travels with it: importing a board that had
                 // one must not quietly lose the only note that says what the board is about. The
@@ -194,11 +243,12 @@ public class DataTransferService : IDataTransferService
             }
         }
 
+        await projectRepository.SaveAllAsync(projects);
         await boardRepository.SaveAllAsync(boards);
         await cardRepository.SaveAllAsync(cards);
         await IndexTypedTextAsync(cards);
 
-        return new ImportResult(boards.Count, cards.Count);
+        return new ImportResult(boards.Count, cards.Count, projects.Count);
     }
 
     /// <summary>
@@ -224,8 +274,31 @@ public class DataTransferService : IDataTransferService
         await cardRepository.SaveAllAsync(cards);
         await IndexTypedTextAsync(cards);
 
-        return new ImportResult(0, cards.Count);
+        return new ImportResult(0, cards.Count, 0);
     }
+
+    /// <summary>
+    /// The board as a file of its own: everything that belongs to the board travels with it, the
+    /// project it sits in does not. A board file is meant to be handed to somebody else, and their
+    /// database has no project of that id - so the board leaves without one instead of arriving
+    /// somewhere it does not belong.
+    /// </summary>
+    private static Board Flatten(Board source) => new()
+    {
+        Id = source.Id,
+        UpdatedAtUtc = source.UpdatedAtUtc,
+        IsDeleted = source.IsDeleted,
+        SyncVersionTag = source.SyncVersionTag,
+        Title = source.Title,
+        SortOrder = source.SortOrder,
+        ProjectId = null,
+        Tags = source.Tags,
+        StartDate = source.StartDate,
+        EndDate = source.EndDate,
+        Columns = source.Columns,
+        NoteStrokes = source.NoteStrokes,
+        NoteColorIndex = source.NoteColorIndex,
+    };
 
     /// <summary>
     /// Puts the typed text of freshly imported cards into the search index, the way a save does.
@@ -295,6 +368,7 @@ public class DataTransferService : IDataTransferService
 
             // A null here can only come from a hand-edited file, and would turn into a
             // NullReferenceException somewhere far less obvious than this.
+            document.Projects ??= new List<Project>();
             document.Boards ??= new List<Board>();
             document.Cards ??= new List<Card>();
             return document;

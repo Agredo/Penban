@@ -143,18 +143,16 @@
 
     <Grid RowDefinitions="Auto,Auto,*" Padding="20,12" RowSpacing="16">
 
-        <!-- Header: logo + page title + settings. The primary add action is not one of them: it floats
-             over the list in the bottom right corner, where a thumb reaches it without crossing the
-             page and where it takes no share of the bar from the title. There is no transfer button
-             here - a backup is taken as a whole, which the board overview offers. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
-            <Image Grid.Column="0"
-                   Source="penban_logo.png"
-                   WidthRequest="36"
-                   HeightRequest="36"
-                   Margin="0,0,6,0"
-                   VerticalOptions="Center"
-                   SemanticProperties.Description="Penban" />
+        <!-- Header: menu + page title + settings + whole-database transfer. The primary add action is
+             not one of them: it floats over the list in the bottom right corner, where a thumb reaches
+             it without crossing the page and where it takes no share of the bar from the title. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
+            <Button Grid.Column="0"
+                    Text="&#xf561;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnMenuClicked"
+                    SemanticProperties.Description="{markup:Translate Menu}"
+                    VerticalOptions="Center" />
             <Label Grid.Column="1"
                    Text="{markup:Translate ProjectsTitle}"
                    Style="{StaticResource LargeTitleLabel}"
@@ -164,6 +162,14 @@
                     Style="{StaticResource GhostIconButton}"
                     Clicked="OnSettingsClicked"
                     SemanticProperties.Description="{markup:Translate Settings}"
+                    VerticalOptions="Center" />
+            <!-- A backup covers projects as well, so the overview that leads to them offers it beside
+                 the board overview rather than only behind it. -->
+            <Button Grid.Column="3"
+                    Text="&#xe467;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnTransferClicked"
+                    SemanticProperties.Description="{markup:Translate TransferTitle}"
                     VerticalOptions="Center" />
         </Grid>
 

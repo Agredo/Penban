@@ -27,6 +27,53 @@
                 <Label Text="{markup:Translate HelpSubtitle}"
                        Style="{StaticResource CaptionLabel}" />
 
+                <!-- The order is the way through the app: first where one is, then what a project and
+                     a board are, then the writing itself, and last what makes all of it survive. -->
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate HelpAreasTitle}"
+                               Style="{StaticResource SubtitleLabel}" />
+                        <Label Text="{markup:Translate HelpAreasBody}"
+                               Style="{StaticResource BodyLabel}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate HelpDashboardTitle}"
+                               Style="{StaticResource SubtitleLabel}" />
+                        <Label Text="{markup:Translate HelpDashboardBody}"
+                               Style="{StaticResource BodyLabel}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate HelpProjectsTitle}"
+                               Style="{StaticResource SubtitleLabel}" />
+                        <Label Text="{markup:Translate HelpProjectsBody}"
+                               Style="{StaticResource BodyLabel}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate HelpLabelsTitle}"
+                               Style="{StaticResource SubtitleLabel}" />
+                        <Label Text="{markup:Translate HelpLabelsBody}"
+                               Style="{StaticResource BodyLabel}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate HelpBoardsTitle}"
+                               Style="{StaticResource SubtitleLabel}" />
+                        <Label Text="{markup:Translate HelpBoardsBody}"
+                               Style="{StaticResource BodyLabel}" />
+                    </VerticalStackLayout>
+                </Border>
+
                 <Border Style="{StaticResource CardBorder}" Padding="16">
                     <VerticalStackLayout Spacing="6">
                         <Label Text="{markup:Translate HelpDrawTitle}"
@@ -74,9 +121,9 @@
 
                 <Border Style="{StaticResource CardBorder}" Padding="16">
                     <VerticalStackLayout Spacing="6">
-                        <Label Text="{markup:Translate HelpBoardsTitle}"
+                        <Label Text="{markup:Translate HelpSettingsTitle}"
                                Style="{StaticResource SubtitleLabel}" />
-                        <Label Text="{markup:Translate HelpBoardsBody}"
+                        <Label Text="{markup:Translate HelpSettingsBody}"
                                Style="{StaticResource BodyLabel}" />
                     </VerticalStackLayout>
                 </Border>
