@@ -12,9 +12,11 @@
 
         <!-- Own header instead of the Shell nav bar: the Windows Shell nav bar renders no back
              button, so the app draws its own and every platform gets the same way back.
-             Adding a column belongs here rather than under the board: it acts on the board, not on
-             a single column, and it keeps the whole height of the board free for the notes.
-             The note button sits beside it for the same reason: the note belongs to the board, not
+             Adding a column acts on the board rather than on one column, so it is not part of a
+             column: it floats over the board in the bottom right corner (see the button under the
+             board below), which leaves the header to the title and to what acts on the board as a
+             whole.
+             The note button sits in the header for the same reason: the note belongs to the board, not
              to a column, and it is what the board shows on the overview and on the home screen.
              The settings button is the same one as on the overview: the drawing settings are tried
              out on a note, so they have to be reachable without leaving the board.
@@ -23,7 +25,7 @@
              one covers another instead of pushing it aside: the board below must not move while a
              note is in the air, or the drop target would shift away from the note. -->
         <Grid Grid.Row="0">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                   ColumnSpacing="6">
                 <Button Grid.Column="0"
                         Text="&#xf15c;"
@@ -97,11 +99,6 @@
                         Style="{StaticResource GhostIconButton}"
                         Clicked="OnSettingsClicked"
                         SemanticProperties.Description="{markup:Translate Settings}" />
-                <Button Grid.Column="10"
-                        Text="&#xf2fd;"
-                        Style="{StaticResource AccentIconButton}"
-                        Command="{Binding AddColumnCommand}"
-                        SemanticProperties.Description="{markup:Translate AddColumn}" />
             </Grid>
             <!-- While notes are picked, this row stands in for the header. The way back stays where it
                  was: a header that offers none would be a trap. The two actions only appear once
@@ -346,6 +343,19 @@
                 </DataTemplate>
             </kanban:SfKanban.CardTemplate>
         </kanban:SfKanban>
+        <!-- Adding a column, floating over the board in the bottom right corner: it acts on the board
+             rather than on one column, and the header has no room to spare for it. Last in the grid,
+             so it lies over the board rather than under it. Add = U+F2FD.
+             A drag does not end here: the button takes no drop, so a note let go over it is passed on
+             to the board underneath, exactly as if the button were not there. -->
+        <Button Grid.Row="1"
+                Text="&#xf2fd;"
+                Style="{StaticResource FabButton}"
+                Command="{Binding AddColumnCommand}"
+                SemanticProperties.Description="{markup:Translate AddColumn}"
+                HorizontalOptions="End"
+                VerticalOptions="End"
+                Margin="0,0,4,4" />
         <!-- Over the board: what says that it is still on its way. A board that is opened is read lane
              by lane and built note by note, and on a board with a lot on it that takes long enough to
              look like a tap that was never noticed. Shown for the visit that builds the board and for

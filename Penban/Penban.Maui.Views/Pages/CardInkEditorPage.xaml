@@ -5,8 +5,9 @@
      the header of the board this card came from, down to the padding and the spacing, so opening a
      card and closing it again does not move the arrow or the title. The title is the board the card
      came from, handed in by the constructor.
-     The back button leaves the card the way "Fertig" does, and both keep the ink either way, see
-     OnDisappearing in the code-behind. -->
+     The header carries the two ways out of the card as well - delete and done - which leaves the row
+     of the tools under it to the controls alone. All three leave the card the same way and keep the
+     ink either way, see OnDisappearing in the code-behind. -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
@@ -18,9 +19,14 @@
 
     <Grid RowDefinitions="Auto,Auto,*" Padding="12" RowSpacing="12">
 
-        <!-- The same header as on the board the card was opened from: the way back, and the name of
-             the board it leads to. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+        <!-- The same header as on the board the card was opened from: the way back, the name of the
+             board it leads to, and the two ways out of the card. Delete and done stand up here rather
+             than in the row of the tools, where they took the width the tools are drawn in: up here
+             they cost the title a little room, and the title is the one thing that can give some up,
+             because it truncates. They are the two buttons the board's picking row carries - the same
+             glyphs, the same styles, in the same order - so leaving a card looks the same wherever it
+             is done. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
             <Button Grid.Column="0"
                     x:Name="BackButton"
                     Text="&#xf15c;"
@@ -31,12 +37,26 @@
                    Style="{StaticResource TitleLabel}"
                    LineBreakMode="TailTruncation"
                    VerticalOptions="Center" />
+            <!-- Delete = U+F34D, done = U+F295. -->
+            <Button Grid.Column="2"
+                    x:Name="DeleteButton"
+                    Text="&#xf34d;"
+                    Style="{StaticResource DangerGhostIconButton}"
+                    Clicked="OnDeleteClicked"
+                    SemanticProperties.Description="{markup:Translate Delete}" />
+            <Button Grid.Column="3"
+                    x:Name="DoneButton"
+                    Text="&#xf295;"
+                    Style="{StaticResource AccentIconButton}"
+                    Clicked="OnDoneClicked"
+                    SemanticProperties.Description="{markup:Translate Done}" />
         </Grid>
 
         <!-- Everything that is a button or a colour lives in the one row above the note, so the note
              keeps the whole height underneath it: the drawing tools, the two pens and the paper
-             colours scroll, and the way into the ring plus the two buttons that leave the card are
-             pinned to the right end of the row, where they are always one press away.
+             colours scroll, and the way into the ring is pinned to the right end of the row, where it
+             is always one press away. The two ways out of the card are up in the header instead, so
+             this row belongs to the controls alone.
              There are two such rows, one upon the other and only ever one of them up: the tools of the
              pen, and the tools of the typed text. They stand in the same cell rather than one after the
              other, because exchanging them must not move what is pinned beside them - and each keeps
@@ -267,14 +287,13 @@
                 </HorizontalStackLayout>
             </ScrollView>
 
-            <!-- The way into the ring, the settings and the two ways out of the card. They stay outside
-                 the scrolling row so they are always one press away: the ring is what a free finger taps
-                 on the note, and the button is what is left when there is no free finger or no right
-                 mouse button. Without the ring - the toolbar mode - the button that opens it is gone
-                 with it.
-                 The settings stand at the head of the row, apart from the two ways out: they are not
-                 a way out of the card, and the drawing settings are what is tried out on this very
-                 note. It is the same button as on the overview and on the board. -->
+            <!-- The way into the ring and the settings. They stay outside the scrolling row so they
+                 are always one press away: the ring is what a free finger taps on the note, and the
+                 button is what is left when there is no free finger or no right mouse button. Without
+                 the ring - the toolbar mode - the button that opens it is gone with it.
+                 The settings are not a way out of the card, and the drawing settings are what is
+                 tried out on this very note. It is the same button as on the overview and on the
+                 board. The two ways out of the card are up in the header, see above. -->
             <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
                 <Button Text="&#xf588;"
                         Style="{StaticResource GhostIconButton}"
@@ -286,14 +305,6 @@
                         Style="{StaticResource GhostIconButton}"
                         Clicked="OnMenuClicked"
                         SemanticProperties.Description="{markup:Translate RadialMenu}" />
-                <Button x:Name="DeleteButton"
-                        Text="{markup:Translate Delete}"
-                        Style="{StaticResource DangerGhostButton}"
-                        Clicked="OnDeleteClicked" />
-                <Button x:Name="DoneButton"
-                        Text="{markup:Translate Done}"
-                        Style="{StaticResource PrimaryButton}"
-                        Clicked="OnDoneClicked" />
             </HorizontalStackLayout>
         </Grid>
 
