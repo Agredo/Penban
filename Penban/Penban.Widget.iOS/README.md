@@ -114,8 +114,10 @@ Beides läuft über die Extension hinaus und braucht Wege, die C# allein nicht h
 Auf dem Mac, aus dem Repo-Wurzelverzeichnis:
 
 ```bash
-scripts/ios-widget.sh build          # erzeugt das Projekt und baut Release
-scripts/ios-testflight.sh build      # baut die App samt Widget
+scripts/ios-widget.sh build                 # erzeugt das Projekt und baut die Extension (Release)
+scripts/ios-testflight.sh build             # baut die App samt Widget für App Store Connect
+scripts/ios-device.sh all                   # baut Widget und App fürs angeschlossene Gerät und installiert
+scripts/ios-device.sh info                  # Geräte, Signierung und Stand der Extension anzeigen
 ```
 
 `scripts/ios-widget.sh build` legt das Ergebnis unter
@@ -132,6 +134,26 @@ ein Release ohne Widget unbemerkt durchgeht. Liegt eine `.appex` da, prüft er a
 gegen die der App (`CheckWidgetExtensionVersion`) und bricht bei Abweichung ab – so kann ein
 Überbleibsel eines früheren Builds nicht in ein Paket geraten.
 
+### Auf ein Gerät laden
+
+Wer die App mit `dotnet build` oder „Run" in Xcode auf ein iPhone oder iPad lädt, muss die Extension
+in **derselben** Konfiguration vorher bauen – sonst liegt dort nur die Release-`.appex`, sie ist
+App-Store-signiert, und iOS nimmt sie auf einem Entwicklungsgerät nicht an: das Widget fehlt in der
+Galerie, ohne Fehlermeldung. `scripts/ios-device.sh` macht beides zusammen:
+
+```bash
+scripts/ios-device.sh all                       # Debug-Widget + Debug-App, installiert aufs erste verbundene Gerät
+scripts/ios-device.sh all 00008130-0001234567890 # … auf ein bestimmtes Gerät
+```
+
+Das Skript wählt das Development-Profil des Geräts, leert `obj`/`bin` des
+Gerätebuilds, baut mit `ios-widget.sh build Debug` die Extension, baut die App und prüft am fertigen
+`Penban.app`, dass die Extension dabei, gleich versioniert, development-signiert und mit der App
+Group versehen ist. Danach installiert es per `devicectl`.
+
+Die andere Richtung – Gerätebuild mit `Release`-Appex – scheitert auch: das `.appex` aus einem
+TestFlight-Build trägt die Beta-Entitlements, und das Gerät verweigert die Installation.
+
 ### Wie die Einbettung funktioniert
 
 `AdditionalAppExtensions` bekommt in `Penban.Maui.csproj` **nicht** den Pfad zum `.appex`, sondern
@@ -140,20 +162,28 @@ den Ordner plus den Unterordner:
 ```xml
 <AdditionalAppExtensions Include="…/Penban.Widget.iOS/build">
   <Name>PenbanWidget</Name>
-  <BuildOutput>Release-iphoneos</BuildOutput>
-  <CodesignEntitlements>…/Penban.Widget.iOS/build/PenbanWidget.entitlements</CodesignEntitlements>
+  <BuildOutput>$(Configuration)-iphoneos</BuildOutput>
+  <CodesignEntitlements>…/Penban.Widget.iOS/build/$(Configuration)-iphoneos/PenbanWidget.entitlements</CodesignEntitlements>
 </AdditionalAppExtensions>
 ```
 
 .NET for iOS setzt daraus `Include` + `BuildOutput` + `Name` + `.appex` zusammen; `BuildOutput`
 existiert genau deshalb, weil Xcode Simulator- und Gerätebuilds in getrennte Ordner legt.
 
+`BuildOutput` und `CodesignEntitlements` hängen **beide** an der Konfiguration, und das ist keine
+Kosmetik: `Debug` wird mit einem Development-Profil signiert (`get-task-allow: true`), `Release` mit
+dem App-Store-Profil (`beta-reports-active: true`, kein `get-task-allow`). Wäre die
+Entitlements-Datei für beide dieselbe, überschriebe ein Gerätebuild sie mit `get-task-allow`, und
+der nächste Release-Build signierte die Extension damit – App Store Connect lehnt das ab (90164).
+`scripts/ios-widget.sh` legt sie deshalb nach `build/<Konfiguration>-iphoneos/PenbanWidget.entitlements`,
+jede Konfiguration bekommt ihre eigene.
+
 Die `CodesignEntitlements` sind **nicht optional**: die Extension wird beim Einbetten in
 `Penban.app/PlugIns/` kopiert und dabei wird die Signatur, die Xcode gemacht hat, gelöscht. Die
 `.appex` wird danach neu signiert – ohne diese Angabe ohne App Group, und ein Widget ohne App Group
 sieht den geteilten Ordner nicht und bleibt leer. Die Datei ist **nicht** die unter
 `Resources/PenbanWidget.entitlements`: `scripts/ios-widget.sh` zieht die Entitlements der fertig
-signierten `.appex` nach `build/PenbanWidget.entitlements`, und nur die enthalten auch
+signierten `.appex` daneben in den Build-Ordner, und nur die enthalten auch
 `application-identifier` und `beta-reports-active`, die `codesign` hier sonst nicht setzt (App Store
 Connect lehnt ein Paket ohne sie ab, 90075).
 
@@ -202,6 +232,7 @@ Connect lehnt ein Paket ohne sie ab, 90075).
 | „Öffne Penban, um das Widget zu füllen." | Es liegt keine `widget.json` im geteilten Ordner: App Group fehlt in einem der beiden Ziele, oder die Übersicht wurde seit der Installation noch nicht geöffnet |
 | „Noch keine Boards." | Snapshot vorhanden, aber ohne Board |
 | Widget erscheint nicht in der Galerie | Bundle-ID-Präfix, App Group oder Version stimmen nicht; `scripts/ios-widget.sh build` prüft die ersten beiden, `scripts/ios-widget.sh check <Appex>` die Version |
+| Widget erscheint nicht in der Galerie, obwohl die App läuft | Es liegt eine App-Store-signierte `.appex` im Ordner der gewählten Konfiguration (z. B. `build/Release-iphoneos`, während die App als Debug aufs Gerät geht) – iOS nimmt sie auf einem Entwicklungsgerät nicht an. `scripts/ios-device.sh all` baut beides zusammen |
 | Karte fehlt, Kachel bleibt leer | Das PNG zum Board fehlt – die Dateinamen in `widget.json` müssen zu den Bildern im Ordner passen (`w-<boardId>-<größe>-<hell\|dunkel>.png`) |
 | Änderungen kommen nicht an | Signatur unverändert, deshalb kein Neuschreiben; die App stößt `reloadAllTimelines` an, das System drosselt es aber |
 | Änderungen kommen nie an, auch nach Minuten nicht | `PenbanWidgetReloader` fehlt im App-Binary (Target `LinkWidgetReloader` nicht gelaufen) – siehe die `nm`-Gegenprobe unter „Prüfen"; Symptom ist ein stilles Nichts, weil `IosWidgetRefresh` ohne die Klasse nichts tut |
@@ -211,7 +242,7 @@ Connect lehnt ein Paket ohne sie ab, 90075).
 Der geteilte Ordner lässt sich auf dem Mac einsehen, wenn das Gerät per Kabel verbunden ist:
 
 ```bash
-xcrun devicectl device info files --device <udid> --domain-type appGroup \
+xcrun devicectl device info files --device <udid> --domain-type appGroupDataContainer \
   --domain-identifier group.com.agredoapplication.panban
 ```
 

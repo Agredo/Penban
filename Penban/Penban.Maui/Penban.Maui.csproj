@@ -303,12 +303,14 @@
        handed to it, so the keys Xcode takes from the provisioning profile (application-identifier,
        team identifier, beta-reports-active) would be missing - App Store Connect rejects such an
        upload (90075). scripts/ios-widget.sh therefore writes the entitlements of the finished
-       .appex next to it and this path points at that copy. -->
+       .appex next to it and this path points at that copy - per configuration, like the .appex:
+       the debug build is signed with a development profile and carries get-task-allow, and signing
+       a release build with that file is rejected by App Store Connect (90164). -->
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And Exists('$(WidgetExtensionPath)')">
     <AdditionalAppExtensions Include="$(WidgetExtensionDir)">
       <Name>PenbanWidget</Name>
       <BuildOutput>$(WidgetExtensionOutput)</BuildOutput>
-      <CodesignEntitlements>$(WidgetExtensionDir)/PenbanWidget.entitlements</CodesignEntitlements>
+      <CodesignEntitlements>$(WidgetExtensionDir)/$(WidgetExtensionOutput)/PenbanWidget.entitlements</CodesignEntitlements>
     </AdditionalAppExtensions>
   </ItemGroup>
 
