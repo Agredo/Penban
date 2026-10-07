@@ -43,8 +43,24 @@ public sealed class BoardNotePreview
     /// own paper colour and its own hand-placed tilt and only takes its place in the fan from here.
     /// </summary>
     public BoardNotePreview(Guid id, IReadOnlyList<InkStroke> strokes, int? colorIndex, int index, int count)
+        : this(id, strokes, null, colorIndex, index, count)
+    {
+    }
+
+    /// <summary>
+    /// One note of the fan that carries letters instead of ink: what a project shows as long as it
+    /// has no note of its own. It is placed by the same rules as every other note, so a project's
+    /// card is built exactly like a board's and only what is written on the paper differs.
+    /// </summary>
+    public BoardNotePreview(Guid id, string monogram, int? colorIndex, int index, int count)
+        : this(id, Array.Empty<InkStroke>(), monogram, colorIndex, index, count)
+    {
+    }
+
+    private BoardNotePreview(Guid id, IReadOnlyList<InkStroke> strokes, string? monogram, int? colorIndex, int index, int count)
     {
         Strokes = strokes;
+        Monogram = monogram;
         NoteColorIndex = colorIndex ?? NoteStyle.PaperIndexFor(id);
 
         var slots = Slots[Math.Clamp(count, 1, Slots.Length) - 1];
@@ -57,6 +73,16 @@ public sealed class BoardNotePreview
 
     /// <summary>Ink of this note.</summary>
     public IReadOnlyList<InkStroke> Strokes { get; }
+
+    /// <summary>
+    /// Letters standing in for the ink of a project without a note (see
+    /// <see cref="Penban.Util.Monogram"/>), or <c>null</c> for a note that is written on. Empty on
+    /// every note of a board - a board without a note stays blank.
+    /// </summary>
+    public string? Monogram { get; }
+
+    /// <summary>Whether this note shows letters rather than ink, see <see cref="Monogram"/>.</summary>
+    public bool HasMonogram => !string.IsNullOrEmpty(Monogram);
 
     /// <summary>Paper colour of this note, see <see cref="NoteStyle.PaperIndexFor"/>.</summary>
     public int NoteColorIndex { get; }

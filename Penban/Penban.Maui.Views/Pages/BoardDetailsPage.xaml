@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:Class="Penban.Maui.Views.Pages.BoardDetailsPage"
+             Title="{Binding PageTitle}"
+             Shell.NavBarIsVisible="False"
+             Style="{StaticResource AppPage}">
+    <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
+
+        <!-- Own header instead of the Shell nav bar, like every other page in the app. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+            <Button Grid.Column="0"
+                    Text="&#xf15c;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnBackClicked"
+                    SemanticProperties.Description="{markup:Translate Cancel}" />
+            <Label Grid.Column="1"
+                   Text="{Binding PageTitle}"
+                   Style="{StaticResource TitleLabel}"
+                   VerticalOptions="Center" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="16">
+
+                <!-- The one field a board cannot do without, and the whole of the plain mode. -->
+                <Border Style="{StaticResource CardBorder}" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{markup:Translate FieldTitle}"
+                               Style="{StaticResource FieldLabel}" />
+                        <Border Style="{StaticResource InputSurface}" Padding="12,2">
+                            <Entry Text="{Binding Title}"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                        </Border>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Extended mode: the fields a board does not need in order to exist, folded away so
+                     that creating one stays a single field. What is inside the fold is said on its
+                     header, so a folded board with labels on it does not look like one without. -->
+                <Border Style="{StaticResource CardBorder}" Padding="16,10">
+                    <toolkit:Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                        <toolkit:Expander.Header>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,4">
+                                <Label Grid.Column="0"
+                                       Text="{markup:Translate AdvancedSection}"
+                                       Style="{StaticResource SubtitleLabel}"
+                                       VerticalOptions="Center" />
+                                <Label Grid.Column="1"
+                                       Text="{Binding AdvancedSummary}"
+                                       Style="{StaticResource CaptionLabel}"
+                                       LineBreakMode="TailTruncation"
+                                       VerticalOptions="Center" />
+                            </Grid>
+                        </toolkit:Expander.Header>
+
+                        <VerticalStackLayout Spacing="16" Padding="0,12,0,0">
+
+                            <VerticalStackLayout Spacing="6">
+                                <Label Text="{markup:Translate FieldProject}"
+                                       Style="{StaticResource FieldLabel}" />
+                                <Border Style="{StaticResource InputSurface}" Padding="12,2">
+                                    <Picker ItemsSource="{Binding Projects}"
+                                            ItemDisplayBinding="{Binding Title}"
+                                            SelectedItem="{Binding SelectedProject}" />
+                                </Border>
+                            </VerticalStackLayout>
+
+                            <VerticalStackLayout Spacing="6">
+                                <Label Text="{markup:Translate FieldTags}"
+                                       Style="{StaticResource FieldLabel}" />
+                                <Border Style="{StaticResource InputSurface}" Padding="12,2">
+                                    <Entry Text="{Binding TagsText}"
+                                           Placeholder="{markup:Translate FieldTagsHint}"
+                                           PlaceholderColor="{AppThemeBinding Light={StaticResource TextTertiaryLight}, Dark={StaticResource TextTertiaryDark}}"
+                                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                                </Border>
+                            </VerticalStackLayout>
+
+                            <VerticalStackLayout Spacing="6">
+                                <Label Text="{markup:Translate FieldPeriod}"
+                                       Style="{StaticResource FieldLabel}" />
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                    <Switch Grid.Column="0"
+                                            IsToggled="{Binding HasPeriod}"
+                                            VerticalOptions="Center" />
+                                    <Label Grid.Column="1"
+                                           Text="{markup:Translate PeriodToggle}"
+                                           Style="{StaticResource BodyLabel}"
+                                           VerticalOptions="Center" />
+                                </Grid>
+
+                                <!-- Both ends are one setting: a time frame is a span, and a board
+                                     with only one end of it is not a board with a time frame. -->
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" IsVisible="{Binding HasPeriod}">
+                                    <VerticalStackLayout Grid.Column="0" Spacing="6">
+                                        <Label Text="{markup:Translate FieldStartDate}"
+                                               Style="{StaticResource FieldLabel}" />
+                                        <Border Style="{StaticResource InputSurface}" Padding="12,2">
+                                            <DatePicker Date="{Binding StartDate}" Format="d" />
+                                        </Border>
+                                    </VerticalStackLayout>
+                                    <VerticalStackLayout Grid.Column="1" Spacing="6">
+                                        <Label Text="{markup:Translate FieldEndDate}"
+                                               Style="{StaticResource FieldLabel}" />
+                                        <Border Style="{StaticResource InputSurface}" Padding="12,2">
+                                            <DatePicker Date="{Binding EndDate}" Format="d" />
+                                        </Border>
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+                    </toolkit:Expander>
+                </Border>
+
+                <!-- Not bound to a command but handled in code-behind: the page is what knows the way
+                     back, and it only takes it once the details went through. -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,6,0,0">
+                    <Button Grid.Column="0"
+                            Text="{markup:Translate Cancel}"
+                            Style="{StaticResource GhostButton}"
+                            Clicked="OnBackClicked" />
+                    <Button Grid.Column="1"
+                            Text="{markup:Translate Save}"
+                            Style="{StaticResource PrimaryButton}"
+                            Clicked="OnSaveClicked"
+                            IsEnabled="{Binding CanSave}" />
+                </Grid>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

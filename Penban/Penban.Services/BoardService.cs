@@ -43,6 +43,16 @@ public class BoardService : IBoardService
     }
 
     /// <summary>
+    /// Read off <see cref="GetBoardsAsync"/> rather than asked of the database, so a project's boards
+    /// stand in the same order as they do on the overview.
+    /// </summary>
+    public async Task<List<Board>> GetBoardsOfProjectAsync(Guid projectId)
+    {
+        var boards = await GetBoardsAsync();
+        return boards.Where(b => b.ProjectId == projectId).ToList();
+    }
+
+    /// <summary>
     /// Column titles a new board starts with. A board is only usable once it has lanes to
     /// write on, and demanding a first column before anything can be drawn pushes the
     /// "add folder before adding a note" chore onto the user. Evaluated per call so the
@@ -55,9 +65,10 @@ public class BoardService : IBoardService
         Strings.DefaultColumnDone,
     ];
 
-    public async Task<Board> CreateBoardAsync(string title)
+    public async Task<Board> CreateBoardAsync(BoardDetails details)
     {
-        var board = new Board { Title = title };
+        var board = new Board { Title = details.Title };
+        Apply(board, details);
 
         var defaultTitles = DefaultColumnTitles;
         for (var i = 0; i < defaultTitles.Length; i++)
@@ -74,7 +85,10 @@ public class BoardService : IBoardService
         return board;
     }
 
-    public async Task RenameBoardAsync(Guid boardId, string title)
+    /// <summary>
+    /// Stores the board's details. The columns stay as they are - this is what stands around them.
+    /// </summary>
+    public async Task SaveBoardDetailsAsync(Guid boardId, BoardDetails details)
     {
         var board = await FindBoardAsync(boardId);
         if (board is null)
@@ -82,7 +96,7 @@ public class BoardService : IBoardService
             return;
         }
 
-        board.Title = title;
+        Apply(board, details);
         await repository.SaveAsync(board);
     }
 
@@ -225,6 +239,20 @@ public class BoardService : IBoardService
         }
 
         await repository.SaveAllAsync(boards);
+    }
+
+    /// <summary>
+    /// Writes what a details record says onto a board. The labels go through
+    /// <see cref="TagList.Normalize"/> here rather than at every call site, so no path into the
+    /// database can leave an untrimmed or duplicated label behind.
+    /// </summary>
+    private static void Apply(Board board, BoardDetails details)
+    {
+        board.Title = details.Title;
+        board.ProjectId = details.ProjectId;
+        board.Tags = TagList.Normalize(details.Tags);
+        board.StartDate = details.StartDate;
+        board.EndDate = details.EndDate;
     }
 
     private async Task<Board?> FindBoardAsync(Guid boardId)

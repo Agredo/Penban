@@ -1,4 +1,5 @@
 using Penban.Util;
+using AgredoApplication.MVVM.Services.Abstractions.Navigation;
 
 namespace Penban.Maui.Views.Pages;
 
@@ -8,9 +9,12 @@ namespace Penban.Maui.Views.Pages;
 /// </summary>
 public partial class AboutPage : ContentPage
 {
-    public AboutPage()
+    private readonly INavigationService navigation;
+
+    public AboutPage(INavigationService navigation)
     {
         InitializeComponent();
+        this.navigation = navigation;
     }
 
     protected override void OnAppearing()
@@ -41,5 +45,5 @@ public partial class AboutPage : ContentPage
     /// </summary>
     private bool IsModal => Navigation.ModalStack.Contains(this);
 
-    private Task PopAsync() => IsModal ? Navigation.PopModalAsync() : Navigation.PopAsync();
+    private Task PopAsync() => IsModal ? Navigation.PopModalAsync() : navigation.NavigateBack();
 }

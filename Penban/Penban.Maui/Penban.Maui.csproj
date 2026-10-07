@@ -267,6 +267,9 @@
     <PackageReference Include="Microsoft.Maui.Controls" />
     <PackageReference Include="CommunityToolkit.Maui" />
     <PackageReference Include="SkiaSharp.Views.Maui.Controls" />
+    <!-- The shell-bound half of the navigation package. Every target framework of this project is a
+         platform one, which is what the package offers, so no condition is needed here. -->
+    <PackageReference Include="AgredoApplication.MVVM.Services.Maui" />
   </ItemGroup>
 
   <ItemGroup>

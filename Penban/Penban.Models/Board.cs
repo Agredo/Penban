@@ -13,6 +13,26 @@ public class Board : SyncableEntity
     /// </summary>
     public int SortOrder { get; set; }
 
+    /// <summary>
+    /// The project the board belongs to, or <c>null</c> for a board that belongs to none. Every board
+    /// of a database written before projects existed reads as <c>null</c>, which is exactly what
+    /// "without a project" means - nothing has to be migrated.
+    /// </summary>
+    public Guid? ProjectId { get; set; }
+
+    /// <summary>
+    /// Free-text labels the user gave the board, trimmed and without duplicates (see
+    /// <c>TagList.Normalize</c>). Empty until the extended mode of the create dialog or the board's
+    /// details page is used, so a board that predates them looks exactly as it did.
+    /// </summary>
+    public List<string> Tags { get; set; } = new();
+
+    /// <summary>First day the board runs, or <c>null</c> while the user has not said.</summary>
+    public DateTimeOffset? StartDate { get; set; }
+
+    /// <summary>Last day the board runs, or <c>null</c> while the user has not said.</summary>
+    public DateTimeOffset? EndDate { get; set; }
+
     public List<BoardColumn> Columns { get; set; } = new();
 
     /// <summary>

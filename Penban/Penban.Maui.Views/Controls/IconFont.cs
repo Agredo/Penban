@@ -21,6 +21,16 @@ public static class IconFont
     public const string DragHandle = "\ue9f9";
     public const string Board = "\uf1e3";
 
+    /// <summary>The dashboard: the area the app opens on, unless the settings say otherwise.</summary>
+    public const string Home = "\uf481";
+
+    /// <summary>The projects: a grid of what the boards hang under.</summary>
+    public const string Grid = "\uf463";
+
+    /// <summary>Name of the font as the head app registers it, for anything that needs the family
+    /// rather than a glyph constant (the shell's flyout icons).</summary>
+    public const string FontFamily = "FluentIcons";
+
     /// <summary>Picking several notes at once: the board header's select button.</summary>
     public const string Select = "\ue84d";
 
@@ -31,6 +41,18 @@ public static class IconFont
     public const string Edit = "\uf3de";
     public const string Notebook = "\uf570";
     public const string Settings = "\uf588";
+
+    /// <summary>The help page, as the shell's menu offers it.</summary>
+    public const string Help = "\uf63e";
+
+    /// <summary>Sending feedback, as the shell's menu offers it.</summary>
+    public const string Feedback = "\uf287";
+
+    /// <summary>The privacy statement, as the shell's menu offers it.</summary>
+    public const string Privacy = "\uf6bf";
+
+    /// <summary>What the app is and which version it is, as the shell's menu offers it.</summary>
+    public const string Info = "\uf4a4";
 
     /// <summary>Pen colours, as offered by the radial menu's colour block.</summary>
     public const string Color = "\uf2f6";

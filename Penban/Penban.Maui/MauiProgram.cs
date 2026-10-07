@@ -1,4 +1,6 @@
 using CommunityToolkit.Maui;
+using AgredoApplication.MVVM.Services.Abstractions.Navigation;
+using AgredoApplication.MVVM.Services.Maui.Navigation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Penban.Data;
@@ -83,8 +85,10 @@ public static class MauiProgram
 
         services.AddSingleton<IBoardRepository, LiteDbBoardRepository>();
         services.AddSingleton<ICardRepository, LiteDbCardRepository>();
+        services.AddSingleton<IProjectRepository, LiteDbProjectRepository>();
         services.AddSingleton<IBoardService, BoardService>();
         services.AddSingleton<ICardService, CardService>();
+        services.AddSingleton<IProjectService, ProjectService>();
         services.AddSingleton<ISyncService, LocalOnlySyncService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
 
@@ -95,6 +99,15 @@ public static class MauiProgram
         services.AddSingleton<IFileShareService, MauiFileShareService>();
         services.AddSingleton<IDataTransferService, DataTransferService>();
         services.AddSingleton<TransferCoordinator>();
+
+        // How a page opens a board. Transient, like the pages: a factory holds the view models a
+        // board page needs beside itself, and those belong to the page that opened the board.
+        services.AddTransient<BoardPageFactory>();
+
+        // Navigation goes through routes rather than page types: a page opens another one by route
+        // and is told the parameters by the package's IQueryAttributable, which needs no platform.
+        // See docs/projekte.md for why the shell's own GoToAsync is used with reservations.
+        services.AddSingleton<INavigationService, NavigationService>();
 
         // Texterkennung: the store is the database, the recogniser is the model, and the queue is what
         // keeps the two off the user's path. The model itself is named by CreateFromEmbeddedResources
@@ -122,9 +135,27 @@ public static class MauiProgram
     {
         services.AddTransient<BoardsViewModel>();
         services.AddTransient<BoardsPage>();
+        services.AddTransient<DashboardViewModel>();
+        services.AddTransient<DashboardPage>();
+        services.AddTransient<ProjectsViewModel>();
+        services.AddTransient<ProjectsPage>();
+        services.AddTransient<ProjectPageViewModel>();
+        services.AddTransient<ProjectPage>();
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<SearchViewModel>();
         services.AddTransient<FeedbackViewModel>();
+        services.AddTransient<BoardDetailsViewModel>();
+        services.AddTransient<ProjectDetailsViewModel>();
+
+        // The pages a route can lead to. Everything else is built by hand where it is needed, but a
+        // route has only the container to ask, so these have to be known here.
+        services.AddTransient<SettingsPage>();
+        services.AddTransient<HelpPage>();
+        services.AddTransient<PrivacyPage>();
+        services.AddTransient<AboutPage>();
+        services.AddTransient<FeedbackPage>();
+        services.AddTransient<BoardDetailsPage>();
+        services.AddTransient<ProjectDetailsPage>();
     }
 
 #if IOS

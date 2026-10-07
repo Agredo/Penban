@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             xmlns:controls="clr-namespace:Penban.Maui.Views.Controls"
+             x:Class="Penban.Maui.Views.Pages.DashboardPage"
+             x:Name="ThisPage"
+             Title="{markup:Translate DashboardTitle}"
+             Shell.NavBarIsVisible="False"
+             Style="{StaticResource AppPage}">
+    <ContentPage.Resources>
+        <!-- A project on the dashboard. The same card the project overview draws, narrowed down to one
+             column of the row: the dashboard is a look at what was worked on, so it leaves out what
+             only an overview needs - the pencil and the delete button are not here, because a tap
+             opens the project and everything written about it lives on its own page. -->
+        <DataTemplate x:Key="DashboardProjectCard">
+            <Border Style="{StaticResource CardBorder}" Padding="14" WidthRequest="224">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnProjectTapped" />
+                </Border.GestureRecognizers>
+
+                <VerticalStackLayout Spacing="6">
+                    <!-- Thumbnail: the project's own note, or the letters of its name where nobody has
+                         written on it yet. -->
+                    <Grid WidthRequest="196"
+                          HeightRequest="146"
+                          HorizontalOptions="Center"
+                          BindableLayout.ItemsSource="{Binding PreviewNotes}"
+                          BindableLayout.ItemTemplate="{StaticResource NotePreview}" />
+
+                    <Label Text="{Binding Title}"
+                           Style="{StaticResource SubtitleLabel}"
+                           LineBreakMode="TailTruncation"
+                           MaxLines="2" />
+
+                    <!-- When it runs, and how many boards hang under it -->
+                    <Label Text="{Binding PeriodText}"
+                           Style="{StaticResource CaptionLabel}"
+                           IsVisible="{Binding HasPeriod}" />
+                    <Label Text="{Binding SummaryText}" Style="{StaticResource CaptionLabel}" />
+
+                    <!-- The labels this project carries -->
+                    <FlexLayout IsVisible="{Binding HasTags}"
+                                Direction="Row"
+                                Wrap="Wrap"
+                                JustifyContent="Start"
+                                AlignItems="Center"
+                                BindableLayout.ItemsSource="{Binding Tags}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource TagChip}" Margin="0,0,4,4">
+                                    <Label Text="{Binding .}" Style="{StaticResource TagChipLabel}" />
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </FlexLayout>
+                </VerticalStackLayout>
+            </Border>
+        </DataTemplate>
+
+        <!-- A board on the dashboard. The same card the board overview draws, fan of notes and all, so
+             a board looks the same wherever it is listed. What the dashboard leaves out is what only an
+             overview needs: the share, pencil and delete buttons are not here, because a tap opens the
+             board and everything else about it is done on the overview. Two layouts again, side by side
+             and stacked, picked by the page's width in OnSizeAllocated. -->
+        <DataTemplate x:Key="WideBoardCard">
+            <Border Style="{StaticResource CardBorder}" Padding="14" Margin="0,6">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBoardTapped" />
+                </Border.GestureRecognizers>
+
+                <controls:BoardCard Narrow="False" ShowActions="False" />
+            </Border>
+        </DataTemplate>
+        <DataTemplate x:Key="NarrowBoardCard">
+            <Border Style="{StaticResource CardBorder}" Padding="14" Margin="0,6">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBoardTapped" />
+                </Border.GestureRecognizers>
+
+                <controls:BoardCard Narrow="True" ShowActions="False" />
+            </Border>
+        </DataTemplate>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
+
+        <!-- Header: menu + page title + settings. The mark that used to lead it is in the head of the
+             menu now, which is where the menu button leads. The dashboard carries no add action and no
+             transfer button: it is a look at what was worked on, and both of those belong where the
+             thing they act on is browsed. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+            <Button Grid.Column="0"
+                    Text="&#xf561;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnMenuClicked"
+                    SemanticProperties.Description="{markup:Translate Menu}"
+                    VerticalOptions="Center" />
+            <Label Grid.Column="1"
+                   Text="{markup:Translate DashboardTitle}"
+                   Style="{StaticResource LargeTitleLabel}"
+                   VerticalOptions="Center" />
+            <Button Grid.Column="2"
+                    Text="&#xf588;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnSettingsClicked"
+                    SemanticProperties.Description="{markup:Translate Settings}"
+                    VerticalOptions="Center" />
+        </Grid>
+
+        <ScrollView Grid.Row="1" VerticalScrollBarVisibility="Never">
+            <VerticalStackLayout Spacing="24">
+
+                <!-- The projects, newest first, in one row that is scrolled sideways. A row rather than
+                     a list: a project is a name, a note and its boards, and a few of them fit next to
+                     each other where a list of them would spend the whole page. -->
+                <VerticalStackLayout Spacing="4" IsVisible="{Binding HasProjects}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Label Grid.Column="0"
+                               Text="{markup:Translate ProjectsTitle}"
+                               Style="{StaticResource TitleLabel}"
+                               VerticalOptions="Center" />
+                        <Button Grid.Column="1"
+                                Text="{markup:Translate AllProjects}"
+                                Style="{StaticResource GhostButton}"
+                                Padding="12,6"
+                                FontSize="{StaticResource FontSizeCaption}"
+                                Clicked="OnAllProjectsClicked"
+                                VerticalOptions="Center" />
+                    </Grid>
+
+                    <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                        <HorizontalStackLayout Spacing="12"
+                                               Padding="0,6"
+                                               BindableLayout.ItemsSource="{Binding Projects}"
+                                               BindableLayout.ItemTemplate="{StaticResource DashboardProjectCard}" />
+                    </ScrollView>
+                </VerticalStackLayout>
+
+                <!-- The boards, newest first, one under the other: a board card carries more than a
+                     project card, and the list is the same shape the board overview draws. -->
+                <VerticalStackLayout Spacing="4" IsVisible="{Binding HasBoards}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Label Grid.Column="0"
+                               Text="{markup:Translate BoardsTitle}"
+                               Style="{StaticResource TitleLabel}"
+                               VerticalOptions="Center" />
+                        <Button Grid.Column="1"
+                                Text="{markup:Translate AllBoards}"
+                                Style="{StaticResource GhostButton}"
+                                Padding="12,6"
+                                FontSize="{StaticResource FontSizeCaption}"
+                                Clicked="OnAllBoardsClicked"
+                                VerticalOptions="Center" />
+                    </Grid>
+
+                    <!-- The card layout is swapped for the one that fits the page in OnSizeAllocated;
+                         what is set here is only what a first read draws before the page is measured. -->
+                    <VerticalStackLayout x:Name="BoardsList"
+                                         BindableLayout.ItemsSource="{Binding Boards}"
+                                         BindableLayout.ItemTemplate="{StaticResource NarrowBoardCard}" />
+                </VerticalStackLayout>
+
+                <!-- Empty state (nothing there and nothing on its way, see DashboardViewModel). The
+                     dashboard only says this when there is neither a project nor a board: one block
+                     standing on its own is not an empty dashboard. -->
+                <VerticalStackLayout Spacing="14"
+                                     Margin="0,40,0,0"
+                                     IsVisible="{Binding ShowEmptyState}">
+                    <Label Text="&#xf1e3;"
+                           Style="{StaticResource IconLabel}"
+                           FontSize="56"
+                           TextColor="{AppThemeBinding Light={StaticResource TextTertiaryLight}, Dark={StaticResource TextTertiaryDark}}"
+                           HorizontalTextAlignment="Center" />
+                    <Label Text="{markup:Translate DashboardEmpty}"
+                           Style="{StaticResource CaptionLabel}"
+                           FontSize="{StaticResource FontSizeBody}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Over the page: what says that the dashboard is still reading. Every block is read with its
+             note and its board count, which is the wait a visit to the dashboard begins with - the
+             empty state above is held back for as long as it lasts, so a dashboard that is still
+             filling cannot claim there is nothing there. -->
+        <ActivityIndicator Grid.Row="1"
+                           IsVisible="{Binding IsLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+    </Grid>
+</ContentPage>

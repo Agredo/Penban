@@ -32,7 +32,7 @@ public sealed class PenbanFile
     /// <summary>Extension of an exported file, including the dot, for the file picker and the file name.</summary>
     public const string FileExtension = ".penban";
 
-    /// <summary>Every board of the database, with its columns and its cards.</summary>
+    /// <summary>Every project and every board of the database, with the boards' columns and cards.</summary>
     public const string BackupKind = "backup";
 
     /// <summary>One board with its columns and its cards.</summary>
@@ -52,6 +52,14 @@ public sealed class PenbanFile
 
     /// <summary>Title of the board the export was taken from; <c>null</c> for a full backup.</summary>
     public string? SourceBoardTitle { get; set; }
+
+    /// <summary>
+    /// The projects of the database. Only a full backup carries them, and a file written before
+    /// projects existed simply has none - which is why <see cref="CurrentVersion"/> did not have to
+    /// move for this field: an older reader ignores it, and a new reader sees an empty list where
+    /// nothing was written.
+    /// </summary>
+    public List<Project> Projects { get; set; } = new();
 
     /// <summary>
     /// Boards including their columns. Empty for a <see cref="CardsKind"/> file, which deliberately

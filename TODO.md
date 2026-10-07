@@ -34,6 +34,16 @@ orange for a purple, and the picker lays its swatches out in hue order (orange, 
 purple, pink) instead of in the order a note stores them, so no two neighbours in the row are the same
 colour twice; the stored order itself is untouched, which keeps every note in the colour it was given.
 
+0.6 adds **projects**: a project collects boards under itself and gets a page of its own, the boards
+overview grows a row of filter chips for the tags a board carries, and creating or editing a board
+opens a page of its own with an expander for tags, start and end date and the project it belongs to.
+The start page is now the dashboard — the last three projects in a horizontal row, the last three
+boards below it, each with a way to all of them — and a setting decides whether the app starts there,
+on the projects or on the boards. A Shell flyout reaches all three areas and the settings, help,
+feedback, privacy and about pages; the board card is one control now, so the dashboard draws the same
+card as the boards overview, only without the buttons. A backup carries the projects as well. All of
+it is written out in German in [docs/projekte.md](docs/projekte.md).
+
 ## Bugs
 
 - [x] The undo stack and a picked-up group got out of step: erasing a picked-up stroke left the blue
@@ -112,7 +122,9 @@ colour twice; the stored order itself is untouched, which keeps every note in th
   searchable — an import writes the typed notes into the search as it brings them in. The mode a new,
   empty card starts in is a setting as well (0.5.5, see
   [docs/textfeld-notizen.md](docs/textfeld-notizen.md)).
-- [ ] Board tags for grouping and filtering.
+- [~] Board tags for grouping and filtering: a board carries free-text tags, they can be typed in the
+  board form and the boards overview filters by them with a chip each. Grouping and a tag list per
+  board are missing.
 - [~] Widget with multiple boards: every widget picks its board, and the long press in the overview
   that used to suggest one is gone (it blocked the long press that dragging a board card needs).
   Selecting by tag and by last edited is missing.

@@ -7,9 +7,25 @@ public interface IBoardService
 {
     Task<List<Board>> GetBoardsAsync();
 
-    Task<Board> CreateBoardAsync(string title);
+    /// <summary>
+    /// The boards of one project, in the order the overview shows them. A board that has no project
+    /// belongs to none of them - there is no "without a project" project, the overview is where those
+    /// boards live.
+    /// </summary>
+    Task<List<Board>> GetBoardsOfProjectAsync(Guid projectId);
 
-    Task RenameBoardAsync(Guid boardId, string title);
+    /// <summary>
+    /// Creates a board and gives it the three default columns. Everything the extended mode of the
+    /// details page can say about it - labels, the time frame, the project it belongs to - arrives
+    /// in <paramref name="details"/>, so the plain case and the extended one are the same call.
+    /// </summary>
+    Task<Board> CreateBoardAsync(BoardDetails details);
+
+    /// <summary>
+    /// Stores everything the board's details page edits. The columns are not touched: the details are
+    /// what stands around them, not what is in them.
+    /// </summary>
+    Task SaveBoardDetailsAsync(Guid boardId, BoardDetails details);
 
     /// <summary>
     /// Stores the board's own note. Passing no strokes deletes the note, so a board the user cleared

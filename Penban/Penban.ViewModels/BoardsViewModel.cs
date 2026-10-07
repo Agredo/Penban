@@ -8,7 +8,11 @@ using Penban.Util;
 
 namespace Penban.ViewModels;
 
-/// <summary>Board overview: lists existing boards, allows creating and deleting them.</summary>
+/// <summary>
+/// Board overview: lists existing boards and removes them. Creating one and changing one both belong
+/// to the board's details page, so coming back from it reads the list again rather than patching a
+/// row - the board that was just written arrives with the rest, in the place the order puts it.
+/// </summary>
 public partial class BoardsViewModel : ObservableObject
 {
     private readonly IBoardService boardService;
@@ -86,7 +90,7 @@ public partial class BoardsViewModel : ObservableObject
         // disagree with the dates written in it.
         loaded.Sort(CompareRows);
 
-        MergeRows(loaded);
+        RowList.Merge(Boards, loaded);
 
         // Raised once at the end, and not per row: the list is put together completely before it is
         // shown, so it cannot build itself up in visible steps.
@@ -164,80 +168,9 @@ public partial class BoardsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Puts the freshly read rows into <see cref="Boards"/> without taking out the ones that are
-    /// already there. Emptying the list and filling it again raises a reset, and a reset sends the
-    /// overview back to the top: the reader would lose the place they had scrolled to every time a
-    /// board was opened and closed. Only the rows that really moved, appeared or went away raise an
-    /// event here, and a row that stays where it is raises none at all.
+    /// Deletes one board and everything on it. The row goes with it, so the list does not keep a
+    /// board that is no longer there.
     /// </summary>
-    private void MergeRows(IReadOnlyList<BoardViewModel> ordered)
-    {
-        for (var index = 0; index < ordered.Count; index++)
-        {
-            var viewModel = ordered[index];
-            var current = Boards.IndexOf(viewModel);
-
-            if (current < 0)
-            {
-                Boards.Insert(index, viewModel);
-            }
-            else if (current != index)
-            {
-                Boards.Move(current, index);
-            }
-        }
-
-        while (Boards.Count > ordered.Count)
-        {
-            Boards.RemoveAt(Boards.Count - 1);
-        }
-    }
-
-    private async Task AddBoardViewModelAsync(Board board)
-    {
-        var viewModel = new BoardViewModel(board, boardService, cardService, dialogService);
-        await viewModel.LoadSummaryAsync();
-
-        // At the top, where the overview keeps the board that was touched last: a board that was just
-        // created is the most recently changed one, so appending it would show it in the wrong place
-        // until the next load sorted it.
-        Boards.Insert(0, viewModel);
-    }
-
-    [RelayCommand]
-    private async Task AddBoardAsync()
-    {
-        var name = await dialogService.DisplayPromptAsync(Strings.AddBoard, string.Empty, Strings.Add, Strings.Cancel);
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return;
-        }
-
-        var board = await boardService.CreateBoardAsync(name);
-        await AddBoardViewModelAsync(board);
-        NotifyRowsChanged();
-    }
-
-    [RelayCommand]
-    private async Task RenameBoardAsync(Guid boardId)
-    {
-        var board = Boards.FirstOrDefault(b => b.Id == boardId);
-        if (board is null)
-        {
-            return;
-        }
-
-        var name = await dialogService.DisplayPromptAsync(Strings.RenameBoard, string.Empty, Strings.Rename, Strings.Cancel, initialValue: board.Title);
-        name = name?.Trim();
-        if (string.IsNullOrWhiteSpace(name) || name == board.Title)
-        {
-            return;
-        }
-
-        await boardService.RenameBoardAsync(boardId, name);
-        board.Title = name;
-    }
-
     [RelayCommand]
     private async Task DeleteBoardAsync(Guid boardId)
     {

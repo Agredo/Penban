@@ -24,8 +24,33 @@
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Spacing="12">
 
-                <Label Text="{markup:Translate SettingsDrawingSection}"
+                <Label Text="{markup:Translate SettingsGeneralSection}"
                        Style="{StaticResource CaptionLabel}" />
+
+                <Border Style="{StaticResource CardBorder}" Padding="16,6">
+                    <VerticalStackLayout Spacing="0">
+
+                        <!-- Where a cold start lands. It decides nothing else: the flyout reaches all
+                             three areas either way, so a start page that is not wanted is not a way in
+                             that has been taken away. -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Padding="0,10">
+                            <Label Grid.Column="0"
+                                   Text="{markup:Translate StartPage}"
+                                   Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" />
+                            <Picker Grid.Column="1"
+                                    WidthRequest="190"
+                                    ItemsSource="{Binding StartPageNames}"
+                                    SelectedIndex="{Binding SelectedStartPageIndex}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="{markup:Translate SettingsDrawingSection}"
+                       Style="{StaticResource CaptionLabel}"
+                       Margin="0,6,0,0" />
 
                 <!-- Separators lead the row they separate, they do not trail it. Some rows are hidden
                      per platform, and a trailing separator would then be the last thing in the card on

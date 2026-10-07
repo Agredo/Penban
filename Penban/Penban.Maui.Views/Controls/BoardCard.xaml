@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- One board as a list draws it: the fan of its own notes, what it is called and how full it is, and -
+     where the page that holds the list has something to do with a board - the buttons that act on it.
+     Shared by every page that lists boards, so a board looks the same wherever it turns up and the
+     card is only written once. The border around it and its gestures stay with the page, which is also
+     what hands the commands in. -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             x:Class="Penban.Maui.Views.Controls.BoardCard"
+             x:Name="CardRoot">
+    <Grid>
+        <!-- Where there is room: the fan beside what is written on the board, the buttons at its edge. -->
+        <Grid IsVisible="{Binding Wide, Source={x:Reference CardRoot}}"
+              ColumnDefinitions="Auto,*,Auto"
+              ColumnSpacing="20">
+
+            <!-- Thumbnail: this board's own notes, fanned out like a hand of them. The frame is
+                 deliberately bigger than one note, so the outer notes and their shadows have room
+                 inside the card. -->
+            <Grid Grid.Column="0"
+                  WidthRequest="196"
+                  HeightRequest="146"
+                  VerticalOptions="Center"
+                  BindableLayout.ItemsSource="{Binding PreviewNotes}"
+                  BindableLayout.ItemTemplate="{StaticResource NotePreview}" />
+
+            <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                <Label Text="{Binding Title}" Style="{StaticResource SubtitleLabel}" />
+
+                <!-- When it was last touched and how much sits on it -->
+                <Label Text="{Binding SummaryText}" Style="{StaticResource CaptionLabel}" />
+
+                <!-- Load bar: one chip per lane, as wide as the lane's share of the cards, so a list
+                     shows where the work piles up. -->
+                <FlexLayout IsVisible="{Binding HasColumns}"
+                            Direction="Row"
+                            JustifyContent="Start"
+                            AlignItems="Center"
+                            BindableLayout.ItemsSource="{Binding ColumnSummary}"
+                            BindableLayout.ItemTemplate="{StaticResource LoadBarChip}" />
+            </VerticalStackLayout>
+
+            <HorizontalStackLayout Grid.Column="2"
+                                   Spacing="4"
+                                   VerticalOptions="Center"
+                                   IsVisible="{Binding ShowActions, Source={x:Reference CardRoot}}">
+                <Button Text="&#xf6b0;"
+                        Style="{StaticResource GhostIconButton}"
+                        Command="{Binding ShareCommand, Source={x:Reference CardRoot}}"
+                        CommandParameter="{Binding .}"
+                        SemanticProperties.Description="{markup:Translate ShareBoard}" />
+                <!-- The pencil opens everything that is written on the board rather than only its name:
+                     the details page is where both live. -->
+                <Button Text="&#xf3de;"
+                        Style="{StaticResource GhostIconButton}"
+                        Command="{Binding EditCommand, Source={x:Reference CardRoot}}"
+                        CommandParameter="{Binding .}"
+                        SemanticProperties.Description="{markup:Translate EditBoardTitle}" />
+                <Button Text="&#xf34d;"
+                        Style="{StaticResource DangerGhostIconButton}"
+                        Command="{Binding DeleteCommand, Source={x:Reference CardRoot}}"
+                        CommandParameter="{Binding .}"
+                        SemanticProperties.Description="{markup:Translate Delete}" />
+            </HorizontalStackLayout>
+        </Grid>
+
+        <!-- On a narrow screen the same parts one under the other. Two layouts rather than one that
+             rearranges itself: changing the layout of a live grid in a list takes WinUI down, so the
+             page swaps cards instead (see BoardsPage.OnSizeAllocated). -->
+        <Grid IsVisible="{Binding Narrow, Source={x:Reference CardRoot}}"
+              ColumnDefinitions="*,Auto"
+              RowDefinitions="Auto,Auto,Auto"
+              ColumnSpacing="8"
+              RowSpacing="6">
+
+            <Label Grid.Row="0"
+                   Grid.Column="0"
+                   Text="{Binding Title}"
+                   Style="{StaticResource SubtitleLabel}"
+                   VerticalOptions="Center"
+                   LineBreakMode="TailTruncation"
+                   MaxLines="2" />
+
+            <HorizontalStackLayout Grid.Row="0"
+                                   Grid.Column="1"
+                                   Spacing="4"
+                                   HorizontalOptions="End"
+                                   VerticalOptions="Center"
+                                   IsVisible="{Binding ShowActions, Source={x:Reference CardRoot}}">
+                <Button Text="&#xf6b0;"
+                        Style="{StaticResource GhostIconButton}"
+                        Command="{Binding ShareCommand, Source={x:Reference CardRoot}}"
+                        CommandParameter="{Binding .}"
+                        SemanticProperties.Description="{markup:Translate ShareBoard}" />
+                <Button Text="&#xf3de;"
+                        Style="{StaticResource GhostIconButton}"
+                        Command="{Binding EditCommand, Source={x:Reference CardRoot}}"
+                        CommandParameter="{Binding .}"
+                        SemanticProperties.Description="{markup:Translate EditBoardTitle}" />
+                <Button Text="&#xf34d;"
+                        Style="{StaticResource DangerGhostIconButton}"
+                        Command="{Binding DeleteCommand, Source={x:Reference CardRoot}}"
+                        CommandParameter="{Binding .}"
+                        SemanticProperties.Description="{markup:Translate Delete}" />
+            </HorizontalStackLayout>
+
+            <Grid Grid.Row="1"
+                  Grid.ColumnSpan="2"
+                  WidthRequest="196"
+                  HeightRequest="146"
+                  HorizontalOptions="Center"
+                  BindableLayout.ItemsSource="{Binding PreviewNotes}"
+                  BindableLayout.ItemTemplate="{StaticResource NotePreview}" />
+
+            <VerticalStackLayout Grid.Row="2" Grid.ColumnSpan="2" Spacing="6">
+                <Label Text="{Binding SummaryText}" Style="{StaticResource CaptionLabel}" />
+
+                <FlexLayout IsVisible="{Binding HasColumns}"
+                            Direction="Row"
+                            JustifyContent="Start"
+                            AlignItems="Center"
+                            BindableLayout.ItemsSource="{Binding ColumnSummary}"
+                            BindableLayout.ItemTemplate="{StaticResource LoadBarChip}" />
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+</ContentView>

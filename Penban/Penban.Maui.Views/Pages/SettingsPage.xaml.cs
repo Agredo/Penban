@@ -1,5 +1,7 @@
+using Penban.Services.Abstractions;
 using Penban.Util;
 using Penban.ViewModels;
+using AgredoApplication.MVVM.Services.Abstractions.Navigation;
 
 namespace Penban.Maui.Views.Pages;
 
@@ -11,12 +13,14 @@ public partial class SettingsPage : ContentPage
 {
     private readonly SettingsViewModel viewModel;
     private readonly FeedbackViewModel feedbackViewModel;
+    private readonly INavigationService navigation;
 
-    public SettingsPage(SettingsViewModel viewModel, FeedbackViewModel feedbackViewModel)
+    public SettingsPage(SettingsViewModel viewModel, FeedbackViewModel feedbackViewModel, INavigationService navigation)
     {
         InitializeComponent();
         this.viewModel = viewModel;
         this.feedbackViewModel = feedbackViewModel;
+        this.navigation = navigation;
         BindingContext = viewModel;
 
         // Only Windows reports which end of the pen is against the surface, so the row would be a
@@ -47,42 +51,50 @@ public partial class SettingsPage : ContentPage
             return;
         }
 
-        await Navigation.PopAsync();
+        // The shell's own way back, so that its idea of where we are stays in step with the stack.
+        await navigation.NavigateBack();
     }
 
     private async void OnHelpClicked(object? sender, TappedEventArgs e)
     {
-        await PushAsync(new HelpPage());
+        await OpenAsync(AppRoutes.Help, () => new HelpPage(navigation));
     }
 
     private async void OnPrivacyClicked(object? sender, TappedEventArgs e)
     {
-        await PushAsync(new PrivacyPage());
+        await OpenAsync(AppRoutes.Privacy, () => new PrivacyPage(navigation));
     }
 
     private async void OnAboutClicked(object? sender, TappedEventArgs e)
     {
-        await PushAsync(new AboutPage());
+        await OpenAsync(AppRoutes.About, () => new AboutPage(navigation));
     }
 
     private async void OnFeedbackClicked(object? sender, TappedEventArgs e)
     {
-        await PushAsync(new FeedbackPage(feedbackViewModel));
+        await OpenAsync(AppRoutes.Feedback, () => new FeedbackPage(feedbackViewModel, navigation));
     }
 
     /// <summary>
-    /// Opens a page on top of this one, going through the modal stack while this page is modal: the
-    /// window's own stack refuses a push in that state.
+    /// Opens a page on top of this one. Normally that is a registered route, which the shell puts on
+    /// the stack it knows about. A page that is up modally has only the modal stack behind it - the
+    /// shell's routing would push the next page underneath it - so while this page is modal the page
+    /// is built here instead and pushed onto the modal stack.
     /// </summary>
-    private async Task PushAsync(ContentPage page)
+    /// <param name="route">The route of the page to open; the one that is used while not modal.</param>
+    /// <param name="modalPage">
+    /// Builds the page for the modal case. Only called while this page is modal, so the common case
+    /// pays for nothing.
+    /// </param>
+    private async Task OpenAsync(string route, Func<ContentPage> modalPage)
     {
         if (IsModal)
         {
-            await Navigation.PushModalAsync(page);
+            await Navigation.PushModalAsync(modalPage());
             return;
         }
 
-        await Navigation.PushAsync(page);
+        await navigation.ShellNavigationTo(route);
     }
 
     /// <summary>

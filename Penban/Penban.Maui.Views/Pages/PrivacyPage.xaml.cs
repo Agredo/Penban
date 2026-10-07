@@ -1,3 +1,5 @@
+using AgredoApplication.MVVM.Services.Abstractions.Navigation;
+
 namespace Penban.Maui.Views.Pages;
 
 /// <summary>
@@ -6,9 +8,12 @@ namespace Penban.Maui.Views.Pages;
 /// </summary>
 public partial class PrivacyPage : ContentPage
 {
-    public PrivacyPage()
+    private readonly INavigationService navigation;
+
+    public PrivacyPage(INavigationService navigation)
     {
         InitializeComponent();
+        this.navigation = navigation;
     }
 
     private async void OnBackClicked(object? sender, EventArgs e)
@@ -24,5 +29,5 @@ public partial class PrivacyPage : ContentPage
     /// </summary>
     private bool IsModal => Navigation.ModalStack.Contains(this);
 
-    private Task PopAsync() => IsModal ? Navigation.PopModalAsync() : Navigation.PopAsync();
+    private Task PopAsync() => IsModal ? Navigation.PopModalAsync() : navigation.NavigateBack();
 }

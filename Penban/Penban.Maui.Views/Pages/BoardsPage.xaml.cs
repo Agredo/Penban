@@ -1,23 +1,22 @@
+using AgredoApplication.MVVM.Services.Abstractions.Navigation;
+using Penban.Maui.Views.Controls;
 using Penban.Maui.Views.Services;
 using Penban.Maui.Views.Widget;
 using Penban.Services.Abstractions;
 using Penban.Util;
 using Penban.ViewModels;
-using IPreferences = Penban.Services.Abstractions.IPreferences;
 
 namespace Penban.Maui.Views.Pages;
 
 /// <summary>Board overview page: lists existing boards, allows creating/deleting/opening them.</summary>
 public partial class BoardsPage : ContentPage
 {
-    private readonly IPreferences preferences;
-    private readonly SettingsViewModel settingsViewModel;
     private readonly SearchViewModel searchViewModel;
-    private readonly FeedbackViewModel feedbackViewModel;
     private readonly TransferCoordinator transferCoordinator;
-    private readonly IDialogService dialogService;
+    private readonly BoardPageFactory boardPageFactory;
     private readonly WidgetSnapshotTrigger widget;
     private readonly WidgetBoardLink boardLink;
+    private readonly INavigationService navigation;
     private bool isOpeningBoard;
 
     /// <summary>
@@ -27,22 +26,24 @@ public partial class BoardsPage : ContentPage
     /// </summary>
     private Guid? lastOpenedBoardId;
 
-    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, SearchViewModel searchViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, TransferCoordinator transferCoordinator, IDialogService dialogService, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink)
+    public BoardsPage(BoardsViewModel viewModel, SearchViewModel searchViewModel, TransferCoordinator transferCoordinator, BoardPageFactory boardPageFactory, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink, INavigationService navigation)
     {
         InitializeComponent();
-        this.settingsViewModel = settingsViewModel;
         this.searchViewModel = searchViewModel;
-        this.feedbackViewModel = feedbackViewModel;
-        this.preferences = preferences;
         this.transferCoordinator = transferCoordinator;
-        this.dialogService = dialogService;
+        this.boardPageFactory = boardPageFactory;
         this.widget = widget;
         this.boardLink = boardLink;
+        this.navigation = navigation;
         BindingContext = viewModel;
+        BoardActions = new BoardCardActions(transferCoordinator, navigation, viewModel.DeleteBoardCommand);
     }
 
-    /// <summary>Page width from which a board card keeps its thumbnail beside its text.</summary>
-    private const double WideCardPageWidth = 700;
+    /// <summary>
+    /// What the buttons on a board card do. The cards are bound to these rather than to handlers on
+    /// this page, because the card itself is shared with the other pages that list boards.
+    /// </summary>
+    public BoardCardActions BoardActions { get; }
 
     private bool? wideCards;
 
@@ -60,7 +61,7 @@ public partial class BoardsPage : ContentPage
             return;
         }
 
-        var wide = width >= WideCardPageWidth;
+        var wide = width >= BoardCard.WidePageWidth;
         if (wide == wideCards)
         {
             return;
@@ -209,7 +210,7 @@ public partial class BoardsPage : ContentPage
             }
 
             lastOpenedBoardId = boardId;
-            await Navigation.PushAsync(new BoardPage(board, settingsViewModel, feedbackViewModel, preferences, transferCoordinator, dialogService, searchViewModel, openCardId));
+            await Navigation.PushAsync(boardPageFactory.Create(board, openCardId));
         }
         finally
         {
@@ -247,9 +248,20 @@ public partial class BoardsPage : ContentPage
         return viewModel.FindBoard(boardId);
     }
 
+    private void OnMenuClicked(object? sender, EventArgs e) => ShellMenu.Open();
+
     private async void OnSettingsClicked(object? sender, EventArgs e)
     {
-        await Navigation.PushAsync(new SettingsPage(settingsViewModel, feedbackViewModel));
+        await navigation.ShellNavigationTo(AppRoutes.Settings);
+    }
+
+    /// <summary>
+    /// Opens the details page on a new board. The board is created there rather than here, so that its
+    /// name and the fields behind the extended mode are written in one place.
+    /// </summary>
+    private async void OnAddBoardClicked(object? sender, EventArgs e)
+    {
+        await navigation.ShellNavigationTo(AppRoutes.BoardDetails);
     }
 
     private async void OnSearchClicked(object? sender, EventArgs e)
@@ -269,11 +281,4 @@ public partial class BoardsPage : ContentPage
         }
     }
 
-    private async void OnShareBoardClicked(object? sender, EventArgs e)
-    {
-        if (sender is Element { BindingContext: BoardViewModel board })
-        {
-            await transferCoordinator.ShowBoardExportMenuAsync(board.Id);
-        }
-    }
 }

@@ -151,9 +151,6 @@
   <data name="Pen" xml:space="preserve">
     <value>Pen</value>
   </data>
-  <data name="RenameBoard" xml:space="preserve">
-    <value>Rename board</value>
-  </data>
   <data name="NoCardsYet" xml:space="preserve">
     <value>No cards yet</value>
   </data>
@@ -341,7 +338,7 @@
     <value>The import failed: {0}</value>
   </data>
   <data name="ImportDoneFormat" xml:space="preserve">
-    <value>Imported {0} board(s) and {1} card(s).</value>
+    <value>Imported {0} board(s), {1} card(s) and {2} project(s).</value>
   </data>
   <data name="ImportModeTitle" xml:space="preserve">
     <value>How should the backup be imported?</value>
@@ -353,7 +350,7 @@
     <value>Replace everything</value>
   </data>
   <data name="ImportModeReplaceWarning" xml:space="preserve">
-    <value>All boards and cards currently in the app will be deleted first, then replaced by the contents of the file. This cannot be undone.</value>
+    <value>All projects, boards and cards currently in the app will be deleted first, then replaced by the contents of the file. This cannot be undone.</value>
   </data>
   <data name="ImportCardsNeedColumn" xml:space="preserve">
     <value>A card export can only be imported from inside a board, into one of its columns.</value>
@@ -517,6 +514,30 @@
   <data name="HelpSubtitle" xml:space="preserve">
     <value>The essentials at a glance.</value>
   </data>
+  <data name="HelpAreasTitle" xml:space="preserve">
+    <value>The three areas</value>
+  </data>
+  <data name="HelpAreasBody" xml:space="preserve">
+    <value>The menu button in the top left opens the menu. It leads to Overview, Projects and Boards and, below them, to Settings, Help, Feedback, Privacy and About. Which area the app opens with is chosen under Settings, General.</value>
+  </data>
+  <data name="HelpDashboardTitle" xml:space="preserve">
+    <value>Overview</value>
+  </data>
+  <data name="HelpDashboardBody" xml:space="preserve">
+    <value>The start page shows the three projects worked on last, side by side - scroll sideways for the rest. Below them stand the three boards worked on last. "All" next to a heading leads to the full list.</value>
+  </data>
+  <data name="HelpProjectsTitle" xml:space="preserve">
+    <value>Projects</value>
+  </data>
+  <data name="HelpProjectsBody" xml:space="preserve">
+    <value>A project gathers boards under itself. The plus creates one; behind Advanced it takes a description, labels and a time frame. A project card can be dragged to reorder it. Deleting a project leaves its boards standing - they simply belong to no project afterwards.</value>
+  </data>
+  <data name="HelpLabelsTitle" xml:space="preserve">
+    <value>Labels</value>
+  </data>
+  <data name="HelpLabelsBody" xml:space="preserve">
+    <value>Boards and projects can carry any number of labels, typed freely. Above the lists the labels in use appear as chips; every chip that is switched on narrows the list down further, so that only what carries all of them stays.</value>
+  </data>
   <data name="HelpDrawTitle" xml:space="preserve">
     <value>Writing and drawing</value>
   </data>
@@ -545,19 +566,25 @@
     <value>Searching</value>
   </data>
   <data name="HelpSearchBody" xml:space="preserve">
-    <value>The magnifier in the board overview finds words in every note. Handwriting is read on the device, with no network and no account. To make notes from before findable, read them in once under Settings, Search, "Read now".</value>
+    <value>The magnifier in the board overview finds words in every note, whether written or typed. Handwriting is read on the device, with no network and no account. To make notes from before findable, read them in once under Settings, Search, "Read now".</value>
   </data>
   <data name="HelpBoardsTitle" xml:space="preserve">
     <value>Boards</value>
   </data>
   <data name="HelpBoardsBody" xml:space="preserve">
-    <value>Use the plus to create a board. A board can be dragged to reorder it; the pencil symbol on it renames it.</value>
+    <value>Use the plus to create a board. Behind Advanced a board takes labels, a start and an end date and the project it belongs to. A board can be dragged to reorder it, the pencil opens everything written on it, the share symbol exports it as a file of its own.</value>
+  </data>
+  <data name="HelpSettingsTitle" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="HelpSettingsBody" xml:space="preserve">
+    <value>Under General the start page is chosen. The further sections cover drawing, gestures, the board and reading handwriting. Under Support the same four pages are reachable as in the menu.</value>
   </data>
   <data name="HelpBackupTitle" xml:space="preserve">
     <value>Backing up</value>
   </data>
   <data name="HelpBackupBody" xml:space="preserve">
-    <value>Export / Import at the top of the board overview writes everything into a single file and reads it back in later.</value>
+    <value>Export / Import in the header of the board and the project overview writes everything into a single file - boards, cards and projects - and reads it back in later. An imported backup can replace the existing data or be added to it.</value>
   </data>
   <data name="PrivacyTitle" xml:space="preserve">
     <value>Privacy</value>
@@ -624,5 +651,113 @@
   </data>
   <data name="AboutContactBody" xml:space="preserve">
     <value>Questions, ideas and bug reports are welcome. The quickest way is the feedback form in Settings.</value>
+  </data>
+  <data name="NewBoardTitle" xml:space="preserve">
+    <value>New board</value>
+  </data>
+  <data name="EditBoardTitle" xml:space="preserve">
+    <value>Edit board</value>
+  </data>
+  <data name="AdvancedSection" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="AdvancedSummaryNone" xml:space="preserve">
+    <value>Nothing set</value>
+  </data>
+  <data name="FieldTitle" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="FieldProject" xml:space="preserve">
+    <value>Project</value>
+  </data>
+  <data name="FieldNoProject" xml:space="preserve">
+    <value>No project</value>
+  </data>
+  <data name="FieldTags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="FieldTagsHint" xml:space="preserve">
+    <value>Separate with commas</value>
+  </data>
+  <data name="FieldPeriod" xml:space="preserve">
+    <value>Period</value>
+  </data>
+  <data name="PeriodToggle" xml:space="preserve">
+    <value>Set a period</value>
+  </data>
+  <data name="FieldStartDate" xml:space="preserve">
+    <value>Start</value>
+  </data>
+  <data name="FieldEndDate" xml:space="preserve">
+    <value>End</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="ProjectsTitle" xml:space="preserve">
+    <value>Projects</value>
+  </data>
+  <data name="AddProject" xml:space="preserve">
+    <value>Add project</value>
+  </data>
+  <data name="NewProjectTitle" xml:space="preserve">
+    <value>New project</value>
+  </data>
+  <data name="EditProjectTitle" xml:space="preserve">
+    <value>Edit project</value>
+  </data>
+  <data name="NoProjectsYet" xml:space="preserve">
+    <value>No projects yet. Create your first project to get started.</value>
+  </data>
+  <data name="NoProjectsMatchFilter" xml:space="preserve">
+    <value>No project carries all of these tags.</value>
+  </data>
+  <data name="DeleteProjectConfirmation" xml:space="preserve">
+    <value>Delete this project? Its boards stay and lose the project.</value>
+  </data>
+  <data name="NoBoardsInProject" xml:space="preserve">
+    <value>No boards yet</value>
+  </data>
+  <data name="OneBoard" xml:space="preserve">
+    <value>1 board</value>
+  </data>
+  <data name="BoardsCountFormat" xml:space="preserve">
+    <value>{0} boards</value>
+  </data>
+  <data name="FilterByTag" xml:space="preserve">
+    <value>Filter by tag</value>
+  </data>
+  <data name="ClearFilters" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="ProjectNote" xml:space="preserve">
+    <value>Project note</value>
+  </data>
+  <data name="DeleteProjectNoteConfirmation" xml:space="preserve">
+    <value>Delete the note of this project?</value>
+  </data>
+  <data name="Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="DashboardTitle" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
+  <data name="AllProjects" xml:space="preserve">
+    <value>All projects</value>
+  </data>
+  <data name="AllBoards" xml:space="preserve">
+    <value>All boards</value>
+  </data>
+  <data name="DashboardEmpty" xml:space="preserve">
+    <value>Nothing here yet. Create a board to get started.</value>
+  </data>
+  <data name="SettingsGeneralSection" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="StartPage" xml:space="preserve">
+    <value>Start page</value>
+  </data>
+  <data name="Menu" xml:space="preserve">
+    <value>Menu</value>
   </data>
 </root>

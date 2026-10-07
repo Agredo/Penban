@@ -21,6 +21,18 @@ public partial class SettingsViewModel : ObservableObject
         InkToolUi.ToolBar,
     ];
 
+    /// <summary>
+    /// Order of <see cref="StartPageNames"/>; index in this array is the picked value. The routes of
+    /// the areas themselves, so that what is stored is the route the shell opens on and not a copy of
+    /// it that could drift away from the shell's own.
+    /// </summary>
+    private static readonly string[] StartPages =
+    [
+        AppRoutes.Dashboard,
+        AppRoutes.Projects,
+        AppRoutes.Boards,
+    ];
+
     private readonly IPreferences preferences;
     private readonly ICardService cardService;
     private readonly IRecognitionQueue queue;
@@ -53,6 +65,12 @@ public partial class SettingsViewModel : ObservableObject
     public IReadOnlyList<string> InkToolUiNames { get; } = [Strings.InkToolUiRadialMenu, Strings.InkToolUiToolBar];
 
     /// <summary>
+    /// Display names of the three areas of <see cref="SelectedStartPageIndex"/>, in its order.
+    /// </summary>
+    public IReadOnlyList<string> StartPageNames { get; } =
+        [Strings.DashboardTitle, Strings.ProjectsTitle, Strings.BoardsTitle];
+
+    /// <summary>
     /// Re-reads every setting from the store. Settings can also be changed outside this page (the
     /// ink editor has an inline finger-drawing toggle), so the page refreshes on appearing rather
     /// than trusting the values it was constructed with.
@@ -64,6 +82,7 @@ public partial class SettingsViewModel : ObservableObject
         {
             AllowFingerDrawing = ReadBool(PreferenceKeys.AllowFingerDrawing, true);
             SelectedInkToolUiIndex = ReadInkToolUiIndex();
+            SelectedStartPageIndex = ReadStartPageIndex();
             PencilDoubleTapEnabled = ReadBool(PreferenceKeys.PencilDoubleTapEnabled, true);
             PenTailEraserEnabled = ReadBool(PreferenceKeys.PenTailEraserEnabled, true);
             PenButtonLassoEnabled = ReadBool(PreferenceKeys.PenButtonLassoEnabled, true);
@@ -105,6 +124,23 @@ public partial class SettingsViewModel : ObservableObject
         if (!isLoading && value >= 0 && value < ToolUis.Length)
         {
             preferences.Set(PreferenceKeys.InkToolUi, ToolUis[value].ToString());
+        }
+    }
+
+    /// <summary>
+    /// Which area the app opens on, as an index into <see cref="StartPages"/>. The dashboard is the
+    /// default: it is the one of the three that says what was worked on lately, which is the question
+    /// an app that was just opened is asked. The flyout reaches all three either way, so this decides
+    /// nothing but where a cold start lands.
+    /// </summary>
+    [ObservableProperty]
+    private int selectedStartPageIndex;
+
+    partial void OnSelectedStartPageIndexChanged(int value)
+    {
+        if (!isLoading && value >= 0 && value < StartPages.Length)
+        {
+            preferences.Set(PreferenceKeys.StartPage, StartPages[value]);
         }
     }
 
@@ -355,6 +391,18 @@ public partial class SettingsViewModel : ObservableObject
         var stored = preferences.Get(PreferenceKeys.InkToolUi, InkToolUi.RadialMenu.ToString());
         var toolUi = Enum.TryParse<InkToolUi>(stored, out var parsed) ? parsed : InkToolUi.RadialMenu;
         return Math.Max(Array.IndexOf(ToolUis, toolUi), 0);
+    }
+
+    /// <summary>
+    /// The area the app was last told to open on. Anything that is not one of the three - a store that
+    /// has never held this setting, or one that holds a route that no longer exists - means the
+    /// dashboard, so a start page that cannot be honoured falls back rather than leaving the app with
+    /// nowhere to land.
+    /// </summary>
+    private int ReadStartPageIndex()
+    {
+        var stored = preferences.Get(PreferenceKeys.StartPage, AppRoutes.Dashboard);
+        return Math.Max(Array.IndexOf(StartPages, stored), 0);
     }
 
     private bool ReadBool(string key, bool @default) =>
