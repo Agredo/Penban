@@ -106,6 +106,19 @@ Beides läuft über die Extension hinaus und braucht Wege, die C# allein nicht h
      Explicit App ID, Capability **App Groups**)
 2. **Provisioning-Profile neu erzeugen** (die alten kennen die App Group noch nicht) und in Xcode
    laden – die App nutzt im Release-Build das App-Store-Profil, siehe `scripts/ios-testflight.sh`.
+
+   Beides – App Group anlegen, beiden App-IDs zuordnen und die Profile erneuern – erledigt Xcode
+   selbst, wenn ein Build mit `-allowProvisioningUpdates` läuft und die Entitlements eine noch
+   unbekannte App Group nennen (so entstand die Einrichtung für die vorige App-ID):
+
+   ```bash
+   scripts/ios-widget.sh build                                  # Extension, legt die Gruppe an
+   xcodebuild -allowProvisioningUpdates …                       # App samt Gruppe
+   ```
+
+   Danach steht die Gruppe im Portal an beiden App-IDs, und die Team-Profile enthalten sie. Von Hand
+   bleibt dann nur, die App Store Connect App anzulegen (Bundle-ID ist dort unveränderlich) und die
+   **App-Store**-Profile zu erzeugen – die legt Xcode nicht von selbst an.
 3. `brew install xcodegen` (oder das Ziel einmalig von Hand anlegen, siehe unten).
 4. Signing-Team `NTMYS336K2` – eine Extension aus einem fremden Team lässt sich nicht einbetten.
 
