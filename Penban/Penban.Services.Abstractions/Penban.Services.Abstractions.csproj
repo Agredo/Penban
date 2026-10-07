@@ -5,6 +5,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Brings INavigationService, IRoutes and the framework-free IQueryAttributable to the view
+         models. It has no dependencies of its own, so nothing of the platform leaks in with it. -->
+    <PackageReference Include="AgredoApplication.MVVM.Services" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Penban.Models\Penban.Models.csproj" />
   </ItemGroup>
 

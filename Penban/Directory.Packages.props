@@ -5,6 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Navigation, routes and popups, shared with Nexile and Finanzio. The plain package carries no
+         dependencies and is what the view models see; only the .Maui flavour knows the shell, so it
+         is referenced by the app project alone. See docs/projekte.md. -->
+    <PackageVersion Include="AgredoApplication.MVVM.Services" Version="1.1.0" />
+    <PackageVersion Include="AgredoApplication.MVVM.Services.Maui" Version="1.1.0" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageVersion Include="CommunityToolkit.Maui" Version="14.2.2" />
     <PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.90" />

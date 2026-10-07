@@ -1,4 +1,5 @@
 using Penban.ViewModels;
+using AgredoApplication.MVVM.Services.Abstractions.Navigation;
 
 namespace Penban.Maui.Views.Pages;
 
@@ -9,11 +10,13 @@ namespace Penban.Maui.Views.Pages;
 public partial class FeedbackPage : ContentPage
 {
     private readonly FeedbackViewModel viewModel;
+    private readonly INavigationService navigation;
 
-    public FeedbackPage(FeedbackViewModel viewModel)
+    public FeedbackPage(FeedbackViewModel viewModel, INavigationService navigation)
     {
         InitializeComponent();
         this.viewModel = viewModel;
+        this.navigation = navigation;
         BindingContext = viewModel;
     }
 
@@ -39,7 +42,7 @@ public partial class FeedbackPage : ContentPage
     /// </summary>
     private bool IsModal => Navigation.ModalStack.Contains(this);
 
-    private Task PopAsync() => IsModal ? Navigation.PopModalAsync() : Navigation.PopAsync();
+    private Task PopAsync() => IsModal ? Navigation.PopModalAsync() : navigation.NavigateBack();
 
     private async void OnBugBearLinkTapped(object? sender, TappedEventArgs e)
     {

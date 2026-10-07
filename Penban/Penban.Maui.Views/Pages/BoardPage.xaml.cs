@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using AgredoApplication.MVVM.Services.Abstractions.Navigation;
 using Penban.Maui.Views.Services;
 using Penban.Models;
 using Penban.Services.Abstractions;
@@ -104,6 +105,7 @@ public partial class BoardPage : ContentPage
     private readonly IPreferences preferences;
     private readonly TransferCoordinator transferCoordinator;
     private readonly IDialogService dialogService;
+    private readonly INavigationService navigation;
     private readonly List<(ColumnViewModel Column, PropertyChangedEventHandler Handler)> titleSubscriptions = [];
     private readonly SearchViewModel? searchViewModel;
     private readonly HashSet<string> filterTags = [];
@@ -199,6 +201,7 @@ public partial class BoardPage : ContentPage
         IPreferences preferences,
         TransferCoordinator transferCoordinator,
         IDialogService dialogService,
+        INavigationService navigation,
         SearchViewModel? searchViewModel = null,
         Guid? openCardId = null)
     {
@@ -208,6 +211,7 @@ public partial class BoardPage : ContentPage
         this.preferences = preferences;
         this.transferCoordinator = transferCoordinator;
         this.dialogService = dialogService;
+        this.navigation = navigation;
         this.openCardId = openCardId;
         this.searchViewModel = searchViewModel;
         BuildFilterTags();
@@ -298,7 +302,7 @@ public partial class BoardPage : ContentPage
     /// </summary>
     private async void OnSettingsClicked(object? sender, EventArgs e)
     {
-        await Navigation.PushAsync(new SettingsPage(settingsViewModel, feedbackViewModel));
+        await navigation.ShellNavigationTo(AppRoutes.Settings);
     }
 
     /// <summary>
@@ -1369,7 +1373,7 @@ public partial class BoardPage : ContentPage
     /// </summary>
     private async Task OpenCardEditorAsync(CardViewModel card)
     {
-        await Navigation.PushAsync(new CardInkEditorPage(card, preferences, settingsViewModel, feedbackViewModel, viewModel?.Title ?? string.Empty));
+        await Navigation.PushAsync(new CardInkEditorPage(card, preferences, settingsViewModel, feedbackViewModel, navigation, viewModel?.Title ?? string.Empty));
     }
 
     /// <summary>
@@ -1384,7 +1388,7 @@ public partial class BoardPage : ContentPage
             return;
         }
 
-        await Navigation.PushAsync(new CardInkEditorPage(viewModel.CreateNoteEditor(), preferences, settingsViewModel, feedbackViewModel, viewModel.Title));
+        await Navigation.PushAsync(new CardInkEditorPage(viewModel.CreateNoteEditor(), preferences, settingsViewModel, feedbackViewModel, navigation, viewModel.Title));
         UpdateBoardNoteButton();
     }
 

@@ -1,3 +1,4 @@
+using AgredoApplication.MVVM.Services.Abstractions.Navigation;
 using Penban.Maui.Views.Services;
 using Penban.Maui.Views.Widget;
 using Penban.Services.Abstractions;
@@ -18,6 +19,7 @@ public partial class BoardsPage : ContentPage
     private readonly IDialogService dialogService;
     private readonly WidgetSnapshotTrigger widget;
     private readonly WidgetBoardLink boardLink;
+    private readonly INavigationService navigation;
     private bool isOpeningBoard;
 
     /// <summary>
@@ -27,7 +29,7 @@ public partial class BoardsPage : ContentPage
     /// </summary>
     private Guid? lastOpenedBoardId;
 
-    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, SearchViewModel searchViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, TransferCoordinator transferCoordinator, IDialogService dialogService, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink)
+    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, SearchViewModel searchViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, TransferCoordinator transferCoordinator, IDialogService dialogService, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink, INavigationService navigation)
     {
         InitializeComponent();
         this.settingsViewModel = settingsViewModel;
@@ -38,6 +40,7 @@ public partial class BoardsPage : ContentPage
         this.dialogService = dialogService;
         this.widget = widget;
         this.boardLink = boardLink;
+        this.navigation = navigation;
         BindingContext = viewModel;
     }
 
@@ -209,7 +212,7 @@ public partial class BoardsPage : ContentPage
             }
 
             lastOpenedBoardId = boardId;
-            await Navigation.PushAsync(new BoardPage(board, settingsViewModel, feedbackViewModel, preferences, transferCoordinator, dialogService, searchViewModel, openCardId));
+            await Navigation.PushAsync(new BoardPage(board, settingsViewModel, feedbackViewModel, preferences, transferCoordinator, dialogService, navigation, searchViewModel, openCardId));
         }
         finally
         {
@@ -249,7 +252,7 @@ public partial class BoardsPage : ContentPage
 
     private async void OnSettingsClicked(object? sender, EventArgs e)
     {
-        await Navigation.PushAsync(new SettingsPage(settingsViewModel, feedbackViewModel));
+        await navigation.ShellNavigationTo(AppRoutes.Settings);
     }
 
     private async void OnSearchClicked(object? sender, EventArgs e)

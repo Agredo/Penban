@@ -1,4 +1,5 @@
 using Microsoft.Maui.Controls.Shapes;
+using AgredoApplication.MVVM.Services.Abstractions.Navigation;
 using Penban.Maui.Views.Controls;
 using Penban.Maui.Views.Ink;
 using Penban.Models;
@@ -152,6 +153,7 @@ public partial class CardInkEditorPage : ContentPage
     private readonly IPreferences preferences;
     private readonly SettingsViewModel settingsViewModel;
     private readonly FeedbackViewModel feedbackViewModel;
+    private readonly INavigationService navigation;
     private readonly List<StickyNoteBorder> swatches = [];
     private readonly Dictionary<string, Button> tagButtons = [];
     private readonly List<Border> penSlotFrames = [];
@@ -261,6 +263,7 @@ public partial class CardInkEditorPage : ContentPage
         IPreferences preferences,
         SettingsViewModel settingsViewModel,
         FeedbackViewModel feedbackViewModel,
+        INavigationService navigation,
         string boardTitle)
     {
         InitializeComponent();
@@ -268,6 +271,7 @@ public partial class CardInkEditorPage : ContentPage
         this.preferences = preferences;
         this.settingsViewModel = settingsViewModel;
         this.feedbackViewModel = feedbackViewModel;
+        this.navigation = navigation;
 
         // The card behind the note may be one that carries typed text beside its ink - the board's own
         // note does not, and then the mode belongs to no card and what belongs to it is not offered at
@@ -1890,7 +1894,7 @@ public partial class CardInkEditorPage : ContentPage
     /// </summary>
     private async void OnSettingsClicked(object? sender, EventArgs e)
     {
-        await Navigation.PushAsync(new SettingsPage(settingsViewModel, feedbackViewModel));
+        await navigation.ShellNavigationTo(AppRoutes.Settings);
     }
 
     /// <summary>

@@ -1,4 +1,6 @@
 using CommunityToolkit.Maui;
+using AgredoApplication.MVVM.Services.Abstractions.Navigation;
+using AgredoApplication.MVVM.Services.Maui.Navigation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Penban.Data;
@@ -96,6 +98,11 @@ public static class MauiProgram
         services.AddSingleton<IDataTransferService, DataTransferService>();
         services.AddSingleton<TransferCoordinator>();
 
+        // Navigation goes through routes rather than page types: a page opens another one by route
+        // and is told the parameters by the package's IQueryAttributable, which needs no platform.
+        // See docs/projekte.md for why the shell's own GoToAsync is used with reservations.
+        services.AddSingleton<INavigationService, NavigationService>();
+
         // Texterkennung: the store is the database, the recogniser is the model, and the queue is what
         // keeps the two off the user's path. The model itself is named by CreateFromEmbeddedResources
         // rather than by a file path, so it cannot go missing next to the app.
@@ -125,6 +132,14 @@ public static class MauiProgram
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<SearchViewModel>();
         services.AddTransient<FeedbackViewModel>();
+
+        // The pages a route can lead to. Everything else is built by hand where it is needed, but a
+        // route has only the container to ask, so these have to be known here.
+        services.AddTransient<SettingsPage>();
+        services.AddTransient<HelpPage>();
+        services.AddTransient<PrivacyPage>();
+        services.AddTransient<AboutPage>();
+        services.AddTransient<FeedbackPage>();
     }
 
 #if IOS

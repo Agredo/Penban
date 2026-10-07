@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Penban.Maui.Views.Pages;
+using Penban.Services.Abstractions;
 
 namespace Penban.Maui;
 
@@ -18,6 +19,15 @@ public partial class AppShell : Shell
             Route = "boards",
             ContentTemplate = new DataTemplate(() => Boards = services.GetRequiredService<BoardsPage>()),
         });
+
+        // The pages that go on top of whatever is on screen. A route is what lets a page open
+        // another one without naming its type, and the factory is what gives that route a page with
+        // its dependencies in place, which the shell would otherwise have to build by hand.
+        Routing.RegisterRoute(AppRoutes.Settings, new ServiceRouteFactory<SettingsPage>(services));
+        Routing.RegisterRoute(AppRoutes.Help, new ServiceRouteFactory<HelpPage>(services));
+        Routing.RegisterRoute(AppRoutes.Privacy, new ServiceRouteFactory<PrivacyPage>(services));
+        Routing.RegisterRoute(AppRoutes.About, new ServiceRouteFactory<AboutPage>(services));
+        Routing.RegisterRoute(AppRoutes.Feedback, new ServiceRouteFactory<FeedbackPage>(services));
     }
 
     /// <summary>
