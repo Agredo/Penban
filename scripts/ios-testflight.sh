@@ -20,7 +20,7 @@
 #   IOS_TFM=net10.0-ios         Zielframework
 #
 # Einmalige Voraussetzungen:
-#   1. Apple Developer Program, App-ID com.agredoapplication.panban, App in App Store Connect
+#   1. Apple Developer Program, App-ID com.agredoapplication.penban, App in App Store Connect
 #   2. "Apple Distribution"-Zertifikat (Xcode → Settings → Accounts → Manage Certificates)
 #   3. App-Store-Provisioning-Profil für die App-ID
 #   4. App-Store-Connect-API-Key (.p8) in ~/.appstoreconnect/private_keys/ oder Apple-ID + App-Passwort
@@ -54,7 +54,7 @@ csproj_value() { sed -n "s/.*<$1>\(.*\)<\/$1>.*/\1/p" "$PROJ" | head -1 | tr -d 
 
 BUNDLE_ID="${BUNDLE_ID:-$(csproj_value ApplicationId)}"
 # Muss zu Penban.Widget.iOS/project.yml und Platforms/iOS/Entitlements.plist passen.
-APP_GROUP="${APP_GROUP:-group.com.agredoapplication.panban}"
+APP_GROUP="${APP_GROUP:-group.com.agredoapplication.penban}"
 VERSION="${VERSION:-$(csproj_value ApplicationDisplayVersion)}"
 BUILD="${BUILD:-$(csproj_value ApplicationVersion)}"
 

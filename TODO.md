@@ -34,7 +34,7 @@ orange for a purple, and the picker lays its swatches out in hue order (orange, 
 purple, pink) instead of in the order a note stores them, so no two neighbours in the row are the same
 colour twice; the stored order itself is untouched, which keeps every note in the colour it was given.
 
-0.6 adds **projects**: a project collects boards under itself and gets a page of its own, the boards
+0.5.7 adds **projects**: a project collects boards under itself and gets a page of its own, the boards
 overview grows a row of filter chips for the tags a board carries, and creating or editing a board
 opens a page of its own with an expander for tags, start and end date and the project it belongs to.
 The start page is now the dashboard — the last three projects in a horizontal row, the last three
@@ -44,6 +44,18 @@ feedback, privacy and about pages; the board card is one control now, so the das
 card as the boards overview, only without the buttons. A backup carries the projects as well. All of
 it is written out in German in [docs/projekte.md](docs/projekte.md).
 
+0.5.8 spells the application id the way the app is named: it was `com.agredoapplication.panban`, a
+letter away from Penban, and it is `com.agredoapplication.penban` now — in the app itself, in the iOS
+entitlement and the board widget's URL scheme, in the widget's app group, in the widget's own bundle
+identifier and in the two iOS scripts. **An installed 0.5.7 is not updated by this build**: Android and
+iOS know an app by its id, so 0.5.8 installs as a second app beside the old one and keeps its own
+notes, and the old one can be removed once the boards have been moved across with a backup. The
+project page draws the same board card the boards overview draws — both widths, the fan of the notes
+and the share/edit/delete buttons — where it used to draw a plain row of its own. And the history no
+longer lets an eraser sweep come after a change that was made while it was still open: a finger or a
+palm resting on the note during a sweep used to have the stroke it started recorded *below* the sweep,
+so the first undo brought back strokes that had been rubbed out before that stroke was even drawn.
+
 ## Bugs
 
 - [x] The undo stack and a picked-up group got out of step: erasing a picked-up stroke left the blue
@@ -51,6 +63,13 @@ it is written out in German in [docs/projekte.md](docs/projekte.md).
   step of the history that did nothing at all — one undo that did nothing, and the next one brought
   back strokes erased long before. A selection is now pruned whenever a stroke leaves the note, and a
   carried group only ever records the strokes that are really in it (0.5.4).
+- [x] The undo stack could come out in the wrong order: an eraser sweep is only recorded once the
+  eraser is lifted, so a stroke started while the sweep was still open — a finger or a palm resting on
+  the note, which the platform reports as drawing input — went into the history *underneath* it. The
+  first undo then took back the sweep, which brought back strokes that had been rubbed out before that
+  stroke was drawn at all, and the stroke itself went only with the second undo. An open sweep is now
+  closed before a stroke or a carried group is recorded, the way the wipe and the eraser button already
+  did it (0.5.8).
 - [ ] Swipe down on a card only works in the bottom half of the card, and when swiping horizontally in the middle of it.
 - [x] Lines drawn with pen pressure always render at maximum width on the board, which makes them hard to read. The board now reads the pressure off the stroke and draws it with the mean width the editor would give its segments, so light and hard lines can be told apart there too (0.5.6).
 - [x] Editing the title card sometimes changes its background colour when exiting to the menu. The stored

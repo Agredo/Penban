@@ -17,9 +17,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
 
     <ApplicationTitle>Penban</ApplicationTitle>
-    <ApplicationId>com.agredoapplication.panban</ApplicationId>
-    <ApplicationDisplayVersion>0.5.7</ApplicationDisplayVersion>
-    <ApplicationVersion>21</ApplicationVersion>
+    <ApplicationId>com.agredoapplication.penban</ApplicationId>
+    <ApplicationDisplayVersion>0.5.8</ApplicationDisplayVersion>
+    <ApplicationVersion>22</ApplicationVersion>
     <!-- The platform SDKs derive Version/PackageVersion from ApplicationDisplayVersion inside each
          target framework, but the outer cross-targeting build keeps the 1.0.0 default. NuGet's
          Visual Studio restore reads both and fails with NU1105 ("PackageVersion should have a single
@@ -133,7 +133,7 @@
        refuses to update an installed app whose signing key changed.
 
          dotnet publish Penban.Maui\Penban.Maui.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk
-       -> bin\Release\net10.0-android\publish\com.agredoapplication.panban-Signed.apk
+       -> bin\Release\net10.0-android\publish\com.agredoapplication.penban-Signed.apk
 
        Debug stays on the debug keystore on purpose: Debug is installed with FastDev over adb, which
        pushes the assemblies into the app's files directory instead of the APK, and the Release APK

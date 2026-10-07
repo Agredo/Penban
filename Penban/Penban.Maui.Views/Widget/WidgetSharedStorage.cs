@@ -12,7 +12,7 @@ namespace Penban.Maui.Views.Widget;
 public static class WidgetSharedStorage
 {
     /// <summary>Identifier of the App Group, as registered in the Apple Developer Portal.</summary>
-    public const string GroupId = "group.com.agredoapplication.panban";
+    public const string GroupId = "group.com.agredoapplication.penban";
 
     private static string? directory;
 

@@ -23,7 +23,7 @@ flowchart LR
         E --> R[IosWidgetRefresh]
         R --> S["PenbanWidgetReloader.swift<br/>WidgetCenter.shared"]
     end
-    subgraph Group["App Group group.com.agredoapplication.panban"]
+    subgraph Group["App Group group.com.agredoapplication.penban"]
         F[widget.json]
         G["w-&lt;boardId&gt;-square-light.png …"]
     end
@@ -99,10 +99,10 @@ Beides läuft über die Extension hinaus und braucht Wege, die C# allein nicht h
 ## Voraussetzungen
 
 1. **App Group im Developer Portal anlegen.** `developer.apple.com` → Certificates, Identifiers &
-   Profiles → Identifiers → **App Groups** → `group.com.agredoapplication.panban`. Danach die Gruppe
+   Profiles → Identifiers → **App Groups** → `group.com.agredoapplication.penban`. Danach die Gruppe
    beiden App-IDs zuordnen:
-   - `com.agredoapplication.panban` (die App)
-   - `com.agredoapplication.panban.WidgetExtension` (die Extension, als neue App-ID anlegen:
+   - `com.agredoapplication.penban` (die App)
+   - `com.agredoapplication.penban.WidgetExtension` (die Extension, als neue App-ID anlegen:
      Explicit App ID, Capability **App Groups**)
 2. **Provisioning-Profile neu erzeugen** (die alten kennen die App Group noch nicht) und in Xcode
    laden – die App nutzt im Release-Build das App-Store-Profil, siehe `scripts/ios-testflight.sh`.
@@ -197,14 +197,14 @@ Connect lehnt ein Paket ohne sie ab, 90075).
 2. Projekt speichern als `Penban/Penban.Widget.iOS/PenbanWidget.xcodeproj`.
 3. Die vom Assistenten erzeugten Dateien löschen und die Dateien aus `Sources/` sowie
    `Resources/Localizable.xcstrings` ins Ziel ziehen.
-4. Ziel-Einstellungen → General: Bundle Identifier `com.agredoapplication.panban.WidgetExtension`,
+4. Ziel-Einstellungen → General: Bundle Identifier `com.agredoapplication.penban.WidgetExtension`,
    Minimum Deployments **iOS 17.0** (nötig für `containerBackground(for: .widget)`), Signing Team
    `NTMYS336K2`. Version und Build (`MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`) müssen zu
    `ApplicationDisplayVersion`/`ApplicationVersion` in `Penban.Maui.csproj` passen. Bei einem Build
    über `scripts/ios-widget.sh` ist das automatisch der Fall – das Skript liest die Werte aus dem
    csproj und reicht sie an xcodebuild durch; die Werte in `project.yml` sind nur für diesen Weg von
    Hand da.
-5. Signing & Capabilities → **+ Capability** → App Groups → `group.com.agredoapplication.panban`.
+5. Signing & Capabilities → **+ Capability** → App Groups → `group.com.agredoapplication.penban`.
 6. Build Settings: `INFOPLIST_FILE` = `Resources/Info.plist`, `GENERATE_INFOPLIST_FILE` = No,
    `CODE_SIGN_ENTITLEMENTS` = `Resources/PenbanWidget.entitlements`, `SKIP_INSTALL` = Yes.
 
@@ -242,8 +242,8 @@ Connect lehnt ein Paket ohne sie ab, 90075).
 Der geteilte Ordner lässt sich auf dem Mac einsehen, wenn das Gerät per Kabel verbunden ist:
 
 ```bash
-xcrun devicectl device info files --device <udid> --domain-type appGroupDataContainer \
-  --domain-identifier group.com.agredoapplication.panban
+xcrun devicectl device info files --device <udid> --domain-type appGroup \
+  --domain-identifier group.com.agredoapplication.penban
 ```
 
 ## Vertrag mit der App

@@ -1,4 +1,5 @@
 using AgredoApplication.MVVM.Services.Abstractions.Navigation;
+using Penban.Maui.Views.Controls;
 using Penban.Maui.Views.Services;
 using Penban.Services.Abstractions;
 using Penban.Util;
@@ -29,7 +30,9 @@ public partial class ProjectPage : ContentPage, Microsoft.Maui.Controls.IQueryAt
 
     private bool isOpeningBoard;
 
-    public ProjectPage(ProjectPageViewModel viewModel, SettingsViewModel settingsViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, BoardPageFactory boardPageFactory, INavigationService navigation)
+    private bool? wideCards;
+
+    public ProjectPage(ProjectPageViewModel viewModel, SettingsViewModel settingsViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, BoardPageFactory boardPageFactory, TransferCoordinator transferCoordinator, INavigationService navigation)
     {
         InitializeComponent();
         this.settingsViewModel = settingsViewModel;
@@ -38,6 +41,38 @@ public partial class ProjectPage : ContentPage, Microsoft.Maui.Controls.IQueryAt
         this.boardPageFactory = boardPageFactory;
         this.navigation = navigation;
         BindingContext = viewModel;
+        BoardActions = new BoardCardActions(transferCoordinator, navigation, viewModel.DeleteBoardCommand);
+    }
+
+    /// <summary>
+    /// What the buttons on a board card do, the same three the board overview hands its cards. The
+    /// delete is this page's own, so a board thrown away from here leaves this project's list.
+    /// </summary>
+    public BoardCardActions BoardActions { get; }
+
+    /// <summary>
+    /// Gives the list the card layout that fits the page, the way the board overview does. A card
+    /// cannot rearrange itself - changing the layout of a live grid in the list takes WinUI down - so
+    /// the list swaps templates instead, which only happens where the page crosses the width.
+    /// </summary>
+    protected override void OnSizeAllocated(double width, double height)
+    {
+        base.OnSizeAllocated(width, height);
+
+        if (width <= 0)
+        {
+            return;
+        }
+
+        var wide = width >= BoardCard.WidePageWidth;
+        if (wide == wideCards)
+        {
+            return;
+        }
+
+        wideCards = wide;
+        var key = wide ? "WideBoardCard" : "NarrowBoardCard";
+        ProjectBoardsList.ItemTemplate = (DataTemplate)Resources[key];
     }
 
     /// <summary>
@@ -134,23 +169,6 @@ public partial class ProjectPage : ContentPage, Microsoft.Maui.Controls.IQueryAt
         {
             isOpeningBoard = false;
         }
-    }
-
-    /// <summary>
-    /// Opens the details page on one of the boards under this project. The board's project stays
-    /// filled in there, so it can be moved to another project without this page being left first.
-    /// </summary>
-    private async void OnEditBoardClicked(object? sender, EventArgs e)
-    {
-        if (sender is not Element { BindingContext: BoardViewModel board })
-        {
-            return;
-        }
-
-        await navigation.ShellNavigationTo(AppRoutes.BoardDetails, new Dictionary<string, object>
-        {
-            [QueryParameters.BoardId] = board.Id,
-        });
     }
 
     /// <summary>

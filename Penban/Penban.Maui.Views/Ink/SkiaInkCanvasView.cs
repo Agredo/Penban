@@ -1475,6 +1475,12 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
     /// </summary>
     private void StartStroke(SKTouchEventArgs e, bool isFinger)
     {
+        // An eraser sweep that is still open is the change before this one, and it has to be in the
+        // history before the stroke is. The sweep is only recorded once the eraser is lifted, so a
+        // stroke recorded before that would sit *below* it - and taking that stroke back would bring
+        // back the strokes the sweep took, which were erased long before it.
+        EndEraseSession();
+
         // Whatever was being written before this contact, this is a new stroke - and a new stroke is
         // the pen coming back to the note, so it is never a shape being pulled. Nothing is recorded for
         // a shape given up here: the stroke goes back to what was written and that is what the history
@@ -2313,6 +2319,10 @@ public class SkiaInkCanvasView : ContentView, IInkCanvasView
         {
             moves.Add(new InkStrokeMove(drag.Strokes[i], drag.Before[i], drag.Strokes[i].Points.ToList()));
         }
+
+        // An eraser sweep that is still open is the change before this one, so it goes into the history
+        // first - see StartStroke.
+        EndEraseSession();
 
         commands.RecordMoved(moves);
 
