@@ -85,18 +85,6 @@ public class BoardService : IBoardService
         return board;
     }
 
-    public async Task RenameBoardAsync(Guid boardId, string title)
-    {
-        var board = await FindBoardAsync(boardId);
-        if (board is null)
-        {
-            return;
-        }
-
-        board.Title = title;
-        await repository.SaveAsync(board);
-    }
-
     /// <summary>
     /// Stores the board's details. The columns stay as they are - this is what stands around them.
     /// </summary>

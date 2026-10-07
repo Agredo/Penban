@@ -1,8 +1,8 @@
 namespace Penban.Services.Abstractions;
 
 /// <summary>
-/// What a board carries beside its columns - everything the extended mode of the create dialog and
-/// the board's details page edit. Bundled into one type for the same reason as
+/// What a board carries beside its columns - everything the extended mode of the create page and the
+/// board's details page edit. Bundled into one type for the same reason as
 /// <see cref="ProjectDetails"/>: both entry points write the same fields.
 /// </summary>
 public sealed record BoardDetails

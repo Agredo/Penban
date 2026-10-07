@@ -98,11 +98,12 @@
                                         Style="{StaticResource GhostIconButton}"
                                         Clicked="OnShareBoardClicked"
                                         SemanticProperties.Description="{markup:Translate ShareBoard}" />
+                                <!-- The pencil opens everything that is written on the board rather
+                                     than only its name: the details page is where both live. -->
                                 <Button Text="&#xf3de;"
                                         Style="{StaticResource GhostIconButton}"
-                                        Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.RenameBoardCommand}"
-                                        CommandParameter="{Binding Id}"
-                                        SemanticProperties.Description="{markup:Translate RenameBoard}" />
+                                        Clicked="OnEditBoardClicked"
+                                        SemanticProperties.Description="{markup:Translate EditBoardTitle}" />
                                 <Button Text="&#xf34d;"
                                         Style="{StaticResource DangerGhostIconButton}"
                                         Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DeleteBoardCommand}"
@@ -197,9 +198,8 @@
                                         SemanticProperties.Description="{markup:Translate ShareBoard}" />
                                 <Button Text="&#xf3de;"
                                         Style="{StaticResource GhostIconButton}"
-                                        Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.RenameBoardCommand}"
-                                        CommandParameter="{Binding Id}"
-                                        SemanticProperties.Description="{markup:Translate RenameBoard}" />
+                                        Clicked="OnEditBoardClicked"
+                                        SemanticProperties.Description="{markup:Translate EditBoardTitle}" />
                                 <Button Text="&#xf34d;"
                                         Style="{StaticResource DangerGhostIconButton}"
                                         Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DeleteBoardCommand}"
@@ -278,11 +278,13 @@
                            VerticalOptions="Center" />
 
         <!-- The add action, floating over the list in the bottom right corner. Last in the grid, so it
-             lies over the cards rather than under them. Plus = U+F10A. -->
+             lies over the cards rather than under them. Plus = U+F10A. It opens the details page
+             rather than asking for a name on the spot, so that the extended mode is a fold of the
+             same page instead of a second way in. -->
         <Button Grid.Row="1"
                 Text="&#xf10a;"
                 Style="{StaticResource FabButton}"
-                Command="{Binding AddBoardCommand}"
+                Clicked="OnAddBoardClicked"
                 SemanticProperties.Description="{markup:Translate AddBoard}"
                 HorizontalOptions="End"
                 VerticalOptions="End"

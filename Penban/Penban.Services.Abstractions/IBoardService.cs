@@ -16,12 +16,10 @@ public interface IBoardService
 
     /// <summary>
     /// Creates a board and gives it the three default columns. Everything the extended mode of the
-    /// create dialog can say about it - labels, the time frame, the project it belongs to - arrives
+    /// details page can say about it - labels, the time frame, the project it belongs to - arrives
     /// in <paramref name="details"/>, so the plain case and the extended one are the same call.
     /// </summary>
     Task<Board> CreateBoardAsync(BoardDetails details);
-
-    Task RenameBoardAsync(Guid boardId, string title);
 
     /// <summary>
     /// Stores everything the board's details page edits. The columns are not touched: the details are

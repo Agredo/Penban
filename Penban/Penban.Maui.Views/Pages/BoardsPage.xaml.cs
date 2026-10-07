@@ -255,6 +255,32 @@ public partial class BoardsPage : ContentPage
         await navigation.ShellNavigationTo(AppRoutes.Settings);
     }
 
+    /// <summary>
+    /// Opens the details page on a new board. The board is created there rather than here, so that its
+    /// name and the fields behind the extended mode are written in one place.
+    /// </summary>
+    private async void OnAddBoardClicked(object? sender, EventArgs e)
+    {
+        await navigation.ShellNavigationTo(AppRoutes.BoardDetails);
+    }
+
+    /// <summary>
+    /// Opens the details page on an existing board. The card is read again when the overview comes
+    /// back, which is what puts an edited name, new labels or a new project on it.
+    /// </summary>
+    private async void OnEditBoardClicked(object? sender, EventArgs e)
+    {
+        if (sender is not Element { BindingContext: BoardViewModel board })
+        {
+            return;
+        }
+
+        await navigation.ShellNavigationTo(AppRoutes.BoardDetails, new Dictionary<string, object>
+        {
+            [QueryParameters.BoardId] = board.Id,
+        });
+    }
+
     private async void OnSearchClicked(object? sender, EventArgs e)
     {
         // The search hands a found board back to this page: opening one is the overview's job, and

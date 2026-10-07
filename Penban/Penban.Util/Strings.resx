@@ -151,9 +151,6 @@
   <data name="Pen" xml:space="preserve">
     <value>Pen</value>
   </data>
-  <data name="RenameBoard" xml:space="preserve">
-    <value>Rename board</value>
-  </data>
   <data name="NoCardsYet" xml:space="preserve">
     <value>No cards yet</value>
   </data>
@@ -624,5 +621,47 @@
   </data>
   <data name="AboutContactBody" xml:space="preserve">
     <value>Questions, ideas and bug reports are welcome. The quickest way is the feedback form in Settings.</value>
+  </data>
+  <data name="NewBoardTitle" xml:space="preserve">
+    <value>New board</value>
+  </data>
+  <data name="EditBoardTitle" xml:space="preserve">
+    <value>Edit board</value>
+  </data>
+  <data name="AdvancedSection" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="AdvancedSummaryNone" xml:space="preserve">
+    <value>Nothing set</value>
+  </data>
+  <data name="FieldBoardTitle" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="FieldProject" xml:space="preserve">
+    <value>Project</value>
+  </data>
+  <data name="FieldNoProject" xml:space="preserve">
+    <value>No project</value>
+  </data>
+  <data name="FieldTags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="FieldTagsHint" xml:space="preserve">
+    <value>Separate with commas</value>
+  </data>
+  <data name="FieldPeriod" xml:space="preserve">
+    <value>Period</value>
+  </data>
+  <data name="PeriodToggle" xml:space="preserve">
+    <value>Set a period</value>
+  </data>
+  <data name="FieldStartDate" xml:space="preserve">
+    <value>Start</value>
+  </data>
+  <data name="FieldEndDate" xml:space="preserve">
+    <value>End</value>
+  </data>
+  <data name="SaveBoard" xml:space="preserve">
+    <value>Save</value>
   </data>
 </root>

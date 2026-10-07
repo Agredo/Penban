@@ -26,4 +26,11 @@ public static class AppRoutes
     public const string Privacy = "privacy";
     public const string About = "about";
     public const string Feedback = "feedback";
+
+    /// <summary>
+    /// One board's details, both when it is created and when it is edited. Takes
+    /// <see cref="QueryParameters.BoardId"/> to edit an existing board and
+    /// <see cref="QueryParameters.ProjectId"/> to put a new one into a project.
+    /// </summary>
+    public const string BoardDetails = "boardDetails";
 }

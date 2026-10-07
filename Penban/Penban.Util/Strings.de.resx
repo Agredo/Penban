@@ -151,9 +151,6 @@
   <data name="Pen" xml:space="preserve">
     <value>Stift</value>
   </data>
-  <data name="RenameBoard" xml:space="preserve">
-    <value>Board umbenennen</value>
-  </data>
   <data name="NoCardsYet" xml:space="preserve">
     <value>Noch keine Karten</value>
   </data>
@@ -624,5 +621,47 @@
   </data>
   <data name="AboutContactBody" xml:space="preserve">
     <value>Fragen, Ideen und Fehlerberichte sind willkommen. Am schnellsten gehen sie über das Feedback-Formular in den Einstellungen.</value>
+  </data>
+  <data name="NewBoardTitle" xml:space="preserve">
+    <value>Neues Board</value>
+  </data>
+  <data name="EditBoardTitle" xml:space="preserve">
+    <value>Board bearbeiten</value>
+  </data>
+  <data name="AdvancedSection" xml:space="preserve">
+    <value>Erweitert</value>
+  </data>
+  <data name="AdvancedSummaryNone" xml:space="preserve">
+    <value>Nichts gesetzt</value>
+  </data>
+  <data name="FieldBoardTitle" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="FieldProject" xml:space="preserve">
+    <value>Projekt</value>
+  </data>
+  <data name="FieldNoProject" xml:space="preserve">
+    <value>Kein Projekt</value>
+  </data>
+  <data name="FieldTags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="FieldTagsHint" xml:space="preserve">
+    <value>Mit Komma trennen</value>
+  </data>
+  <data name="FieldPeriod" xml:space="preserve">
+    <value>Zeitraum</value>
+  </data>
+  <data name="PeriodToggle" xml:space="preserve">
+    <value>Zeitraum festlegen</value>
+  </data>
+  <data name="FieldStartDate" xml:space="preserve">
+    <value>Start</value>
+  </data>
+  <data name="FieldEndDate" xml:space="preserve">
+    <value>Ende</value>
+  </data>
+  <data name="SaveBoard" xml:space="preserve">
+    <value>Speichern</value>
   </data>
 </root>

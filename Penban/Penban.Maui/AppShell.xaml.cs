@@ -28,6 +28,7 @@ public partial class AppShell : Shell
         Routing.RegisterRoute(AppRoutes.Privacy, new ServiceRouteFactory<PrivacyPage>(services));
         Routing.RegisterRoute(AppRoutes.About, new ServiceRouteFactory<AboutPage>(services));
         Routing.RegisterRoute(AppRoutes.Feedback, new ServiceRouteFactory<FeedbackPage>(services));
+        Routing.RegisterRoute(AppRoutes.BoardDetails, new ServiceRouteFactory<BoardDetailsPage>(services));
     }
 
     /// <summary>

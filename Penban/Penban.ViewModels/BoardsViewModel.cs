@@ -8,7 +8,11 @@ using Penban.Util;
 
 namespace Penban.ViewModels;
 
-/// <summary>Board overview: lists existing boards, allows creating and deleting them.</summary>
+/// <summary>
+/// Board overview: lists existing boards and removes them. Creating one and changing one both belong
+/// to the board's details page, so coming back from it reads the list again rather than patching a
+/// row - the board that was just written arrives with the rest, in the place the order puts it.
+/// </summary>
 public partial class BoardsViewModel : ObservableObject
 {
     private readonly IBoardService boardService;
@@ -191,51 +195,6 @@ public partial class BoardsViewModel : ObservableObject
         {
             Boards.RemoveAt(Boards.Count - 1);
         }
-    }
-
-    private async Task AddBoardViewModelAsync(Board board)
-    {
-        var viewModel = new BoardViewModel(board, boardService, cardService, dialogService);
-        await viewModel.LoadSummaryAsync();
-
-        // At the top, where the overview keeps the board that was touched last: a board that was just
-        // created is the most recently changed one, so appending it would show it in the wrong place
-        // until the next load sorted it.
-        Boards.Insert(0, viewModel);
-    }
-
-    [RelayCommand]
-    private async Task AddBoardAsync()
-    {
-        var name = await dialogService.DisplayPromptAsync(Strings.AddBoard, string.Empty, Strings.Add, Strings.Cancel);
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return;
-        }
-
-        var board = await boardService.CreateBoardAsync(new BoardDetails { Title = name });
-        await AddBoardViewModelAsync(board);
-        NotifyRowsChanged();
-    }
-
-    [RelayCommand]
-    private async Task RenameBoardAsync(Guid boardId)
-    {
-        var board = Boards.FirstOrDefault(b => b.Id == boardId);
-        if (board is null)
-        {
-            return;
-        }
-
-        var name = await dialogService.DisplayPromptAsync(Strings.RenameBoard, string.Empty, Strings.Rename, Strings.Cancel, initialValue: board.Title);
-        name = name?.Trim();
-        if (string.IsNullOrWhiteSpace(name) || name == board.Title)
-        {
-            return;
-        }
-
-        await boardService.RenameBoardAsync(boardId, name);
-        board.Title = name;
     }
 
     [RelayCommand]

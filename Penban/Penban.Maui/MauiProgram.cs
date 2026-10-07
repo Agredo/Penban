@@ -134,6 +134,7 @@ public static class MauiProgram
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<SearchViewModel>();
         services.AddTransient<FeedbackViewModel>();
+        services.AddTransient<BoardDetailsViewModel>();
 
         // The pages a route can lead to. Everything else is built by hand where it is needed, but a
         // route has only the container to ask, so these have to be known here.
@@ -142,6 +143,7 @@ public static class MauiProgram
         services.AddTransient<PrivacyPage>();
         services.AddTransient<AboutPage>();
         services.AddTransient<FeedbackPage>();
+        services.AddTransient<BoardDetailsPage>();
     }
 
 #if IOS
