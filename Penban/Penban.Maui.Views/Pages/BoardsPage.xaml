@@ -212,8 +212,11 @@
     </ContentPage.Resources>
     <Grid RowDefinitions="Auto,*" Padding="20,12" RowSpacing="16">
 
-        <!-- Header: logo + page title + search + settings + whole-database transfer + primary add action -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="6">
+        <!-- Header: logo + page title + search + settings + whole-database transfer. The primary add
+             action is not one of them: it floats over the list in the bottom right corner, where a
+             thumb reaches it without crossing the page and where it takes no share of the bar from
+             the title. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="6">
             <Image Grid.Column="0"
                    Source="penban_logo.png"
                    WidthRequest="36"
@@ -242,12 +245,6 @@
                     Style="{StaticResource GhostIconButton}"
                     Clicked="OnTransferClicked"
                     SemanticProperties.Description="{markup:Translate TransferTitle}"
-                    VerticalOptions="Center" />
-            <Button Grid.Column="5"
-                    Text="&#xf10a;"
-                    Style="{StaticResource AccentIconButton}"
-                    Command="{Binding AddBoardCommand}"
-                    SemanticProperties.Description="{markup:Translate AddBoard}"
                     VerticalOptions="Center" />
         </Grid>
 
@@ -279,5 +276,16 @@
                            IsRunning="{Binding IsLoading}"
                            HorizontalOptions="Center"
                            VerticalOptions="Center" />
+
+        <!-- The add action, floating over the list in the bottom right corner. Last in the grid, so it
+             lies over the cards rather than under them. Plus = U+F10A. -->
+        <Button Grid.Row="1"
+                Text="&#xf10a;"
+                Style="{StaticResource FabButton}"
+                Command="{Binding AddBoardCommand}"
+                SemanticProperties.Description="{markup:Translate AddBoard}"
+                HorizontalOptions="End"
+                VerticalOptions="End"
+                Margin="0,0,4,4" />
     </Grid>
 </ContentPage>

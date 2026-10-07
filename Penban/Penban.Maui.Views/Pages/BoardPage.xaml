@@ -12,9 +12,11 @@
 
         <!-- Own header instead of the Shell nav bar: the Windows Shell nav bar renders no back
              button, so the app draws its own and every platform gets the same way back.
-             Adding a column belongs here rather than under the board: it acts on the board, not on
-             a single column, and it keeps the whole height of the board free for the notes.
-             The note button sits beside it for the same reason: the note belongs to the board, not
+             Adding a column acts on the board rather than on one column, so it is not part of a
+             column: it floats over the board in the bottom right corner (see the button under the
+             board below), which leaves the header to the title and to what acts on the board as a
+             whole.
+             The note button sits in the header for the same reason: the note belongs to the board, not
              to a column, and it is what the board shows on the overview and on the home screen.
              The settings button is the same one as on the overview: the drawing settings are tried
              out on a note, so they have to be reachable without leaving the board.
@@ -23,7 +25,7 @@
              one covers another instead of pushing it aside: the board below must not move while a
              note is in the air, or the drop target would shift away from the note. -->
         <Grid Grid.Row="0">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                   ColumnSpacing="6">
                 <Button Grid.Column="0"
                         Text="&#xf15c;"
@@ -97,11 +99,6 @@
                         Style="{StaticResource GhostIconButton}"
                         Clicked="OnSettingsClicked"
                         SemanticProperties.Description="{markup:Translate Settings}" />
-                <Button Grid.Column="10"
-                        Text="&#xf2fd;"
-                        Style="{StaticResource AccentIconButton}"
-                        Command="{Binding AddColumnCommand}"
-                        SemanticProperties.Description="{markup:Translate AddColumn}" />
             </Grid>
             <!-- While notes are picked, this row stands in for the header. The way back stays where it
                  was: a header that offers none would be a trap. The two actions only appear once
@@ -149,7 +146,10 @@
                  into its column without the board ever hearing about it.
                  Tapping it puts the header back: a drag that ends in a way the app is never told
                  about (the app going to the background, a drop the platform calls off) must not leave
-                 the user without a header. -->
+                 the user without a header.
+                 BoardPage shows and hides it, see SetBinShown: on Android it is only made invisible
+                 while it is down rather than taken out of the layout, because the platform settles
+                 which views a drag may reach once, when that drag begins. -->
             <Border x:Name="TrashDropArea"
                     IsVisible="False"
                     HeightRequest="44"
@@ -266,7 +266,15 @@
                                                    HeightRequest="{Binding NoteHeight}"
                                                    WidthRequest="{Binding NoteWidth}"
                                                    HorizontalOptions="Center"
-                                                   VerticalOptions="Center">
+                                                   VerticalOptions="Center"
+                                                   Loaded="OnNoteLoaded">
+                            <!-- The tap is answered by the note itself, and on Android by the card the
+                                 note is carried in instead, see OnNoteLoaded: there a recognizer on the
+                                 note takes the touch away from the card, which is the view the control
+                                 drags a note by, so a note that answered its own tap could no longer
+                                 be moved. What the note has to do either way is let the touch through
+                                 to the card - everything inside it is transparent to input, see the
+                                 ink preview and the text stack below. -->
                             <controls:StickyNoteBorder.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnCardTapped" />
                             </controls:StickyNoteBorder.GestureRecognizers>
@@ -282,7 +290,8 @@
                                      colour, the size and the weight the editor last wrote it in,
                                      through the same conversion the ink is drawn through, so the
                                      note reads on the board as it does in the editor. Transparent to
-                                     input: what takes the touch is the note under it. -->
+                                     input: what takes the touch is the note, and on Android the card
+                                     the note is carried in. -->
                                 <VerticalStackLayout Margin="0,0,0,16"
                                                      Spacing="2"
                                                      VerticalOptions="Start"
@@ -310,7 +319,7 @@
                                 <!-- The pick box of the selection mode, in the corner the tags leave
                                      free. It is drawn on the note rather than beside it, so a picked
                                      note is still one note, not a row with a checkbox. Transparent to
-                                     input: the tap that turns it over is the one on the note itself.
+                                     input: the tap that turns it over is the one the card reports.
                                      Unticked = U+E2F7, ticked = U+F28E. -->
                                 <Grid IsVisible="{Binding ShowPicker}"
                                       Margin="2"
@@ -334,6 +343,19 @@
                 </DataTemplate>
             </kanban:SfKanban.CardTemplate>
         </kanban:SfKanban>
+        <!-- Adding a column, floating over the board in the bottom right corner: it acts on the board
+             rather than on one column, and the header has no room to spare for it. Last in the grid,
+             so it lies over the board rather than under it. Add = U+F2FD.
+             A drag does not end here: the button takes no drop, so a note let go over it is passed on
+             to the board underneath, exactly as if the button were not there. -->
+        <Button Grid.Row="1"
+                Text="&#xf2fd;"
+                Style="{StaticResource FabButton}"
+                Command="{Binding AddColumnCommand}"
+                SemanticProperties.Description="{markup:Translate AddColumn}"
+                HorizontalOptions="End"
+                VerticalOptions="End"
+                Margin="0,0,4,4" />
         <!-- Over the board: what says that it is still on its way. A board that is opened is read lane
              by lane and built note by note, and on a board with a lot on it that takes long enough to
              look like a tap that was never noticed. Shown for the visit that builds the board and for

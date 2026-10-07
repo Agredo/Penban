@@ -18,8 +18,8 @@
 
     <ApplicationTitle>Penban</ApplicationTitle>
     <ApplicationId>com.agredoapplication.panban</ApplicationId>
-    <ApplicationDisplayVersion>0.5.6</ApplicationDisplayVersion>
-    <ApplicationVersion>20</ApplicationVersion>
+    <ApplicationDisplayVersion>0.5.7</ApplicationDisplayVersion>
+    <ApplicationVersion>21</ApplicationVersion>
     <!-- The platform SDKs derive Version/PackageVersion from ApplicationDisplayVersion inside each
          target framework, but the outer cross-targeting build keeps the 1.0.0 default. NuGet's
          Visual Studio restore reads both and fails with NU1105 ("PackageVersion should have a single
@@ -29,8 +29,9 @@
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
     <!-- The ONNX Runtime Android archive declares minSdkVersion 24, and the Android SDK refuses to
-         merge a library whose floor is above the app's own (XAAMM0000/AMM0000). -->
-    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+         merge a library whose floor is above the app's own (XAAMM0000/AMM0000) - which is why this
+         value cannot go below 24 at all. Penban itself is shipped for Android 10 (API 29) and up. -->
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">29.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
     <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 
@@ -124,6 +125,26 @@
        `UseInterpreter` actually skips AOT. Costs some startup performance but is stable. -->
   <PropertyGroup Condition="$(TargetFramework.Contains('-ios')) And '$(Configuration)' == 'Release'">
     <UseInterpreter>true</UseInterpreter>
+  </PropertyGroup>
+
+  <!-- Android Release builds a signed, sideloadable APK. The keystore sits next to this project as
+       penban.keystore and is gitignored (*.keystore) - like nexile.keystore, finanzio.keystore and
+       unitracks.keystore it only exists locally and has to be backed up separately, because Android
+       refuses to update an installed app whose signing key changed.
+
+         dotnet publish Penban.Maui\Penban.Maui.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk
+       -> bin\Release\net10.0-android\publish\com.agredoapplication.panban-Signed.apk
+
+       Debug stays on the debug keystore on purpose: Debug is installed with FastDev over adb, which
+       pushes the assemblies into the app's files directory instead of the APK, and the Release APK
+       must not depend on that. -->
+  <PropertyGroup Condition="$(TargetFramework.Contains('-android')) And '$(Configuration)' == 'Release'">
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <AndroidKeyStore>True</AndroidKeyStore>
+    <AndroidSigningKeyStore>penban.keystore</AndroidSigningKeyStore>
+    <AndroidSigningKeyAlias>penban</AndroidSigningKeyAlias>
+    <AndroidSigningStorePass>Agredo10Castillo</AndroidSigningStorePass>
+    <AndroidSigningKeyPass>Agredo10Castillo</AndroidSigningKeyPass>
   </PropertyGroup>
 
   <!-- Compiles Platforms/iOS/PenbanWidgetReloader.swift into the app executable.

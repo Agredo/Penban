@@ -29,6 +29,15 @@ public sealed class InkPreviewView : GraphicsView, IDrawable
     public InkPreviewView()
     {
         Drawable = this;
+
+#if ANDROID
+        // Nothing here answers a touch, and on Android the drawing surface would swallow every one of
+        // them: a GraphicsView takes the touch down itself and hands it back as consumed, so the note
+        // the drawing sits on never hears the tap that opens it, and a note that is held down never
+        // starts the drag. Transparent to input, the touch goes on to the note underneath. The other
+        // platforms hand the touch on by themselves, so they are left as they were.
+        InputTransparent = true;
+#endif
     }
 
     public IEnumerable<InkStroke>? StrokesSource

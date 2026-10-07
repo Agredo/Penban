@@ -264,6 +264,52 @@
         </Setter>
     </Style>
 
+    <!-- Round accent action that floats over the content in the bottom right corner (add board, add
+         column). 56 across with half of that as the corner radius, which is a circle rather than a
+         rounded square; the shadow is what lifts it off the list or the board it lies on. -->
+    <Style x:Key="FabButton" TargetType="Button">
+        <Setter Property="BackgroundColor"
+                Value="{AppThemeBinding Light={StaticResource AccentLight}, Dark={StaticResource AccentDark}}" />
+        <Setter Property="TextColor"
+                Value="{AppThemeBinding Light={StaticResource OnAccentLight}, Dark={StaticResource OnAccentDark}}" />
+        <Setter Property="FontFamily" Value="FluentIcons" />
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="CornerRadius" Value="28" />
+        <Setter Property="BorderWidth" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="MinimumHeightRequest" Value="56" />
+        <Setter Property="MinimumWidthRequest" Value="56" />
+        <Setter Property="HeightRequest" Value="56" />
+        <Setter Property="WidthRequest" Value="56" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="#000000"
+                        Opacity="{AppThemeBinding Light=0.18, Dark=0.45}"
+                        Radius="10"
+                        Offset="0,3" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor"
+                                    Value="{AppThemeBinding Light={StaticResource AccentPressedLight}, Dark={StaticResource AccentPressedDark}}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor"
+                                    Value="{AppThemeBinding Light={StaticResource AccentPressedLight}, Dark={StaticResource AccentPressedDark}}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
     <!-- Destructive variant of the icon button. -->
     <Style x:Key="DangerGhostIconButton" TargetType="Button" BasedOn="{StaticResource GhostIconButton}">
         <Setter Property="VisualStateManager.VisualStateGroups">
@@ -287,14 +333,6 @@
                 </VisualStateGroup>
             </VisualStateGroupList>
         </Setter>
-    </Style>
-
-    <!-- Destructive text button (e.g. "Delete" on the card editor). -->
-    <Style x:Key="DangerGhostButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
-        <Setter Property="TextColor"
-                Value="{AppThemeBinding Light={StaticResource DangerLight}, Dark={StaticResource DangerDark}}" />
-        <Setter Property="BorderColor"
-                Value="{AppThemeBinding Light={StaticResource DangerLight}, Dark={StaticResource DangerDark}}" />
     </Style>
 
     <!-- ============ Pens ============ -->
