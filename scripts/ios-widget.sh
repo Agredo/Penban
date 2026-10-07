@@ -137,10 +137,15 @@ verify_appex() { # <pfad/zur/PenbanWidget.appex>
 # in seiner Entitlements-Datei steht – die drei Schlüssel fehlen dann, und App Store Connect lehnt
 # das Paket ab (90075 "application-identifier entitlement is missing"). Darum wird diese Datei hier
 # aus der fertig signierten Extension gezogen: sie enthält damit genau das, was das Profil hergibt.
-# Ablageort und Name sind fest (build/PenbanWidget.entitlements) – Penban.Maui.csproj liest sie dort.
-write_entitlements() { # <pfad/zur/PenbanWidget.appex>
-  local appex="$1" file="$WIDGET_DIR/build/PenbanWidget.entitlements" appid
-  mkdir -p "$(dirname "$file")"
+#
+# Abgelegt wird sie neben dem .appex, also in build/<Configuration>-iphoneos – Penban.Maui.csproj
+# liest sie dort (CodesignEntitlements). Eine Datei je Konfiguration ist Pflicht, nicht Ordnung:
+# Debug wird mit dem Development-Profil signiert und bringt get-task-allow mit. Läge beides in
+# einer Datei, trüge nach einem Debug-Build auch das nächste Release-Paket get-task-allow, und
+# App Store Connect weist es dann ab (90164) – ohne dass am Release-Build selbst etwas falsch wäre.
+write_entitlements() { # <pfad/zur/PenbanWidget.appex> <zielordner>
+  local appex="$1" dir="$2" file="$2/PenbanWidget.entitlements" appid
+  mkdir -p "$dir"
   codesign -d --entitlements - --xml "$appex" >"$file" 2>/dev/null || true
   plutil -lint "$file" >/dev/null 2>&1 \
     || die "Die Entitlements von $appex ließen sich nicht auslesen ($file)."
@@ -236,7 +241,7 @@ cmd_build() {
 
   log "Prüfe die Extension"
   verify_appex "$appex"
-  write_entitlements "$appex"
+  write_entitlements "$appex" "$out_dir"
 
   # Beim Einbetten in die App löscht der MAUI-Build die Signatur von Xcode und signiert die
   # Extension neu – mit genau dieser Datei (CodesignEntitlements in Penban.Maui.csproj). Fehlt sie
