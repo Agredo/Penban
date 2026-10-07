@@ -634,7 +634,7 @@
   <data name="AdvancedSummaryNone" xml:space="preserve">
     <value>Nichts gesetzt</value>
   </data>
-  <data name="FieldBoardTitle" xml:space="preserve">
+  <data name="FieldTitle" xml:space="preserve">
     <value>Name</value>
   </data>
   <data name="FieldProject" xml:space="preserve">
@@ -661,7 +661,52 @@
   <data name="FieldEndDate" xml:space="preserve">
     <value>Ende</value>
   </data>
-  <data name="SaveBoard" xml:space="preserve">
+  <data name="Save" xml:space="preserve">
     <value>Speichern</value>
+  </data>
+  <data name="ProjectsTitle" xml:space="preserve">
+    <value>Projekte</value>
+  </data>
+  <data name="AddProject" xml:space="preserve">
+    <value>Projekt hinzufügen</value>
+  </data>
+  <data name="NewProjectTitle" xml:space="preserve">
+    <value>Neues Projekt</value>
+  </data>
+  <data name="EditProjectTitle" xml:space="preserve">
+    <value>Projekt bearbeiten</value>
+  </data>
+  <data name="NoProjectsYet" xml:space="preserve">
+    <value>Noch keine Projekte. Lege dein erstes Projekt an.</value>
+  </data>
+  <data name="NoProjectsMatchFilter" xml:space="preserve">
+    <value>Kein Projekt trägt alle diese Tags.</value>
+  </data>
+  <data name="DeleteProjectConfirmation" xml:space="preserve">
+    <value>Dieses Projekt löschen? Seine Boards bleiben erhalten und verlieren die Projektzuordnung.</value>
+  </data>
+  <data name="NoBoardsInProject" xml:space="preserve">
+    <value>Noch keine Boards</value>
+  </data>
+  <data name="OneBoard" xml:space="preserve">
+    <value>1 Board</value>
+  </data>
+  <data name="BoardsCountFormat" xml:space="preserve">
+    <value>{0} Boards</value>
+  </data>
+  <data name="FilterByTag" xml:space="preserve">
+    <value>Nach Tag filtern</value>
+  </data>
+  <data name="ClearFilters" xml:space="preserve">
+    <value>Zurücksetzen</value>
+  </data>
+  <data name="ProjectNote" xml:space="preserve">
+    <value>Projektnotiz</value>
+  </data>
+  <data name="DeleteProjectNoteConfirmation" xml:space="preserve">
+    <value>Die Notiz dieses Projekts löschen?</value>
+  </data>
+  <data name="Back" xml:space="preserve">
+    <value>Zurück</value>
   </data>
 </root>

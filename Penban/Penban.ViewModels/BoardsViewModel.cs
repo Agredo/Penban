@@ -90,7 +90,7 @@ public partial class BoardsViewModel : ObservableObject
         // disagree with the dates written in it.
         loaded.Sort(CompareRows);
 
-        MergeRows(loaded);
+        RowList.Merge(Boards, loaded);
 
         // Raised once at the end, and not per row: the list is put together completely before it is
         // shown, so it cannot build itself up in visible steps.
@@ -168,35 +168,9 @@ public partial class BoardsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Puts the freshly read rows into <see cref="Boards"/> without taking out the ones that are
-    /// already there. Emptying the list and filling it again raises a reset, and a reset sends the
-    /// overview back to the top: the reader would lose the place they had scrolled to every time a
-    /// board was opened and closed. Only the rows that really moved, appeared or went away raise an
-    /// event here, and a row that stays where it is raises none at all.
+    /// Deletes one board and everything on it. The row goes with it, so the list does not keep a
+    /// board that is no longer there.
     /// </summary>
-    private void MergeRows(IReadOnlyList<BoardViewModel> ordered)
-    {
-        for (var index = 0; index < ordered.Count; index++)
-        {
-            var viewModel = ordered[index];
-            var current = Boards.IndexOf(viewModel);
-
-            if (current < 0)
-            {
-                Boards.Insert(index, viewModel);
-            }
-            else if (current != index)
-            {
-                Boards.Move(current, index);
-            }
-        }
-
-        while (Boards.Count > ordered.Count)
-        {
-            Boards.RemoveAt(Boards.Count - 1);
-        }
-    }
-
     [RelayCommand]
     private async Task DeleteBoardAsync(Guid boardId)
     {

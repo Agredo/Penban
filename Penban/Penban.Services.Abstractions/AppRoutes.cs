@@ -33,4 +33,16 @@ public static class AppRoutes
     /// <see cref="QueryParameters.ProjectId"/> to put a new one into a project.
     /// </summary>
     public const string BoardDetails = "boardDetails";
+
+    /// <summary>
+    /// One project's details, both when it is created and when it is edited. Takes
+    /// <see cref="QueryParameters.ProjectId"/> to edit an existing project.
+    /// </summary>
+    public const string ProjectDetails = "projectDetails";
+
+    /// <summary>
+    /// One project's own page: what the project is and the boards that hang under it. Takes
+    /// <see cref="QueryParameters.ProjectId"/> to say which project it is.
+    /// </summary>
+    public const string Project = "project";
 }

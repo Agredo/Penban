@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
              xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
-             x:Class="Penban.Maui.Views.Pages.BoardDetailsPage"
+             x:Class="Penban.Maui.Views.Pages.ProjectDetailsPage"
              Title="{Binding PageTitle}"
              Shell.NavBarIsVisible="False"
              Style="{StaticResource AppPage}">
@@ -25,7 +25,7 @@
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Spacing="16">
 
-                <!-- The one field a board cannot do without, and the whole of the plain mode. -->
+                <!-- The one field a project cannot do without, and the whole of the plain mode. -->
                 <Border Style="{StaticResource CardBorder}" Padding="16">
                     <VerticalStackLayout Spacing="6">
                         <Label Text="{markup:Translate FieldTitle}"
@@ -37,9 +37,9 @@
                     </VerticalStackLayout>
                 </Border>
 
-                <!-- Extended mode: the fields a board does not need in order to exist, folded away so
+                <!-- Extended mode: the fields a project does not need in order to exist, folded away so
                      that creating one stays a single field. What is inside the fold is said on its
-                     header, so a folded board with labels on it does not look like one without. -->
+                     header, so a folded project with labels on it does not look like one without. -->
                 <Border Style="{StaticResource CardBorder}" Padding="16,10">
                     <toolkit:Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
                         <toolkit:Expander.Header>
@@ -57,16 +57,6 @@
                         </toolkit:Expander.Header>
 
                         <VerticalStackLayout Spacing="16" Padding="0,12,0,0">
-
-                            <VerticalStackLayout Spacing="6">
-                                <Label Text="{markup:Translate FieldProject}"
-                                       Style="{StaticResource FieldLabel}" />
-                                <Border Style="{StaticResource InputSurface}" Padding="12,2">
-                                    <Picker ItemsSource="{Binding Projects}"
-                                            ItemDisplayBinding="{Binding Title}"
-                                            SelectedItem="{Binding SelectedProject}" />
-                                </Border>
-                            </VerticalStackLayout>
 
                             <VerticalStackLayout Spacing="6">
                                 <Label Text="{markup:Translate FieldTags}"
@@ -92,8 +82,8 @@
                                            VerticalOptions="Center" />
                                 </Grid>
 
-                                <!-- Both ends are one setting: a time frame is a span, and a board
-                                     with only one end of it is not a board with a time frame. -->
+                                <!-- Both ends are one setting: a time frame is a span, and a project
+                                     with only one end of it is not a project with a time frame. -->
                                 <Grid ColumnDefinitions="*,*" ColumnSpacing="12" IsVisible="{Binding HasPeriod}">
                                     <VerticalStackLayout Grid.Column="0" Spacing="6">
                                         <Label Text="{markup:Translate FieldStartDate}"

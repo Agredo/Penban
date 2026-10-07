@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
+             xmlns:controls="clr-namespace:Penban.Maui.Views.Controls"
+             x:Class="Penban.Maui.Views.Pages.ProjectPage"
+             x:Name="ThisPage"
+             Title="{Binding ProjectCard.Title}"
+             Shell.NavBarIsVisible="False"
+             Style="{StaticResource AppPage}">
+    <ContentPage.Resources>
+        <!-- One board of this project. A plain row rather than the card the board overview draws: a
+             project page is a list of what hangs under it, and the fan of notes belongs where the
+             boards are browsed. The row therefore keeps the same shape at every width. -->
+        <DataTemplate x:Key="ProjectBoardRow">
+            <Border Style="{StaticResource CardBorder}" Padding="14" Margin="0,6">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBoardTapped" />
+                </Border.GestureRecognizers>
+
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+                    <Label Grid.Row="0" Grid.Column="0"
+                           Text="{Binding Title}"
+                           Style="{StaticResource SubtitleLabel}"
+                           VerticalOptions="Center"
+                           LineBreakMode="TailTruncation"
+                           MaxLines="2" />
+
+                    <HorizontalStackLayout Grid.Row="0" Grid.Column="1" Spacing="4" HorizontalOptions="End" VerticalOptions="Center">
+                        <!-- The pencil opens everything that is written on the board rather than only
+                             its name: the details page is where both live. -->
+                        <Button Text="&#xf3de;"
+                                Style="{StaticResource GhostIconButton}"
+                                Clicked="OnEditBoardClicked"
+                                SemanticProperties.Description="{markup:Translate EditBoardTitle}" />
+                        <Button Text="&#xf34d;"
+                                Style="{StaticResource DangerGhostIconButton}"
+                                Command="{Binding Source={x:Reference ThisPage}, Path=BindingContext.DeleteBoardCommand}"
+                                CommandParameter="{Binding Id}"
+                                SemanticProperties.Description="{markup:Translate Delete}" />
+                    </HorizontalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="6">
+                        <!-- When it was last touched and how much sits on it -->
+                        <Label Text="{Binding SummaryText}" Style="{StaticResource CaptionLabel}" />
+
+                        <!-- Load bar: one chip per lane, as wide as the lane's share of the cards -->
+                        <FlexLayout IsVisible="{Binding HasColumns}"
+                                    Direction="Row"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    BindableLayout.ItemsSource="{Binding ColumnSummary}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate>
+                                    <controls:StickyNoteBorder NoteColorIndex="{Binding NoteColorIndex}"
+                                                               Opacity="{Binding ChipOpacity}"
+                                                               FlexLayout.Basis="0"
+                                                               FlexLayout.Grow="{Binding Share}"
+                                                               MinimumWidthRequest="30"
+                                                               Margin="0,0,3,0"
+                                                               Padding="0,4">
+                                        <!-- Ink on paper stays dark in both themes: the chip is a bright
+                                             note even in dark mode, where the shared caption colour
+                                             would sit at barely readable contrast on it. -->
+                                        <Label Text="{Binding CountText}"
+                                               Style="{StaticResource CaptionLabel}"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalTextAlignment="Center"
+                                               TextColor="#1E2230"
+                                               FontFamily="OpenSansSemibold" />
+                                    </controls:StickyNoteBorder>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*" Padding="20,12" RowSpacing="16">
+
+        <!-- Header: back + project name + its note + its details. This is a page of its own rather
+             than an area of the flyout, so it carries the way back instead of the settings button. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
+            <Button Grid.Column="0"
+                    Text="&#xf15c;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnBackClicked"
+                    SemanticProperties.Description="{markup:Translate Back}"
+                    VerticalOptions="Center" />
+            <Label Grid.Column="1"
+                   Text="{Binding ProjectCard.Title}"
+                   Style="{StaticResource LargeTitleLabel}"
+                   VerticalOptions="Center"
+                   LineBreakMode="TailTruncation" />
+            <!-- Note = U+F56C. Accent while the project carries a note, so the header says at a glance
+                 whether there is one without the button having to be pressed. -->
+            <Button x:Name="ProjectNoteButton"
+                    Grid.Column="2"
+                    Text="&#xf56c;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnProjectNoteClicked"
+                    SemanticProperties.Description="{markup:Translate ProjectNote}"
+                    VerticalOptions="Center" />
+            <Button Grid.Column="3"
+                    Text="&#xf3de;"
+                    Style="{StaticResource GhostIconButton}"
+                    Clicked="OnEditProjectClicked"
+                    SemanticProperties.Description="{markup:Translate EditProjectTitle}"
+                    VerticalOptions="Center" />
+        </Grid>
+
+        <!-- What the project is: how many boards hang under it, when it runs and what it is labelled
+             with. Read off the same row the overview draws, so the two cannot disagree. -->
+        <Border Grid.Row="1" Style="{StaticResource CardBorder}" Padding="16">
+            <VerticalStackLayout Spacing="8">
+                <Label Text="{Binding ProjectCard.BoardCountText}" Style="{StaticResource CaptionLabel}" />
+                <Label Text="{Binding ProjectCard.PeriodText}"
+                       Style="{StaticResource CaptionLabel}"
+                       IsVisible="{Binding ProjectCard.HasPeriod}" />
+                <FlexLayout IsVisible="{Binding ProjectCard.HasTags}"
+                            Direction="Row"
+                            Wrap="Wrap"
+                            JustifyContent="Start"
+                            AlignItems="Center"
+                            BindableLayout.ItemsSource="{Binding ProjectCard.Tags}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource TagChip}" Margin="0,0,4,4">
+                                <Label Text="{Binding .}" Style="{StaticResource TagChipLabel}" />
+                            </Border>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </FlexLayout>
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- The boards of this project -->
+        <CollectionView Grid.Row="2"
+                        x:Name="ProjectBoardsList"
+                        ItemsSource="{Binding Boards}"
+                        ItemTemplate="{StaticResource ProjectBoardRow}" />
+
+        <!-- Empty state (no boards and none on their way, see ProjectPageViewModel) -->
+        <VerticalStackLayout Grid.Row="2"
+                             Spacing="14"
+                             VerticalOptions="Center"
+                             IsVisible="{Binding ShowEmptyState}">
+            <Label Text="&#xf1e3;"
+                   Style="{StaticResource IconLabel}"
+                   FontSize="56"
+                   TextColor="{AppThemeBinding Light={StaticResource TextTertiaryLight}, Dark={StaticResource TextTertiaryDark}}"
+                   HorizontalTextAlignment="Center" />
+            <Label Text="{markup:Translate NoBoardsYet}"
+                   Style="{StaticResource CaptionLabel}"
+                   FontSize="{StaticResource FontSizeBody}"
+                   HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
+
+        <!-- Over the list: what says that the page is still reading. The boards are read with their
+             summaries and their load bars, which is the wait a visit to this page begins with. -->
+        <ActivityIndicator Grid.Row="2"
+                           IsVisible="{Binding IsLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+
+        <!-- The add action, floating over the list in the bottom right corner. Plus = U+F10A. The
+             project is already filled in on the details page it opens, because a board created here
+             belongs to the project it was created in (it stays changeable there). -->
+        <Button Grid.Row="2"
+                Text="&#xf10a;"
+                Style="{StaticResource FabButton}"
+                Clicked="OnAddBoardClicked"
+                SemanticProperties.Description="{markup:Translate AddBoard}"
+                HorizontalOptions="End"
+                VerticalOptions="End"
+                Margin="0,0,4,4" />
+    </Grid>
+</ContentPage>

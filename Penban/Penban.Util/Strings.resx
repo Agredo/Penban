@@ -634,7 +634,7 @@
   <data name="AdvancedSummaryNone" xml:space="preserve">
     <value>Nothing set</value>
   </data>
-  <data name="FieldBoardTitle" xml:space="preserve">
+  <data name="FieldTitle" xml:space="preserve">
     <value>Name</value>
   </data>
   <data name="FieldProject" xml:space="preserve">
@@ -661,7 +661,52 @@
   <data name="FieldEndDate" xml:space="preserve">
     <value>End</value>
   </data>
-  <data name="SaveBoard" xml:space="preserve">
+  <data name="Save" xml:space="preserve">
     <value>Save</value>
+  </data>
+  <data name="ProjectsTitle" xml:space="preserve">
+    <value>Projects</value>
+  </data>
+  <data name="AddProject" xml:space="preserve">
+    <value>Add project</value>
+  </data>
+  <data name="NewProjectTitle" xml:space="preserve">
+    <value>New project</value>
+  </data>
+  <data name="EditProjectTitle" xml:space="preserve">
+    <value>Edit project</value>
+  </data>
+  <data name="NoProjectsYet" xml:space="preserve">
+    <value>No projects yet. Create your first project to get started.</value>
+  </data>
+  <data name="NoProjectsMatchFilter" xml:space="preserve">
+    <value>No project carries all of these tags.</value>
+  </data>
+  <data name="DeleteProjectConfirmation" xml:space="preserve">
+    <value>Delete this project? Its boards stay and lose the project.</value>
+  </data>
+  <data name="NoBoardsInProject" xml:space="preserve">
+    <value>No boards yet</value>
+  </data>
+  <data name="OneBoard" xml:space="preserve">
+    <value>1 board</value>
+  </data>
+  <data name="BoardsCountFormat" xml:space="preserve">
+    <value>{0} boards</value>
+  </data>
+  <data name="FilterByTag" xml:space="preserve">
+    <value>Filter by tag</value>
+  </data>
+  <data name="ClearFilters" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="ProjectNote" xml:space="preserve">
+    <value>Project note</value>
+  </data>
+  <data name="DeleteProjectNoteConfirmation" xml:space="preserve">
+    <value>Delete the note of this project?</value>
+  </data>
+  <data name="Back" xml:space="preserve">
+    <value>Back</value>
   </data>
 </root>

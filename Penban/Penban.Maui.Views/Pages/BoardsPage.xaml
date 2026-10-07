@@ -35,26 +35,8 @@
                                   WidthRequest="196"
                                   HeightRequest="146"
                                   VerticalOptions="Center"
-                                  BindableLayout.ItemsSource="{Binding PreviewNotes}">
-                                <BindableLayout.ItemTemplate>
-                                    <DataTemplate>
-                                        <controls:StickyNoteBorder NoteColorIndex="{Binding NoteColorIndex}"
-                                                                   NoteTilt="{Binding Tilt}"
-                                                                   TranslationX="{Binding OffsetX}"
-                                                                   TranslationY="{Binding OffsetY}"
-                                                                   Padding="10"
-                                                                   HeightRequest="110"
-                                                                   WidthRequest="110"
-                                                                   HorizontalOptions="Center"
-                                                                   VerticalOptions="Center">
-                                            <controls:InkPreviewView HorizontalOptions="Fill"
-                                                                     VerticalOptions="Fill"
-                                                                     BackgroundColor="Transparent"
-                                                                     StrokesSource="{Binding Strokes}" />
-                                        </controls:StickyNoteBorder>
-                                    </DataTemplate>
-                                </BindableLayout.ItemTemplate>
-                            </Grid>
+                                  BindableLayout.ItemsSource="{Binding PreviewNotes}"
+                                  BindableLayout.ItemTemplate="{StaticResource NotePreview}" />
 
                             <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
                                 <Label Text="{Binding Title}" Style="{StaticResource SubtitleLabel}" />
@@ -132,26 +114,8 @@
                                   WidthRequest="196"
                                   HeightRequest="146"
                                   HorizontalOptions="Center"
-                                  BindableLayout.ItemsSource="{Binding PreviewNotes}">
-                                <BindableLayout.ItemTemplate>
-                                    <DataTemplate>
-                                        <controls:StickyNoteBorder NoteColorIndex="{Binding NoteColorIndex}"
-                                                                   NoteTilt="{Binding Tilt}"
-                                                                   TranslationX="{Binding OffsetX}"
-                                                                   TranslationY="{Binding OffsetY}"
-                                                                   Padding="10"
-                                                                   HeightRequest="110"
-                                                                   WidthRequest="110"
-                                                                   HorizontalOptions="Center"
-                                                                   VerticalOptions="Center">
-                                            <controls:InkPreviewView HorizontalOptions="Fill"
-                                                                     VerticalOptions="Fill"
-                                                                     BackgroundColor="Transparent"
-                                                                     StrokesSource="{Binding Strokes}" />
-                                        </controls:StickyNoteBorder>
-                                    </DataTemplate>
-                                </BindableLayout.ItemTemplate>
-                            </Grid>
+                                  BindableLayout.ItemsSource="{Binding PreviewNotes}"
+                                  BindableLayout.ItemTemplate="{StaticResource NotePreview}" />
 
                             <Label Grid.Row="0" Grid.Column="0" Text="{Binding Title}" Style="{StaticResource SubtitleLabel}" VerticalOptions="Center" LineBreakMode="TailTruncation" MaxLines="2" />
 

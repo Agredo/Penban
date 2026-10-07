@@ -4,19 +4,15 @@ using Penban.Maui.Views.Widget;
 using Penban.Services.Abstractions;
 using Penban.Util;
 using Penban.ViewModels;
-using IPreferences = Penban.Services.Abstractions.IPreferences;
 
 namespace Penban.Maui.Views.Pages;
 
 /// <summary>Board overview page: lists existing boards, allows creating/deleting/opening them.</summary>
 public partial class BoardsPage : ContentPage
 {
-    private readonly IPreferences preferences;
-    private readonly SettingsViewModel settingsViewModel;
     private readonly SearchViewModel searchViewModel;
-    private readonly FeedbackViewModel feedbackViewModel;
     private readonly TransferCoordinator transferCoordinator;
-    private readonly IDialogService dialogService;
+    private readonly BoardPageFactory boardPageFactory;
     private readonly WidgetSnapshotTrigger widget;
     private readonly WidgetBoardLink boardLink;
     private readonly INavigationService navigation;
@@ -29,15 +25,12 @@ public partial class BoardsPage : ContentPage
     /// </summary>
     private Guid? lastOpenedBoardId;
 
-    public BoardsPage(BoardsViewModel viewModel, SettingsViewModel settingsViewModel, SearchViewModel searchViewModel, FeedbackViewModel feedbackViewModel, IPreferences preferences, TransferCoordinator transferCoordinator, IDialogService dialogService, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink, INavigationService navigation)
+    public BoardsPage(BoardsViewModel viewModel, SearchViewModel searchViewModel, TransferCoordinator transferCoordinator, BoardPageFactory boardPageFactory, WidgetSnapshotTrigger widget, WidgetBoardLink boardLink, INavigationService navigation)
     {
         InitializeComponent();
-        this.settingsViewModel = settingsViewModel;
         this.searchViewModel = searchViewModel;
-        this.feedbackViewModel = feedbackViewModel;
-        this.preferences = preferences;
         this.transferCoordinator = transferCoordinator;
-        this.dialogService = dialogService;
+        this.boardPageFactory = boardPageFactory;
         this.widget = widget;
         this.boardLink = boardLink;
         this.navigation = navigation;
@@ -212,7 +205,7 @@ public partial class BoardsPage : ContentPage
             }
 
             lastOpenedBoardId = boardId;
-            await Navigation.PushAsync(new BoardPage(board, settingsViewModel, feedbackViewModel, preferences, transferCoordinator, dialogService, navigation, searchViewModel, openCardId));
+            await Navigation.PushAsync(boardPageFactory.Create(board, openCardId));
         }
         finally
         {
