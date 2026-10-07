@@ -2,7 +2,6 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:markup="clr-namespace:Penban.Maui.Views.Markup"
-             xmlns:controls="clr-namespace:Penban.Maui.Views.Controls"
              x:Class="Penban.Maui.Views.Pages.ProjectPage"
              x:Name="ThisPage"
              Title="{Binding ProjectCard.Title}"
@@ -49,29 +48,8 @@
                                     Direction="Row"
                                     JustifyContent="Start"
                                     AlignItems="Center"
-                                    BindableLayout.ItemsSource="{Binding ColumnSummary}">
-                            <BindableLayout.ItemTemplate>
-                                <DataTemplate>
-                                    <controls:StickyNoteBorder NoteColorIndex="{Binding NoteColorIndex}"
-                                                               Opacity="{Binding ChipOpacity}"
-                                                               FlexLayout.Basis="0"
-                                                               FlexLayout.Grow="{Binding Share}"
-                                                               MinimumWidthRequest="30"
-                                                               Margin="0,0,3,0"
-                                                               Padding="0,4">
-                                        <!-- Ink on paper stays dark in both themes: the chip is a bright
-                                             note even in dark mode, where the shared caption colour
-                                             would sit at barely readable contrast on it. -->
-                                        <Label Text="{Binding CountText}"
-                                               Style="{StaticResource CaptionLabel}"
-                                               HorizontalTextAlignment="Center"
-                                               VerticalTextAlignment="Center"
-                                               TextColor="#1E2230"
-                                               FontFamily="OpenSansSemibold" />
-                                    </controls:StickyNoteBorder>
-                                </DataTemplate>
-                            </BindableLayout.ItemTemplate>
-                        </FlexLayout>
+                                    BindableLayout.ItemsSource="{Binding ColumnSummary}"
+                                    BindableLayout.ItemTemplate="{StaticResource LoadBarChip}" />
                     </VerticalStackLayout>
                 </Grid>
             </Border>

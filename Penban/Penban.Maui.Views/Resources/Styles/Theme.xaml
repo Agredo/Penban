@@ -147,6 +147,27 @@
         </controls:StickyNoteBorder>
     </DataTemplate>
 
+    <!-- One chip of a load bar: a lane of a board, as wide as its share of the cards, so a list shows
+         at a glance where the work piles up. Shared by every list that draws one. -->
+    <DataTemplate x:Key="LoadBarChip">
+        <controls:StickyNoteBorder NoteColorIndex="{Binding NoteColorIndex}"
+                                   Opacity="{Binding ChipOpacity}"
+                                   FlexLayout.Basis="0"
+                                   FlexLayout.Grow="{Binding Share}"
+                                   MinimumWidthRequest="30"
+                                   Margin="0,0,3,0"
+                                   Padding="0,4">
+            <!-- Ink on paper stays dark in both themes: the chip is a bright note even in dark mode,
+                 where the shared caption colour would sit at barely readable contrast on it. -->
+            <Label Text="{Binding CountText}"
+                   Style="{StaticResource CaptionLabel}"
+                   HorizontalTextAlignment="Center"
+                   VerticalTextAlignment="Center"
+                   TextColor="#1E2230"
+                   FontFamily="OpenSansSemibold" />
+        </controls:StickyNoteBorder>
+    </DataTemplate>
+
     <!-- ============ Chips ============ -->
     <!-- A label, drawn as a plain chip. Neutral wherever it only tells what a project carries: a chip
          is a note of what was written, not a control, and the row should read as one thing. -->

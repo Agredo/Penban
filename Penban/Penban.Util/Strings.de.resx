@@ -338,7 +338,7 @@
     <value>Der Import ist fehlgeschlagen: {0}</value>
   </data>
   <data name="ImportDoneFormat" xml:space="preserve">
-    <value>{0} Board(s) und {1} Karte(n) importiert.</value>
+    <value>{0} Board(s), {1} Karte(n) und {2} Projekt(e) importiert.</value>
   </data>
   <data name="ImportModeTitle" xml:space="preserve">
     <value>Wie soll das Backup importiert werden?</value>
@@ -350,7 +350,7 @@
     <value>Alles ersetzen</value>
   </data>
   <data name="ImportModeReplaceWarning" xml:space="preserve">
-    <value>Alle aktuell vorhandenen Boards und Karten werden zuerst gelöscht und dann durch den Inhalt der Datei ersetzt. Das kann nicht rückgängig gemacht werden.</value>
+    <value>Alle aktuell vorhandenen Projekte, Boards und Karten werden zuerst gelöscht und dann durch den Inhalt der Datei ersetzt. Das kann nicht rückgängig gemacht werden.</value>
   </data>
   <data name="ImportCardsNeedColumn" xml:space="preserve">
     <value>Ein Karten-Export kann nur innerhalb eines Boards in eine seiner Spalten importiert werden.</value>
@@ -514,6 +514,30 @@
   <data name="HelpSubtitle" xml:space="preserve">
     <value>Das Wichtigste in Kürze.</value>
   </data>
+  <data name="HelpAreasTitle" xml:space="preserve">
+    <value>Die drei Bereiche</value>
+  </data>
+  <data name="HelpAreasBody" xml:space="preserve">
+    <value>Der Menü-Knopf oben links öffnet das Menü. Es führt zu Übersicht, Projekte und Boards und darunter zu Einstellungen, Hilfe, Feedback, Datenschutz und Über Penban. Mit welchem Bereich die App startet, wird unter Einstellungen, Allgemein gewählt.</value>
+  </data>
+  <data name="HelpDashboardTitle" xml:space="preserve">
+    <value>Übersicht</value>
+  </data>
+  <data name="HelpDashboardBody" xml:space="preserve">
+    <value>Die Startseite zeigt die drei zuletzt bearbeiteten Projekte nebeneinander – für weitere seitlich scrollen. Darunter stehen die drei zuletzt bearbeiteten Boards. „Alle“ neben einer Überschrift führt zur vollständigen Liste.</value>
+  </data>
+  <data name="HelpProjectsTitle" xml:space="preserve">
+    <value>Projekte</value>
+  </data>
+  <data name="HelpProjectsBody" xml:space="preserve">
+    <value>Ein Projekt sammelt Boards unter sich. Über das Plus entsteht eines; hinter „Erweitert“ nimmt es eine Beschreibung, Beschriftungen und einen Zeitraum auf. Eine Projektkarte lässt sich ziehen und so umsortieren. Beim Löschen eines Projekts bleiben seine Boards stehen – sie gehören danach einfach zu keinem Projekt mehr.</value>
+  </data>
+  <data name="HelpLabelsTitle" xml:space="preserve">
+    <value>Beschriftungen</value>
+  </data>
+  <data name="HelpLabelsBody" xml:space="preserve">
+    <value>Boards und Projekte können beliebig viele Beschriftungen tragen, frei eingetippt. Über den Listen erscheinen die vergebenen Beschriftungen als Chips; jeder eingeschaltete Chip grenzt die Liste weiter ein, sodass nur bleibt, was alle trägt.</value>
+  </data>
   <data name="HelpDrawTitle" xml:space="preserve">
     <value>Schreiben und zeichnen</value>
   </data>
@@ -542,19 +566,25 @@
     <value>Suchen</value>
   </data>
   <data name="HelpSearchBody" xml:space="preserve">
-    <value>Die Lupe in der Board-Übersicht findet Wörter in allen Notizen. Handschrift wird auf dem Gerät gelesen, ohne Netz und ohne Konto. Notizen von früher einmal unter Einstellungen, Suche, „Jetzt lesen“ einlesen lassen.</value>
+    <value>Die Lupe in der Board-Übersicht findet Wörter in allen Notizen, geschriebenen wie getippten. Handschrift wird auf dem Gerät gelesen, ohne Netz und ohne Konto. Notizen von früher einmal unter Einstellungen, Suche, „Jetzt lesen“ einlesen lassen.</value>
   </data>
   <data name="HelpBoardsTitle" xml:space="preserve">
     <value>Boards</value>
   </data>
   <data name="HelpBoardsBody" xml:space="preserve">
-    <value>Über das Plus ein neues Board anlegen. Ein Board lässt sich ziehen und so umsortieren; das Stiftsymbol darauf benennt es um.</value>
+    <value>Über das Plus ein neues Board anlegen. Hinter „Erweitert“ nimmt ein Board Beschriftungen, ein Start- und ein Enddatum und das Projekt auf, zu dem es gehört. Ein Board lässt sich ziehen und so umsortieren, das Stiftsymbol öffnet alles, was darauf geschrieben ist, das Teilen-Symbol exportiert es als eigene Datei.</value>
+  </data>
+  <data name="HelpSettingsTitle" xml:space="preserve">
+    <value>Einstellungen</value>
+  </data>
+  <data name="HelpSettingsBody" xml:space="preserve">
+    <value>Unter Allgemein wird die Startseite gewählt. Die weiteren Abschnitte behandeln Zeichnen, Gesten, das Board und das Lesen der Handschrift. Unter Support stehen dieselben vier Seiten wie im Menü.</value>
   </data>
   <data name="HelpBackupTitle" xml:space="preserve">
     <value>Sichern</value>
   </data>
   <data name="HelpBackupBody" xml:space="preserve">
-    <value>Über Export / Import oben in der Board-Übersicht lässt sich alles in einer Datei sichern und später wieder einlesen.</value>
+    <value>Über Export / Import in der Kopfzeile der Board- und der Projektübersicht lässt sich alles in einer Datei sichern – Boards, Karten und Projekte – und später wieder einlesen. Ein eingelesenes Backup kann die vorhandenen Daten ersetzen oder ergänzt werden.</value>
   </data>
   <data name="PrivacyTitle" xml:space="preserve">
     <value>Datenschutz</value>
@@ -708,5 +738,26 @@
   </data>
   <data name="Back" xml:space="preserve">
     <value>Zurück</value>
+  </data>
+  <data name="DashboardTitle" xml:space="preserve">
+    <value>Übersicht</value>
+  </data>
+  <data name="AllProjects" xml:space="preserve">
+    <value>Alle Projekte</value>
+  </data>
+  <data name="AllBoards" xml:space="preserve">
+    <value>Alle Boards</value>
+  </data>
+  <data name="DashboardEmpty" xml:space="preserve">
+    <value>Noch nichts da. Lege ein Board an, um zu starten.</value>
+  </data>
+  <data name="SettingsGeneralSection" xml:space="preserve">
+    <value>Allgemein</value>
+  </data>
+  <data name="StartPage" xml:space="preserve">
+    <value>Startseite</value>
+  </data>
+  <data name="Menu" xml:space="preserve">
+    <value>Menü</value>
   </data>
 </root>

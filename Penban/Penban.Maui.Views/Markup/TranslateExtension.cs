@@ -19,16 +19,19 @@ public class TranslateExtension : IMarkupExtension<BindingBase>
 
     public string Key { get; set; } = string.Empty;
 
-    public BindingBase ProvideValue(IServiceProvider serviceProvider)
+    public BindingBase ProvideValue(IServiceProvider serviceProvider) => Create(Key);
+
+    /// <summary>
+    /// The same binding <see cref="ProvideValue"/> hands to markup, for code that builds one by hand:
+    /// the shell's menu is made in the head app rather than in XAML, and its titles are the same
+    /// localized ones the pages carry.
+    /// </summary>
+    public static BindingBase Create(string key) => new Binding
     {
-        var source = new TranslationSource(Key);
-        return new Binding
-        {
-            Path = nameof(TranslationSource.Value),
-            Source = source,
-            Mode = BindingMode.OneWay,
-        };
-    }
+        Path = nameof(TranslationSource.Value),
+        Source = new TranslationSource(key),
+        Mode = BindingMode.OneWay,
+    };
 
     object IMarkupExtension.ProvideValue(IServiceProvider serviceProvider) => ProvideValue(serviceProvider);
 

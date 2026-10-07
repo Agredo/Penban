@@ -83,21 +83,8 @@ public partial class ProjectsViewModel : ObservableObject
         var boards = await boardService.GetBoardsAsync();
 
         // Counted here rather than asked per project: the boards are one read, and the card needs
-        // the latest write of a project's boards anyway. A board carries the work, so a project
-        // whose board was just written to is not a project that has stood still.
-        var byProject = new Dictionary<Guid, (int Count, DateTimeOffset LastEdited)>();
-        foreach (var board in boards)
-        {
-            if (board.ProjectId is not { } projectId)
-            {
-                continue;
-            }
-
-            var current = byProject.TryGetValue(projectId, out var found) ? found : (Count: 0, LastEdited: DateTimeOffset.MinValue);
-            byProject[projectId] = (
-                current.Count + 1,
-                board.UpdatedAtUtc > current.LastEdited ? board.UpdatedAtUtc : current.LastEdited);
-        }
+        // the latest write of a project's boards anyway.
+        var byProject = ProjectStats.CountByProject(boards);
 
         // A row that is already there is brought up to date rather than built again, see RowList.
         var loaded = new List<ProjectViewModel>(projects.Count);

@@ -1,4 +1,5 @@
 using AgredoApplication.MVVM.Services.Abstractions.Navigation;
+using Penban.Maui.Views.Controls;
 using Penban.Maui.Views.Services;
 using Penban.Maui.Views.Widget;
 using Penban.Services.Abstractions;
@@ -35,10 +36,14 @@ public partial class BoardsPage : ContentPage
         this.boardLink = boardLink;
         this.navigation = navigation;
         BindingContext = viewModel;
+        BoardActions = new BoardCardActions(transferCoordinator, navigation, viewModel.DeleteBoardCommand);
     }
 
-    /// <summary>Page width from which a board card keeps its thumbnail beside its text.</summary>
-    private const double WideCardPageWidth = 700;
+    /// <summary>
+    /// What the buttons on a board card do. The cards are bound to these rather than to handlers on
+    /// this page, because the card itself is shared with the other pages that list boards.
+    /// </summary>
+    public BoardCardActions BoardActions { get; }
 
     private bool? wideCards;
 
@@ -56,7 +61,7 @@ public partial class BoardsPage : ContentPage
             return;
         }
 
-        var wide = width >= WideCardPageWidth;
+        var wide = width >= BoardCard.WidePageWidth;
         if (wide == wideCards)
         {
             return;
@@ -243,6 +248,8 @@ public partial class BoardsPage : ContentPage
         return viewModel.FindBoard(boardId);
     }
 
+    private void OnMenuClicked(object? sender, EventArgs e) => ShellMenu.Open();
+
     private async void OnSettingsClicked(object? sender, EventArgs e)
     {
         await navigation.ShellNavigationTo(AppRoutes.Settings);
@@ -255,23 +262,6 @@ public partial class BoardsPage : ContentPage
     private async void OnAddBoardClicked(object? sender, EventArgs e)
     {
         await navigation.ShellNavigationTo(AppRoutes.BoardDetails);
-    }
-
-    /// <summary>
-    /// Opens the details page on an existing board. The card is read again when the overview comes
-    /// back, which is what puts an edited name, new labels or a new project on it.
-    /// </summary>
-    private async void OnEditBoardClicked(object? sender, EventArgs e)
-    {
-        if (sender is not Element { BindingContext: BoardViewModel board })
-        {
-            return;
-        }
-
-        await navigation.ShellNavigationTo(AppRoutes.BoardDetails, new Dictionary<string, object>
-        {
-            [QueryParameters.BoardId] = board.Id,
-        });
     }
 
     private async void OnSearchClicked(object? sender, EventArgs e)
@@ -291,11 +281,4 @@ public partial class BoardsPage : ContentPage
         }
     }
 
-    private async void OnShareBoardClicked(object? sender, EventArgs e)
-    {
-        if (sender is Element { BindingContext: BoardViewModel board })
-        {
-            await transferCoordinator.ShowBoardExportMenuAsync(board.Id);
-        }
-    }
 }

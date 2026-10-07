@@ -3,4 +3,22 @@
        xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
        x:Class="Penban.Maui.AppShell"
        Title="Penban">
+
+    <!-- The head of the menu: the app's mark and name, which is what the page heads used to carry
+         before the menu button took the logo's place there. -->
+    <Shell.FlyoutHeader>
+        <Grid Padding="20,24,20,16" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+            <Image Grid.Column="0"
+                   Source="penban_logo.png"
+                   WidthRequest="40"
+                   HeightRequest="40"
+                   VerticalOptions="Center"
+                   SemanticProperties.Description="Penban" />
+            <Label Grid.Column="1"
+                   Text="Penban"
+                   Style="{StaticResource LargeTitleLabel}"
+                   VerticalOptions="Center" />
+        </Grid>
+    </Shell.FlyoutHeader>
+
 </Shell>

@@ -135,6 +135,8 @@ public static class MauiProgram
     {
         services.AddTransient<BoardsViewModel>();
         services.AddTransient<BoardsPage>();
+        services.AddTransient<DashboardViewModel>();
+        services.AddTransient<DashboardPage>();
         services.AddTransient<ProjectsViewModel>();
         services.AddTransient<ProjectsPage>();
         services.AddTransient<ProjectPageViewModel>();
