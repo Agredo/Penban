@@ -11,6 +11,16 @@ namespace Penban.Services.Abstractions;
 /// </summary>
 public static class AppRoutes
 {
+    /// <summary>
+    /// The areas of the app, each an entry of the shell's flyout. Which of them the app opens with is
+    /// the user's choice (<see cref="PreferenceKeys.StartPage"/>); the flyout reaches all of them
+    /// either way.
+    /// </summary>
+    public const string Dashboard = "dashboard";
+
+    public const string Projects = "projects";
+    public const string Boards = "boards";
+
     public const string Settings = "settings";
     public const string Help = "help";
     public const string Privacy = "privacy";

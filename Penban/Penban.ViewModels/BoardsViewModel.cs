@@ -213,7 +213,7 @@ public partial class BoardsViewModel : ObservableObject
             return;
         }
 
-        var board = await boardService.CreateBoardAsync(name);
+        var board = await boardService.CreateBoardAsync(new BoardDetails { Title = name });
         await AddBoardViewModelAsync(board);
         NotifyRowsChanged();
     }

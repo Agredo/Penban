@@ -115,4 +115,12 @@ public static class PreferenceKeys
     /// switch has been found is one nobody finds.
     /// </summary>
     public const string RecognitionEnabled = "Recognition.Enabled";
+
+    /// <summary>
+    /// Which area the app opens with, as one of the area constants of <c>AppRoutes</c> -
+    /// <c>dashboard</c>, <c>projects</c> or <c>boards</c>. The dashboard is what a fresh install gets:
+    /// it is the only one of the three that shows something of both of the others. A value that names
+    /// no area - or none at all, as in a version that did not have this setting - falls back to it.
+    /// </summary>
+    public const string StartPage = "App.StartPage";
 }

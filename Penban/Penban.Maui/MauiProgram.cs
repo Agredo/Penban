@@ -85,8 +85,10 @@ public static class MauiProgram
 
         services.AddSingleton<IBoardRepository, LiteDbBoardRepository>();
         services.AddSingleton<ICardRepository, LiteDbCardRepository>();
+        services.AddSingleton<IProjectRepository, LiteDbProjectRepository>();
         services.AddSingleton<IBoardService, BoardService>();
         services.AddSingleton<ICardService, CardService>();
+        services.AddSingleton<IProjectService, ProjectService>();
         services.AddSingleton<ISyncService, LocalOnlySyncService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
 
