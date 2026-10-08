@@ -60,6 +60,13 @@
        Directory.Build.targets would be too late. The result lands in AppxPackageDir, which defaults to
        AppPackages\ next to the project - pass -p:AppxPackageDir=<path> to put it somewhere else.
 
+       The package version does not come from this project file. The tooling only replaces the
+       placeholder in Identity Name; the Version next to it is read verbatim out of
+       Platforms\Windows\Package.appxmanifest and has to be bumped by hand together with
+       ApplicationDisplayVersion/ApplicationVersion on every release. Miss that and the build stays
+       green while the bundle keeps the previous version - which is how 0.5.8 first produced a
+       Penban.Maui_0.5.7.21_x64_arm64.msixbundle.
+
        The target architecture is selected with -p:Platform alone: Directory.Build.props turns it into
        RuntimeIdentifier=win-<Platform> and PlatformTarget=<Platform> for every Windows TFM. Never pass
        -p:RuntimeIdentifier or -p:PlatformTarget by hand. Without that the RuntimeIdentifier does not
